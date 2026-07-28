@@ -49,10 +49,23 @@ export default function CrosswordGrid({
     return set;
   }, [selectedWordIndex, board.words]);
 
+  // Build set of solved cells (locked words)
+  const solvedCells = useMemo(() => {
+    const set = new Set<string>();
+    for (const w of board.words) {
+      if (!w.solved) continue;
+      for (const c of w.cells) {
+        set.add(`${c.row},${c.col}`);
+      }
+    }
+    return set;
+  }, [board.words]);
+
   const renderCell = (cell: BoardCell) => {
     const key = `${cell.row},${cell.col}`;
     const isSelected = selectedCell?.row === cell.row && selectedCell?.col === cell.col;
     const isHighlighted = selectedCells.has(key);
+    const isSolved = solvedCells.has(key);
     const letter = filledLetters.get(key) ?? (cell.isLocked ? cell.letter : "");
 
     if (cell.isBlocked) {
@@ -71,29 +84,39 @@ export default function CrosswordGrid({
       );
     }
 
+    // Color selection
+    let bgColor: string;
+    let borderColor: string;
+    let borderW = 1;
+
+    if (isSolved) {
+      bgColor = "#1B5E20"; // dark green
+      borderColor = "#2E7D32";
+    } else if (isSelected) {
+      bgColor = theme.colors.primary;
+      borderColor = theme.colors.primary;
+      borderW = 2;
+    } else if (isHighlighted) {
+      bgColor = theme.mode === "dark" ? "#2A3A5C" : "#E3F0FF";
+      borderColor = theme.colors.primary;
+    } else {
+      bgColor = theme.colors.cellActive;
+      borderColor = theme.colors.cellBorder;
+    }
+
     return (
       <TouchableOpacity
         key={key}
-        activeOpacity={0.6}
-        onPress={() => onCellPress(cell.row, cell.col)}
+        activeOpacity={isSolved ? 1 : 0.6}
+        onPress={isSolved ? undefined : () => onCellPress(cell.row, cell.col)}
         style={[
           styles.cell,
           {
             width: cellSize,
             height: cellSize,
-            backgroundColor: isSelected
-              ? theme.colors.primary
-              : isHighlighted
-                ? theme.mode === "dark"
-                  ? "#2A3A5C"
-                  : "#E3F0FF"
-                : theme.colors.cellActive,
-            borderColor: isSelected
-              ? theme.colors.primary
-              : isHighlighted
-                ? theme.colors.primary
-                : theme.colors.cellBorder,
-            borderWidth: isSelected ? 2 : 1,
+            backgroundColor: bgColor,
+            borderColor: borderColor,
+            borderWidth: borderW,
           },
         ]}
       >
@@ -115,7 +138,7 @@ export default function CrosswordGrid({
             styles.cellLetter,
             {
               fontSize,
-              color: cell.isLocked ? theme.colors.primary : theme.colors.cellText,
+              color: isSolved ? "#81C784" : theme.colors.cellText,
             },
           ]}
         >
