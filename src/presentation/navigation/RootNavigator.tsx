@@ -37,7 +37,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator
-        initialRouteName="MainMenu"
+        initialRouteName="Auth"
         screenOptions={{
           animation: "slide_from_right",
           animationDuration: 300,
