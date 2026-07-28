@@ -372,7 +372,7 @@ function findNextUnsolvedWord(
     const idx = sortedIndices[(currentPos + offset) % sortedIndices.length];
     const word = words[idx];
     if (word.solved) continue;
-    if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`])) continue;
+    if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`] || c.isLocked)) continue;
     return word;
   }
 
