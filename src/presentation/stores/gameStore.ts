@@ -138,12 +138,15 @@ export const useGameStore = create<GameState>((set, get) => ({
           // Auto-advance to next unsolved word (by clue number order)
           const nextWord = findNextUnsolvedWord(board, selectedWordIndex, newLetters);
           if (nextWord) {
-            const firstCell = nextWord.cells[0];
-            set({
-              selectedCell: { row: firstCell.row, col: firstCell.col },
-              selectedWordIndex: board.words.indexOf(nextWord),
-              inputOrientation: nextWord.orientation,
-            });
+            // Find the first unlocked cell in the next word
+            const firstUnlocked = nextWord.cells.find((c) => !c.isLocked);
+            if (firstUnlocked) {
+              set({
+                selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
+                selectedWordIndex: board.words.indexOf(nextWord),
+                inputOrientation: nextWord.orientation,
+              });
+            }
           }
         }
       }
