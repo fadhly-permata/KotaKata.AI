@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Board, Orientation } from "../../domain/entities/board";
+import type { Board, BoardWord, Orientation } from "../../domain/entities/board";
 import { calcXpGain, calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import { loggerInfo } from "../../utils/logger";
 
@@ -95,7 +95,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   inputLetter: (letter: string) => {
-    const { board, selectedCell, inputOrientation, filledLetters } = get();
+    const { board, selectedCell, inputOrientation, filledLetters, selectedWordIndex } = get();
     if (!board || !selectedCell || !inputOrientation) return;
 
     const key = `${selectedCell.row},${selectedCell.col}`;
@@ -105,11 +105,36 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newLetters = { ...filledLetters, [key]: letter.toUpperCase() };
     set({ filledLetters: newLetters });
 
-    const nextPos = getNextCell(board, selectedCell.row, selectedCell.col, inputOrientation);
-    if (nextPos) {
-      const nextCell = board.grid[nextPos.row]?.[nextPos.col];
-      if (nextCell && !nextCell.isBlocked) {
-        set({ selectedCell: nextPos });
+    // Try to advance to next cell within the SAME word
+    if (selectedWordIndex != null && board.words[selectedWordIndex]) {
+      const word = board.words[selectedWordIndex];
+      const currentIdx = word.cells.findIndex(
+        (c) => c.row === selectedCell.row && c.col === selectedCell.col,
+      );
+
+      if (currentIdx >= 0 && currentIdx < word.cells.length - 1) {
+        // Move to the next cell in the same word
+        const nextCell = word.cells[currentIdx + 1];
+        set({
+          selectedCell: { row: nextCell.row, col: nextCell.col },
+        });
+      } else {
+        // End of current word — check if word is now complete
+        const allFilled = word.cells.every(
+          (c) => newLetters[`${c.row},${c.col}`],
+        );
+        if (allFilled) {
+          // Auto-advance to the next unsolved word (by clue number order)
+          const nextWord = findNextUnsolvedWord(board, selectedWordIndex, newLetters);
+          if (nextWord) {
+            const firstCell = nextWord.cells[0];
+            set({
+              selectedCell: { row: firstCell.row, col: firstCell.col },
+              selectedWordIndex: board.words.indexOf(nextWord),
+              inputOrientation: nextWord.orientation,
+            });
+          }
+        }
       }
     }
   },
@@ -276,6 +301,43 @@ function getNextCell(
       if (!board.grid[r][col].isBlocked) return { row: r, col };
     }
   }
+  return null;
+}
+
+function findNextUnsolvedWord(
+  board: Board,
+  currentWordIndex: number | null,
+  filledLetters: Record<string, string>,
+): BoardWord | null {
+  const words = board.words;
+  const startIdx = currentWordIndex ?? 0;
+
+  // Build a map: wordIndex → clue number (from first cell's number)
+  const wordNumbers = words.map((w) => w.cells[0]?.number ?? 999);
+
+  // Create sorted indices by clue number
+  const sortedIndices = words
+    .map((_, i) => i)
+    .sort((a, b) => (wordNumbers[a] ?? 999) - (wordNumbers[b] ?? 999));
+
+  // Find where current word is in the sorted order
+  let currentPos = 0;
+  for (let i = 0; i < sortedIndices.length; i++) {
+    if (sortedIndices[i] === startIdx) {
+      currentPos = i;
+      break;
+    }
+  }
+
+  // Search forward from current position
+  for (let offset = 1; offset < sortedIndices.length; offset++) {
+    const idx = sortedIndices[(currentPos + offset) % sortedIndices.length];
+    const word = words[idx];
+    if (word.solved) continue;
+    if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`])) continue;
+    return word;
+  }
+
   return null;
 }
 
