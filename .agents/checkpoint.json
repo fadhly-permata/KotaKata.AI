@@ -1,7 +1,7 @@
 {
   "project": "KotaKata.AI",
-  "updated_at": "2026-07-28T19:30:00Z",
-  "current_phase": 8,
+  "updated_at": "2026-07-28T19:50:00Z",
+  "current_phase": 9,
   "current_phase_status": "not_started",
   "total_phases": 19,
   "auto_update": true,
@@ -89,7 +89,7 @@
     {
       "phase": 8,
       "name": "Board Entities + Vocabulary Seed Data",
-      "status": "not_started",
+      "status": "completed",
       "tasks": [
         "Define BoardCell, BoardWord, Board types",
         "Create WordPoolFilter (tier + exclusion + fallback)",
