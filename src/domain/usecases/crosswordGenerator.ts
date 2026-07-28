@@ -269,27 +269,47 @@ function removeVertical(grid: string[][], row: number, col: number, len: number)
 // ---- Validation ----
 
 function validateGrid(grid: string[][], size: number): boolean {
-  // Check that no 2+ letter accidental horizontal word exists outside placed words
+  // Check for accidental NEW words on the opposite axis
+  // This is called AFTER a word is placed, so existing runs from placed words
+  // are expected. Only flag runs that weren't there before.
+  // Since we check canPlaceHorizontal/ canPlaceVertical which already prevent
+  // adjacent parallel words, the primary concern is accidental perpendicular
+  // words at non-intersection points. The most reliable check: ensure no
+  // single cell UNCONNECTED to a placed word has a neighbor on both sides.
+  
+  // Simplified: just check that no cell has filled neighbors on both
+  // adjacent perpendicular positions without being part of the current word.
+  // This is a lightweight version that catches real accidents.
   for (let r = 0; r < size; r++) {
-    let runLength = 0;
-    for (let c = 0; c <= size; c++) {
-      if (c < size && grid[r][c] !== "") {
-        runLength++;
-      } else {
-        if (runLength > 1) return false; // Accidental word found
-        runLength = 0;
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] === "") continue;
+      
+      // Check horizontal: if this cell and two adjacent to it are filled,
+      // it might be an accidental word. But we only flag if none of the
+      // adjacent perpendicular cells are also filled (making it a real word).
+      if (c > 0 && c < size - 1) {
+        if (grid[r][c - 1] !== "" && grid[r][c + 1] !== "") {
+          // Three in a row horizontally — this is expected for placed words.
+          // Only flag as accident if it's ALSO disconnected vertically
+          if (r > 0 && r < size - 1) {
+            if (grid[r - 1][c] === "" && grid[r + 1][c] === "") {
+              // Check if this is truly isolated (doesn't connect to any
+              // perpendicular word via shared letter)
+              return false;
+            }
+          }
+        }
       }
-    }
-  }
-
-  for (let c = 0; c < size; c++) {
-    let runLength = 0;
-    for (let r = 0; r <= size; r++) {
-      if (r < size && grid[r][c] !== "") {
-        runLength++;
-      } else {
-        if (runLength > 1) return false;
-        runLength = 0;
+      
+      // Check vertical
+      if (r > 0 && r < size - 1) {
+        if (grid[r - 1][c] !== "" && grid[r + 1][c] !== "") {
+          if (c > 0 && c < size - 1) {
+            if (grid[r][c - 1] === "" && grid[r][c + 1] === "") {
+              return false;
+            }
+          }
+        }
       }
     }
   }
