@@ -158,17 +158,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!board || !selectedCell) return;
 
     const key = `${selectedCell.row},${selectedCell.col}`;
-    if (filledLetters[key]) {
+    const cell = board.grid[selectedCell.row]?.[selectedCell.col];
+    const isLockedCell = cell?.isLocked ?? false;
+
+    if (!isLockedCell && filledLetters[key]) {
       const newLetters = { ...filledLetters };
       delete newLetters[key];
       set({ filledLetters: newLetters });
     } else {
-      const prevPos = getPrevCell(board, selectedCell.row, selectedCell.col, inputOrientation ?? "horizontal");
-      if (prevPos) {
-        const prevKey = `${prevPos.row},${prevPos.col}`;
-        const newLetters = { ...filledLetters };
-        delete newLetters[prevKey];
-        set({ filledLetters: newLetters, selectedCell: prevPos });
+      // Find previous UNLOCKED cell in the current word
+      const { selectedWordIndex } = get();
+      if (selectedWordIndex != null && board.words[selectedWordIndex]) {
+        const word = board.words[selectedWordIndex];
+        const currentIdx = word.cells.findIndex(
+          (c) => c.row === selectedCell.row && c.col === selectedCell.col,
+        );
+        if (currentIdx > 0) {
+          let prevUnlockedIdx = -1;
+          for (let j = currentIdx - 1; j >= 0; j--) {
+            if (!word.cells[j].isLocked) {
+              prevUnlockedIdx = j;
+              break;
+            }
+          }
+          if (prevUnlockedIdx !== -1) {
+            const prevCell = word.cells[prevUnlockedIdx];
+            const prevKey = `${prevCell.row},${prevCell.col}`;
+            const newLetters = { ...filledLetters };
+            delete newLetters[prevKey];
+            set({ filledLetters: newLetters, selectedCell: { row: prevCell.row, col: prevCell.col } });
+          }
+        }
       }
     }
   },
