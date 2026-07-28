@@ -186,7 +186,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const cell = board.grid[row]?.[col];
-    if (cell && !cell.isBlocked) {
+    if (cell && !cell.isBlocked && !cell.isLocked) {
       set({
         selectedCell: { row, col },
         selectedWordIndex: cell.wordIndex,
