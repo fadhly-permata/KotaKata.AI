@@ -1,60 +1,119 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import TierBadge from "../../presentation/components/common/TierBadge";
+import SavedBoardList from "../../presentation/components/game/SavedBoardList";
+import { useGameStore } from "../../presentation/stores/gameStore";
+import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const MENU_ITEMS: Array<{ label: string; screen: keyof RootStackParamList; icon: string }> = [
-  { label: "Main Game", screen: "Game", icon: "🎮" },
-  { label: "Sejarah Saya", screen: "History", icon: "📖" },
-  { label: "Profil", screen: "Profile", icon: "👤" },
-  { label: "Pengaturan", screen: "Settings", icon: "⚙️" },
-];
+type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
 export default function MainMenuScreen() {
   const { theme } = useTheme();
-  const nav = useNavigation<Nav>();
+  const navigation = useNavigation<Nav>();
+  const totalXp = useGameStore((s) => s.totalXp);
+  const reset = useGameStore((s) => s.reset);
+
+  const handlePlay = () => {
+    reset();
+    navigation.navigate("Game");
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>KotaKata.AI</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Teka-Teki Silang
-      </Text>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.content}>
+        {/* Logo */}
+        <View style={styles.logoSection}>
+          <Text style={[styles.logoEmoji]}>📖</Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>KotaKata.AI</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            Teka-Teki Silang Puitis
+          </Text>
+        </View>
 
-      <View style={styles.menu}>
-        {MENU_ITEMS.map((item) => (
+        {/* Tier Progress */}
+        <TierBadge totalXp={totalXp} />
+
+        {/* Saved boards */}
+        <SavedBoardList
+          boards={[]}
+          onResume={() => {}}
+          onDelete={() => {}}
+        />
+
+        {/* Main navigation buttons */}
+        <View style={styles.menuButtons}>
           <TouchableOpacity
-            key={item.screen}
-            activeOpacity={0.7}
-            style={[styles.menuItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            onPress={() => nav.navigate(item.screen)}
+            style={[styles.playBtn, { backgroundColor: theme.colors.primary }]}
+            activeOpacity={0.8}
+            onPress={handlePlay}
           >
-            <Text style={styles.icon}>{item.icon}</Text>
-            <Text style={[styles.menuLabel, { color: theme.colors.text }]}>{item.label}</Text>
-            <Text style={[styles.arrow, { color: theme.colors.textSecondary }]}>›</Text>
+            <Text style={styles.playBtnText}>🎮 Main Sekarang</Text>
           </TouchableOpacity>
-        ))}
+
+          <TouchableOpacity
+            style={[styles.navBtn, { backgroundColor: theme.colors.surface }]}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("History")}
+          >
+            <Text style={[styles.navBtnText, { color: theme.colors.text }]}>📖 Sejarah Saya</Text>
+          </TouchableOpacity>
+
+          <View style={styles.navRow}>
+            <TouchableOpacity
+              style={[styles.navBtnSmall, { backgroundColor: theme.colors.surface }]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("Profile")}
+            >
+              <Text style={[styles.navBtnTextSmall, { color: theme.colors.text }]}>👤 Profil</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navBtnSmall, { backgroundColor: theme.colors.surface }]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("Settings")}
+            >
+              <Text style={[styles.navBtnTextSmall, { color: theme.colors.text }]}>⚙️ Pengaturan</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
-  title: { fontSize: 32, fontWeight: "bold", marginBottom: 4 },
-  subtitle: { fontSize: 14, marginBottom: 40, letterSpacing: 2 },
-  menu: { width: "100%", maxWidth: 320, gap: 12 },
-  menuItem: {
-    flexDirection: "row",
+  container: { flex: 1 },
+  content: { padding: 16, gap: 16, paddingTop: 48 },
+  logoSection: { alignItems: "center", gap: 4, paddingVertical: 16 },
+  logoEmoji: { fontSize: 48 },
+  title: { fontSize: 28, fontWeight: "800", letterSpacing: 1 },
+  subtitle: { fontSize: 14, fontWeight: "500", letterSpacing: 2, textTransform: "uppercase" },
+  menuButtons: { gap: 12 },
+  playBtn: {
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  icon: { fontSize: 22, marginRight: 14 },
-  menuLabel: { fontSize: 16, fontWeight: "600", flex: 1 },
-  arrow: { fontSize: 22, fontWeight: "300" },
+  playBtnText: { color: "#FFF", fontSize: 18, fontWeight: "700", letterSpacing: 1 },
+  navBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  navBtnText: { fontSize: 15, fontWeight: "600" },
+  navRow: { flexDirection: "row", gap: 12 },
+  navBtnSmall: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  navBtnTextSmall: { fontSize: 14, fontWeight: "600" },
 });

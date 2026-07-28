@@ -1,10 +1,22 @@
 import { create } from "zustand";
 import type { Board, Orientation } from "../../domain/entities/board";
+import { calcXpGain, calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL, TIER_NAMES } from "../../domain/usecases/xpEngine";
+import { loggerInfo } from "../../utils/logger";
 
 interface HintUsage {
   clue2Used: boolean;
   clue3Used: boolean;
   revealedCells: string[];
+}
+
+interface BoardResult {
+  totalWords: number;
+  wordsSolved: number;
+  xpGained: number;
+  previousTier: number;
+  newTier: number;
+  tierChanged: boolean;
+  timeElapsed: number;
 }
 
 interface GameState {
@@ -17,6 +29,9 @@ interface GameState {
   hints: Record<string, HintUsage>;
   currentXp: number;
   wordsSolved: number;
+  totalXp: number; // cumulative XP across games
+  sessionStartTime: number;
+  boardResult: BoardResult | null;
 
   setBoard: (board: Board) => void;
   selectCell: (row: number, col: number) => void;
@@ -27,6 +42,8 @@ interface GameState {
   useClue2: (wordIndex: number) => void;
   useClue3: (wordIndex: number) => void;
   revealLetter: (wordIndex: number) => void;
+  markWordSolved: (wordIndex: number) => void;
+  setTotalXp: (totalXp: number) => void;
   reset: () => void;
 }
 
@@ -40,8 +57,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   hints: {},
   currentXp: 0,
   wordsSolved: 0,
+  totalXp: 0,
+  sessionStartTime: 0,
+  boardResult: null,
 
-  setBoard: (board: Board) => set({ board, loading: false }),
+  setBoard: (board: Board) => set({ board, loading: false, sessionStartTime: Date.now() }),
 
   selectCell: (row: number, col: number) => {
     const { board } = get();
@@ -136,11 +156,54 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
+  markWordSolved: (wordIndex: number) => {
+    const { board } = get();
+    if (!board) return;
+    const word = board.words[wordIndex];
+    if (!word || word.solved) return;
+
+    word.solved = true;
+    const xpGain = calcXpGain(word.word.length, board.tierLevel);
+    const newWordsSolved = get().wordsSolved + 1;
+    const newCurrentXp = get().currentXp + xpGain;
+    const newTotalXp = get().totalXp + xpGain;
+
+    loggerInfo(`Word solved: ${word.word} (+${xpGain} XP)`);
+
+    set({
+      wordsSolved: newWordsSolved,
+      currentXp: newCurrentXp,
+      totalXp: newTotalXp,
+    });
+
+    // Check if board is now complete
+    const completed = board.words.every((w) => w.solved);
+    if (completed) {
+      const previousTier = board.tierLevel;
+      const newTier = calcTier(newTotalXp);
+      const timeElapsed = Date.now() - get().sessionStartTime;
+
+      loggerInfo(`Board completed! Tier: ${previousTier} → ${newTier}`);
+
+      set({
+        boardResult: {
+          totalWords: board.words.length,
+          wordsSolved: newWordsSolved,
+          xpGained: newCurrentXp,
+          previousTier,
+          newTier,
+          tierChanged: previousTier !== newTier,
+          timeElapsed,
+        },
+      });
+    }
+  },
+
   useClue2: (wordIndex: number) => {
     const { hints } = get();
     set({
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue2Used: true, revealedCells: [] } },
-      currentXp: Math.max(0, get().currentXp - 50),
+      currentXp: Math.max(0, get().currentXp - XP_PENALTY_CLUE_2),
     });
   },
 
@@ -148,7 +211,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { hints } = get();
     set({
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue3Used: true, revealedCells: [] } },
-      currentXp: Math.max(0, get().currentXp - 100),
+      currentXp: Math.max(0, get().currentXp - XP_PENALTY_CLUE_3),
     });
   },
 
@@ -158,7 +221,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const word = board.words[wordIndex];
     const unrevealed = word.cells.filter(
-      (c: { row: number; col: number; isLocked: boolean }) => !filledLetters[`${c.row},${c.col}`] && !c.isLocked,
+      (c) => !filledLetters[`${c.row},${c.col}`] && !c.isLocked,
     );
     if (unrevealed.length === 0) return;
 
@@ -169,7 +232,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       filledLetters: { ...filledLetters, [key]: letter },
-      currentXp: Math.max(0, get().currentXp - 75),
+      currentXp: Math.max(0, get().currentXp - XP_PENALTY_REVEAL),
       hints: {
         ...hints,
         [wordIndex]: {
@@ -179,6 +242,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
     });
   },
+
+  setTotalXp: (totalXp: number) => set({ totalXp }),
 
   reset: () =>
     set({
@@ -191,6 +256,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       hints: {},
       currentXp: 0,
       wordsSolved: 0,
+      sessionStartTime: 0,
+      boardResult: null,
     }),
 }));
 

@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useCallback } from "react";
-import { View, StyleSheet, Platform, Text } from "react-native";
+import { useEffect, useMemo, useCallback, useRef } from "react";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, Animated, Dimensions } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
 import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
 import CluePanel from "../../presentation/components/game/CluePanel";
+import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
-import { validateAllWords, isBoardComplete } from "../../domain/usecases/wordValidator";
+import { isWordComplete } from "../../domain/usecases/wordValidator";
+import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
+import { loggerInfo } from "../../utils/logger";
 
 const DEMO_WORDS: WordCandidate[] = [
   { word: "REACT", clue_1: "Library JavaScript buat UI", clue_2: "Dibuat oleh Meta", clue_3: "Framework frontend populer", tier_level: 1 },
@@ -36,6 +39,12 @@ export default function GameScreen() {
   const navigateToCell = useGameStore((s) => s.navigateToCell);
   const inputLetter = useGameStore((s) => s.inputLetter);
   const filledLetters = useGameStore((s) => s.filledLetters);
+  const wordsSolved = useGameStore((s) => s.wordsSolved);
+  const currentXp = useGameStore((s) => s.currentXp);
+  const totalXp = useGameStore((s) => s.totalXp);
+  const boardResult = useGameStore((s) => s.boardResult);
+  const markWordSolved = useGameStore((s) => s.markWordSolved);
+  const reset = useGameStore((s) => s.reset);
 
   // Generate board on mount
   useEffect(() => {
@@ -45,24 +54,33 @@ export default function GameScreen() {
     }
   }, []);
 
-  // Selected word from the board
+  // Auto-detect completed words
+  const prevFilledRef = useRef(filledLetters);
+  useEffect(() => {
+    if (!board || boardResult) return;
+
+    const prev = prevFilledRef.current;
+    prevFilledRef.current = filledLetters;
+
+    for (let i = 0; i < board.words.length; i++) {
+      const word = board.words[i];
+      if (word.solved) continue;
+      if (isWordComplete(word, filledLetters)) {
+        markWordSolved(i);
+        loggerInfo(`Word ${i} completed: ${word.word}`);
+      }
+    }
+  }, [filledLetters, board, boardResult, markWordSolved]);
+
+  const currentTier = useMemo(() => calcTier(totalXp), [totalXp]);
+  const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
+
   const selectedWord = useMemo(() => {
     if (selectedWordIndex === null || !board) return null;
     return board.words[selectedWordIndex] ?? null;
   }, [selectedWordIndex, board]);
 
-  // Word validation results
-  const validationResults = useMemo(() => {
-    if (!board) return [];
-    return validateAllWords(board, filledLetters);
-  }, [board, filledLetters]);
-
-  const boardComplete = useMemo(() => {
-    if (!board) return false;
-    return isBoardComplete(board, filledLetters);
-  }, [board, filledLetters, validationResults]);
-
-  // Keyboard navigation (desktop/web)
+  // Keyboard nav (desktop/web)
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const handleKey = (e: KeyboardEvent) => {
@@ -79,8 +97,22 @@ export default function GameScreen() {
 
   if (!board) return null;
 
+  if (boardResult) {
+    return <CompletionOverlay result={boardResult} onPlayAgain={reset} />;
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Tier info bar */}
+      <View style={[styles.tierBar, { backgroundColor: theme.colors.surface }]}>
+        <Text style={[styles.tierText, { color: theme.colors.textSecondary }]}>
+          Tier {currentTier}: {tierName}
+        </Text>
+        <Text style={[styles.xpText, { color: theme.colors.primary }]}>
+          +{currentXp} XP
+        </Text>
+      </View>
+
       <View style={styles.gridWrapper}>
         <CrosswordGrid
           board={board}
@@ -95,14 +127,6 @@ export default function GameScreen() {
 
       <CluePanel word={selectedWord} wordIndex={selectedWordIndex} />
 
-      {boardComplete && (
-        <View style={[styles.completeBadge]}>
-          <Text style={[styles.completeText, { color: theme.colors.primary }]}>
-            ✅ Semua kata terpecahkan!
-          </Text>
-        </View>
-      )}
-
       <View style={styles.keyboardWrapper}>
         <InGameKeyboard />
       </View>
@@ -112,8 +136,15 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  tierBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  tierText: { fontSize: 12, fontWeight: "600" },
+  xpText: { fontSize: 12, fontWeight: "700" },
   gridWrapper: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 16 },
   keyboardWrapper: { paddingTop: 4 },
-  completeBadge: { alignItems: "center", paddingVertical: 4 },
-  completeText: { fontSize: 14, fontWeight: "700" },
 });
