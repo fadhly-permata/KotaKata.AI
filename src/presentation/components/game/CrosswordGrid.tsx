@@ -50,6 +50,8 @@ export default function CrosswordGrid({
   }, [selectedWordIndex, board.words]);
 
   // Build set of solved cells (locked words)
+  // Keyed by solved state string to detect mutations on board.words
+  const solvedStateKey = board.words.map((w) => w.solved).join(",");
   const solvedCells = useMemo(() => {
     const set = new Set<string>();
     for (const w of board.words) {
@@ -59,7 +61,7 @@ export default function CrosswordGrid({
       }
     }
     return set;
-  }, [board.words]);
+  }, [board.words, solvedStateKey]);
 
   const renderCell = (cell: BoardCell) => {
     const key = `${cell.row},${cell.col}`;

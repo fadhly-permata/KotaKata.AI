@@ -4,8 +4,8 @@ import { useGameStore } from "../../stores/gameStore";
 
 const ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-  ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-  ["Z", "X", "C", "V", "B", "N", "M", "⌫"],
+  ["A", "S", "D", "F", "G", "H", "J", "K", "L", "⌫"],
+  ["Z", "X", "C", "V", "B", "N", "M"],
 ];
 
 export default function InGameKeyboard() {
@@ -43,7 +43,8 @@ export default function InGameKeyboard() {
                       ? theme.colors.border
                       : theme.colors.surface,
                     borderColor: theme.colors.border,
-                    minWidth: isBackspace ? 64 : key === "Z" ? 56 : 32,
+                    minWidth: isBackspace ? 52 : key === "Z" ? 56 : 32,
+                    width: isBackspace ? 52 : undefined,
                   },
                 ]}
               >
@@ -61,8 +62,28 @@ export default function InGameKeyboard() {
         </View>
       ))}
 
-      {/* Navigation row */}
+      {/* Row 3: Z X C V B N M + navigation arrows */}
       <View style={styles.row}>
+        {ROWS[2].map((key) => (
+          <TouchableOpacity
+            key={key}
+            activeOpacity={0.6}
+            onPress={() => handlePress(key)}
+            style={[
+              styles.key,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                minWidth: key === "Z" ? 56 : 32,
+              },
+            ]}
+          >
+            <Text style={[styles.keyText, { color: theme.colors.text }]}>
+              {key}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        {/* Nav arrows after M */}
         {isHorizontal ? (
           <>
             <TouchableOpacity
@@ -126,7 +147,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   navKey: {
-    width: 56,
+    width: 48,
     height: 44,
     borderRadius: 6,
     borderWidth: 1,
