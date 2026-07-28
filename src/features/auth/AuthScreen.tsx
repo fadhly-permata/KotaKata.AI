@@ -11,14 +11,18 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useAuth } from "./useAuth";
+import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 
 type AuthMode = "select" | "email";
 
 export default function AuthScreen() {
   const { theme } = useTheme();
-  const { signInAnonymously, signInWithGoogle, signInWithEmail, signUpWithEmail, loading: authLoading } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user, loading: authLoading, signInAnonymously, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>("select");
   const [email, setEmail] = useState("");
@@ -26,6 +30,13 @@ export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Navigate to MainMenu once authenticated
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigation.reset({ index: 0, routes: [{ name: "MainMenu" }] });
+    }
+  }, [user, authLoading, navigation]);
 
   // Animations
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -93,6 +104,16 @@ export default function AuthScreen() {
   };
 
   const isDark = theme.mode === "dark";
+
+  // Show splash while checking existing session
+  if (authLoading) {
+    return (
+      <View style={[styles.container, styles.splashContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={styles.splashEmoji}>📖</Text>
+        <Text style={[styles.splashText, { color: theme.colors.text }]}>KotaKata.AI</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -343,4 +364,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 13, fontWeight: "500" },
   footer: { alignItems: "center", marginTop: 8 },
   footerText: { fontSize: 12, textAlign: "center", lineHeight: 18 },
+  splashContainer: { justifyContent: "center", alignItems: "center", gap: 12 },
+  splashEmoji: { fontSize: 64 },
+  splashText: { fontSize: 24, fontWeight: "800" },
 });
