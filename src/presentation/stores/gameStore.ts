@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Board, BoardWord, Orientation } from "../../domain/entities/board";
 import { calcXpGain, calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL, TIER_NAMES } from "../../domain/usecases/xpEngine";
+import { validateWord } from "../../domain/usecases/wordValidator";
 import { loggerInfo } from "../../utils/logger";
 
 interface HintUsage {
@@ -135,9 +136,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         );
 
         if (effectivelyComplete) {
-          // ⚠️ Lock cells NOW before moving cursor — prevents race with useEffect
-          // The useEffect in GameScreen also calls this, but it's a no-op if already solved
-          get().markWordSolved(selectedWordIndex);
+          // Only lock cells if the answer is CORRECT
+          const result = validateWord(word, selectedWordIndex, newLetters);
+          if (result.isCorrect) {
+            get().markWordSolved(selectedWordIndex);
+          }
 
           // Auto-advance to next unsolved word (by clue number order)
           const nextWord = findNextUnsolvedWord(board, selectedWordIndex, newLetters);
