@@ -9,7 +9,7 @@ import CompletionOverlay from "../../presentation/components/game/CompletionOver
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
-import { isWordComplete } from "../../domain/usecases/wordValidator";
+import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
@@ -85,7 +85,7 @@ export default function GameScreen() {
     }
   }, []);
 
-  // Auto-detect completed words
+  // Auto-detect correctly completed words
   const prevFilledRef = useRef(filledLetters);
   useEffect(() => {
     if (!board || boardResult) return;
@@ -96,9 +96,12 @@ export default function GameScreen() {
     for (let i = 0; i < board.words.length; i++) {
       const word = board.words[i];
       if (word.solved) continue;
-      if (isWordComplete(word, filledLetters)) {
+      if (!isWordComplete(word, filledLetters)) continue;
+
+      const result = validateWord(word, i, filledLetters);
+      if (result.isCorrect) {
         markWordSolved(i);
-        loggerInfo(`Word ${i} completed: ${word.word}`);
+        loggerInfo(`Word ${i} CORRECT: ${word.word}`);
       }
     }
   }, [filledLetters, board, boardResult, markWordSolved]);
