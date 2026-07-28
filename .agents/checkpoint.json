@@ -1,0 +1,107 @@
+{
+  "project": "KotaKata.AI",
+  "updated_at": "2026-07-28T00:00:00Z",
+  "current_phase": 0,
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Project Scaffolding & Foundation",
+      "status": "not_started",
+      "tasks_completed": [],
+      "tasks_pending": [
+        "1.1 Init Expo project",
+        "1.2 TypeScript Strict Mode",
+        "1.3 ESLint + Prettier",
+        "1.4 Feature-First folder structure",
+        "1.5 React Navigation setup",
+        "1.6 Zustand store foundation",
+        "1.7 ThemeProvider (Light/Dark)",
+        "1.8 Error Boundary root",
+        "1.9 Centralized logging",
+        "1.10 Screen skeleton"
+      ],
+      "notes": ""
+    },
+    {
+      "phase": 2,
+      "name": "Supabase Backend & Offline-First Database",
+      "status": "not_started",
+      "tasks_completed": [],
+      "tasks_pending": [
+        "2.1 Supabase project + client",
+        "2.2 Migration: users table + RLS",
+        "2.3 Migration: vocabulary_collection + RLS",
+        "2.4 Migration: word_discoveries + RLS",
+        "2.5 Migration: saved_boards + RLS",
+        "2.6 Auth: Anonymous, Google, Email",
+        "2.7 Identity linking",
+        "2.8 WatermelonDB/RxDB setup",
+        "2.9 Sync Engine",
+        "2.10 Repositories layer"
+      ],
+      "notes": ""
+    },
+    {
+      "phase": 3,
+      "name": "Vocabulary System & Procedural Board Generator",
+      "status": "not_started",
+      "tasks_completed": [],
+      "tasks_pending": [
+        "3.1 Board entity types",
+        "3.2 Vocabulary seed data (500+ words)",
+        "3.3 Word pool filter + exclusion",
+        "3.4 Crossword board generator algorithm",
+        "3.5 Board validation",
+        "3.6 Grid rendering with Skia"
+      ],
+      "notes": ""
+    },
+    {
+      "phase": 4,
+      "name": "Game Engine & Core Gameplay",
+      "status": "not_started",
+      "tasks_completed": [],
+      "tasks_pending": [
+        "4.1 Game Store (Zustand)",
+        "4.2 Touch input (mobile)",
+        "4.3 Keyboard input (desktop)",
+        "4.4 Word validation",
+        "4.5 Hint System",
+        "4.6 Confirmation dialogs",
+        "4.7 XP Engine",
+        "4.8 Board completion flow"
+      ],
+      "notes": ""
+    },
+    {
+      "phase": 5,
+      "name": "User Profile, History & Theme",
+      "status": "not_started",
+      "tasks_completed": [],
+      "tasks_pending": [
+        "5.1 Profile page",
+        "5.2 History page (FlashList)",
+        "5.3 Save/Resume board",
+        "5.4 Theme system (Light/Dark)",
+        "5.5 Settings page"
+      ],
+      "notes": ""
+    },
+    {
+      "phase": 6,
+      "name": "Polish & Refinement",
+      "status": "not_started",
+      "tasks_completed": [],
+      "tasks_pending": [
+        "6.1 Page transitions (Reanimated)",
+        "6.2 Dialog system (scale-fade + blur)",
+        "6.3 Performance optimization",
+        "6.4 Error handling hardening",
+        "6.5 Logging review",
+        "6.6 Cross-platform testing",
+        "6.7 Final documentation"
+      ],
+      "notes": ""
+    }
+  ]
+}
