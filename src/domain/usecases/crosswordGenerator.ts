@@ -214,9 +214,18 @@ function canPlaceHorizontal(
   for (let i = 0; i < word.length; i++) {
     const cell = grid[row][col + i];
     if (cell !== "" && cell !== word[i]) return false;
-    // No adjacent parallel words (avoid creating accidental words)
+
+    // No adjacent parallel words on the same axis
     if (i === 0 && col > 0 && grid[row][col - 1] !== "") return false;
     if (i === word.length - 1 && col + word.length < size && grid[row][col + word.length] !== "") return false;
+
+    // For NEW cells (not crossing an existing word), ensure perpendicular
+    // neighbors are empty — prevents vertical words from touching the
+    // horizontal word's sides and creating a merged visual appearance.
+    if (cell === "") {
+      if (row > 0 && grid[row - 1][col + i] !== "") return false;
+      if (row < size - 1 && grid[row + 1][col + i] !== "") return false;
+    }
   }
 
   return true;
@@ -234,9 +243,18 @@ function canPlaceVertical(
   for (let i = 0; i < word.length; i++) {
     const cell = grid[row + i][col];
     if (cell !== "" && cell !== word[i]) return false;
-    // No adjacent parallel words
+
+    // No adjacent parallel words on the same axis
     if (i === 0 && row > 0 && grid[row - 1][col] !== "") return false;
     if (i === word.length - 1 && row + word.length < size && grid[row + word.length][col] !== "") return false;
+
+    // For NEW cells (not crossing an existing word), ensure perpendicular
+    // neighbors are empty — prevents horizontal words from touching the
+    // vertical word's sides and creating a merged visual appearance.
+    if (cell === "") {
+      if (col > 0 && grid[row + i][col - 1] !== "") return false;
+      if (col < size - 1 && grid[row + i][col + 1] !== "") return false;
+    }
   }
 
   return true;
