@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { View, StyleSheet, Platform, Text } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
 import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
 import CluePanel from "../../presentation/components/game/CluePanel";
 import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
+import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { isWordComplete } from "../../domain/usecases/wordValidator";
@@ -30,6 +32,10 @@ const DEMO_WORDS: WordCandidate[] = [
 
 export default function GameScreen() {
   const { theme } = useTheme();
+  const navigation = useNavigation();
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const pendingNavAction = useRef<any>(null);
+
   const board = useGameStore((s) => s.board);
   const setBoard = useGameStore((s) => s.setBoard);
   const selectedCell = useGameStore((s) => s.selectedCell);
@@ -45,6 +51,31 @@ export default function GameScreen() {
   const boardResult = useGameStore((s) => s.boardResult);
   const markWordSolved = useGameStore((s) => s.markWordSolved);
   const reset = useGameStore((s) => s.reset);
+
+  // Block back navigation when game is in progress
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
+      if (!board || boardResult) return;
+      e.preventDefault();
+      pendingNavAction.current = e.data.action;
+      setShowQuitConfirm(true);
+    });
+    return unsubscribe;
+  }, [navigation, board, boardResult]);
+
+  const handleConfirmQuit = useCallback(() => {
+    setShowQuitConfirm(false);
+    reset();
+    if (pendingNavAction.current) {
+      navigation.dispatch(pendingNavAction.current);
+      pendingNavAction.current = null;
+    }
+  }, [navigation, reset]);
+
+  const handleCancelQuit = useCallback(() => {
+    setShowQuitConfirm(false);
+    pendingNavAction.current = null;
+  }, []);
 
   // Generate board on mount
   useEffect(() => {
@@ -130,6 +161,18 @@ export default function GameScreen() {
       <View style={styles.keyboardWrapper}>
         <InGameKeyboard />
       </View>
+
+      <ConfirmDialog
+        visible={showQuitConfirm}
+        title="Keluar Permainan?"
+        message="Progres permainan saat ini akan hilang jika kamu keluar. Apa kamu yakin?"
+        confirmText="Ya, Keluar"
+        cancelText="Lanjut Main"
+        onConfirm={handleConfirmQuit}
+        onCancel={handleCancelQuit}
+        variant="danger"
+        emoji="🚪"
+      />
     </View>
   );
 }
