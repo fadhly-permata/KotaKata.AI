@@ -104,6 +104,37 @@ Key tables (see `PRD.md` §7 for full schema):
 - Specific async/network error handling (Supabase auth failures ≠ local DB failures)
 - Structured logging via `react-native-logs` (debug, info, warn, error levels)
 
+## ⚠️ Mandatory: Auto-Update Checkpoint
+**Setiap kali kamu selesai mengerjakan tugas, kamu WAJIB mengupdate file `.agents/checkpoint.json`.**
+
+Ini adalah aturan yang tidak bisa ditawar. User mengandalkan file checkpoint untuk tahu progres development tanpa harus mengingatnya sendiri.
+
+### Cara update:
+```json
+{
+  "updated_at": "2026-07-28T00:00:00Z",
+  "current_phase": 5,
+  "phases": [
+    {
+      "phase": 5,
+      "name": "Supabase Auth...",
+      "status": "completed",
+      "tasks": [...]
+    },
+    {
+      "phase": 6,
+      "name": "Local Database...",
+      "status": "in_progress",  // atau "not_started"
+      "tasks": [...]
+    }
+  ]
+}
+```
+
+- Fase selesai → `"status": "completed"`
+- Fase sedang dikerjakan → `"status": "in_progress"`
+- Jika user minta lanjut → baca `checkpoint.json`, cari fase pertama yang `"not_started"` atau `"in_progress"`, lalu kerjakan.
+
 ## Git Conventions
 - Commit messages: `type(scope): description` (e.g. `feat(game): add procedural board generation`, `docs: update PRD`)
 - Preserve pre-existing user changes; stage only files belonging to the current request

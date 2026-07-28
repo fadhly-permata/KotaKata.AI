@@ -2,106 +2,222 @@
   "project": "KotaKata.AI",
   "updated_at": "2026-07-28T00:00:00Z",
   "current_phase": 0,
+  "total_phases": 19,
+  "auto_update": true,
+  "instructions": "File ini DIWAJIBKAN di-update oleh agent SETIAP KALI selesai mengerjakan task. Jangan pernah skip update. User tidak perlu mengingat phase terakhir karena ini otomatis terbaca.",
   "phases": [
     {
       "phase": 1,
-      "name": "Project Scaffolding & Foundation",
+      "name": "Expo Init + TypeScript + ESLint/Prettier",
       "status": "not_started",
-      "tasks_completed": [],
-      "tasks_pending": [
-        "1.1 Init Expo project",
-        "1.2 TypeScript Strict Mode",
-        "1.3 ESLint + Prettier",
-        "1.4 Feature-First folder structure",
-        "1.5 React Navigation setup",
-        "1.6 Zustand store foundation",
-        "1.7 ThemeProvider (Light/Dark)",
-        "1.8 Error Boundary root",
-        "1.9 Centralized logging",
-        "1.10 Screen skeleton"
-      ],
-      "notes": ""
+      "tasks": [
+        "create-expo-app with TypeScript",
+        "tsconfig strict mode",
+        "ESLint + Prettier config",
+        "Verify project runs"
+      ]
     },
     {
       "phase": 2,
-      "name": "Supabase Backend & Offline-First Database",
+      "name": "Folder Structure + Navigation Skeleton",
       "status": "not_started",
-      "tasks_completed": [],
-      "tasks_pending": [
-        "2.1 Supabase project + client",
-        "2.2 Migration: users table + RLS",
-        "2.3 Migration: vocabulary_collection + RLS",
-        "2.4 Migration: word_discoveries + RLS",
-        "2.5 Migration: saved_boards + RLS",
-        "2.6 Auth: Anonymous, Google, Email",
-        "2.7 Identity linking",
-        "2.8 WatermelonDB/RxDB setup",
-        "2.9 Sync Engine",
-        "2.10 Repositories layer"
-      ],
-      "notes": ""
+      "tasks": [
+        "Feature-First + Clean Architecture folders",
+        "Install React Navigation",
+        "Native-stack navigator",
+        "Screen skeletons (MainMenu, Game, History, Profile, Settings)"
+      ]
     },
     {
       "phase": 3,
-      "name": "Vocabulary System & Procedural Board Generator",
+      "name": "Theme + Error Boundary + Logger",
       "status": "not_started",
-      "tasks_completed": [],
-      "tasks_pending": [
-        "3.1 Board entity types",
-        "3.2 Vocabulary seed data (500+ words)",
-        "3.3 Word pool filter + exclusion",
-        "3.4 Crossword board generator algorithm",
-        "3.5 Board validation",
-        "3.6 Grid rendering with Skia"
-      ],
-      "notes": ""
+      "tasks": [
+        "ThemeProvider (Light/Dark + useColorScheme)",
+        "ErrorBoundary (root + game module)",
+        "Centralized logger (react-native-logs)"
+      ]
     },
     {
       "phase": 4,
-      "name": "Game Engine & Core Gameplay",
+      "name": "Supabase Project + SQL Migrations",
       "status": "not_started",
-      "tasks_completed": [],
-      "tasks_pending": [
-        "4.1 Game Store (Zustand)",
-        "4.2 Touch input (mobile)",
-        "4.3 Keyboard input (desktop)",
-        "4.4 Word validation",
-        "4.5 Hint System",
-        "4.6 Confirmation dialogs",
-        "4.7 XP Engine",
-        "4.8 Board completion flow"
-      ],
-      "notes": ""
+      "tasks": [
+        "Create Supabase project",
+        "Migration: users table + RLS",
+        "Migration: vocabulary_collection + RLS",
+        "Migration: word_discoveries + RLS",
+        "Migration: saved_boards + RLS"
+      ]
     },
     {
       "phase": 5,
-      "name": "User Profile, History & Theme",
+      "name": "Supabase Auth (Anonymous, Google, Email)",
       "status": "not_started",
-      "tasks_completed": [],
-      "tasks_pending": [
-        "5.1 Profile page",
-        "5.2 History page (FlashList)",
-        "5.3 Save/Resume board",
-        "5.4 Theme system (Light/Dark)",
-        "5.5 Settings page"
-      ],
-      "notes": ""
+      "tasks": [
+        "Anonymous login",
+        "Google OAuth",
+        "Email/password",
+        "Identity linking (anon → permanent)"
+      ]
     },
     {
       "phase": 6,
-      "name": "Polish & Refinement",
+      "name": "Local Database (WatermelonDB/RxDB)",
       "status": "not_started",
-      "tasks_completed": [],
-      "tasks_pending": [
-        "6.1 Page transitions (Reanimated)",
-        "6.2 Dialog system (scale-fade + blur)",
-        "6.3 Performance optimization",
-        "6.4 Error handling hardening",
-        "6.5 Logging review",
-        "6.6 Cross-platform testing",
-        "6.7 Final documentation"
-      ],
-      "notes": ""
+      "tasks": [
+        "Install WatermelonDB or RxDB",
+        "Define models matching Supabase schema",
+        "Local DB initialization"
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "Sync Engine + Repository Layer",
+      "status": "not_started",
+      "tasks": [
+        "Batch upsert to Supabase when online",
+        "5-min scheduled sync",
+        "Board-completion trigger sync",
+        "UserRepository",
+        "VocabularyRepository",
+        "WordDiscoveryRepository",
+        "BoardRepository"
+      ]
+    },
+    {
+      "phase": 8,
+      "name": "Board Entities + Vocabulary Seed Data",
+      "status": "not_started",
+      "tasks": [
+        "Define BoardCell, BoardWord, Board types",
+        "Create WordPoolFilter (tier + exclusion + fallback)",
+        "Seed 500+ Indonesian words with 3 clues each"
+      ]
+    },
+    {
+      "phase": 9,
+      "name": "Crossword Board Generator (Backtracking)",
+      "status": "not_started",
+      "tasks": [
+        "Implement backtracking algorithm",
+        "Word placement with intersection validation",
+        "Fallback to lower tier if pool insufficient",
+        "Generate boards (10x10 / 12x12)"
+      ]
+    },
+    {
+      "phase": 10,
+      "name": "Board Validation + Grid Rendering (Skia)",
+      "status": "not_started",
+      "tasks": [
+        "BoardValidator: overlap check, no orphan words",
+        "Responsive grid with react-native-skia",
+        "Dynamic cell sizing via useWindowDimensions",
+        "Selected word highlight + orientation indicator"
+      ]
+    },
+    {
+      "phase": 11,
+      "name": "Game Store (Zustand) + Input System",
+      "status": "not_started",
+      "tasks": [
+        "Zustand GameStore (board, selection, orientation, input)",
+        "Touch input: tap to select, tap again to toggle orientation",
+        "Custom in-game keyboard component",
+        "Keyboard input: arrow keys + letter keys (desktop/web)"
+      ]
+    },
+    {
+      "phase": 12,
+      "name": "Word Validation + Hint System",
+      "status": "not_started",
+      "tasks": [
+        "WordValidator: auto-detect when word is complete",
+        "Compare filled cells with correct word",
+        "Hint: Clue 1 (default), Clue 2 (XP penalty), Clue 3 (XP penalty)",
+        "Reveal Letter: random cell, locked state"
+      ]
+    },
+    {
+      "phase": 13,
+      "name": "XP Engine + Tier Progression + Board Completion",
+      "status": "not_started",
+      "tasks": [
+        "XP gain per correct word (tier-based multiplier)",
+        "XP penalties for hints",
+        "Tier thresholds calculation",
+        "Tier adjustment only after board completion",
+        "Board completion flow: detect finish, show results, save"
+      ]
+    },
+    {
+      "phase": 14,
+      "name": "Confirmation Dialogs + Tier Up Overlay",
+      "status": "not_started",
+      "tasks": [
+        "Hint purchase confirmation popup",
+        "Quit game confirmation popup",
+        "Tier up celebration overlay",
+        "Scale-fade animation + backdrop blur"
+      ]
+    },
+    {
+      "phase": 15,
+      "name": "Profile Screen + Settings",
+      "status": "not_started",
+      "tasks": [
+        "Profile: tier name + philosophy, XP bar, coins, stats",
+        "Account actions: logout, link anonymous → permanent",
+        "Settings: theme selector, sound toggle, clear data, about"
+      ]
+    },
+    {
+      "phase": 16,
+      "name": "History Screen (Sejarah Saya)",
+      "status": "not_started",
+      "tasks": [
+        "FlashList of discovered words (chronological)",
+        "Search bar (by word or clue text)",
+        "Bottom sheet detail: word + clue_1/2/3"
+      ]
+    },
+    {
+      "phase": 17,
+      "name": "Save/Resume Board System",
+      "status": "not_started",
+      "tasks": [
+        "Auto-save board state on exit",
+        "Load saved boards from local DB",
+        "Main menu: list saved boards with status badges",
+        "Delete saved board option"
+      ]
+    },
+    {
+      "phase": 18,
+      "name": "Page Transitions + Performance Optimization",
+      "status": "not_started",
+      "tasks": [
+        "slide_from_right for linear navigation",
+        "fade for context changes",
+        "250-350ms with Easing.bezier(0.4, 0.0, 0.2, 1)",
+        "React.memo + useCallback on grid cells",
+        "Reanimated worklets for UI thread animations",
+        "FlashList recycling optimization"
+      ]
+    },
+    {
+      "phase": 19,
+      "name": "Error Handling + Testing + Documentation",
+      "status": "not_started",
+      "tasks": [
+        "Error boundaries hardening",
+        "Specific Supabase/local DB error handling",
+        "Network offline graceful degradation",
+        "Logging levels review (debug, info, warn, error)",
+        "Cross-platform testing (touch + keyboard)",
+        "Final documentation & Readme update"
+      ]
     }
   ]
 }
