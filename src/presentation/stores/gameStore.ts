@@ -105,26 +105,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newLetters = { ...filledLetters, [key]: letter.toUpperCase() };
     set({ filledLetters: newLetters });
 
-    // Try to advance to next cell within the SAME word
+    // Try to advance within the current word / detect completion
     if (selectedWordIndex != null && board.words[selectedWordIndex]) {
       const word = board.words[selectedWordIndex];
       const currentIdx = word.cells.findIndex(
         (c) => c.row === selectedCell.row && c.col === selectedCell.col,
       );
 
-      if (currentIdx >= 0 && currentIdx < word.cells.length - 1) {
-        // Move to the next cell in the same word
-        const nextCell = word.cells[currentIdx + 1];
-        set({
-          selectedCell: { row: nextCell.row, col: nextCell.col },
-        });
+      if (currentIdx === -1) return;
+
+      // Find the next UNLOCKED cell in this word
+      let nextUnlockedIdx = -1;
+      for (let j = currentIdx + 1; j < word.cells.length; j++) {
+        if (!word.cells[j].isLocked) {
+          nextUnlockedIdx = j;
+          break;
+        }
+      }
+
+      if (nextUnlockedIdx !== -1) {
+        // There's a next unlocked cell → advance to it
+        const nextCell = word.cells[nextUnlockedIdx];
+        set({ selectedCell: { row: nextCell.row, col: nextCell.col } });
       } else {
-        // End of current word — check if word is now complete
-        const allFilled = word.cells.every(
-          (c) => newLetters[`${c.row},${c.col}`],
+        // Reached the end — check if word is effectively complete
+        // (all cells either filled by user or locked from another solved word)
+        const effectivelyComplete = word.cells.every(
+          (c) => newLetters[`${c.row},${c.col}`] || c.isLocked,
         );
-        if (allFilled) {
-          // Auto-advance to the next unsolved word (by clue number order)
+
+        if (effectivelyComplete) {
+          // Auto-advance to next unsolved word (by clue number order)
           const nextWord = findNextUnsolvedWord(board, selectedWordIndex, newLetters);
           if (nextWord) {
             const firstCell = nextWord.cells[0];
