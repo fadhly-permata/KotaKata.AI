@@ -428,14 +428,22 @@ function buildBoard(grid: string[][], placed: PlacedWord[], size: number): Board
     };
   });
 
-  // Assign clue numbers
+  // Assign clue numbers — only for cells that actually start a word (length >= 2)
   let number = 1;
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
-      if (!cells[r][c].isBlocked && (
-        (c === 0 || cells[r][c - 1].isBlocked) ||
-        (r === 0 || cells[r - 1][c].isBlocked)
-      )) {
+      if (cells[r][c].isBlocked) continue;
+
+      const isHorizontalStart =
+        (c === 0 || cells[r][c - 1].isBlocked) &&
+        c + 1 < size &&
+        !cells[r][c + 1].isBlocked;
+      const isVerticalStart =
+        (r === 0 || cells[r - 1][c].isBlocked) &&
+        r + 1 < size &&
+        !cells[r + 1][c].isBlocked;
+
+      if (isHorizontalStart || isVerticalStart) {
         cells[r][c].number = number++;
       }
     }
