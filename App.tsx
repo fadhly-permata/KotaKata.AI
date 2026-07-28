@@ -9,7 +9,7 @@ loggerInfo("App mounted");
 
 export default function App() {
   return (
-    <ErrorBoundary fallbackTitle="Aplikasi Mengalami Gangguan">
+    <ErrorBoundary>
       <ThemeProvider>
         <NavigationContainer>
           <StatusBar style="auto" />
