@@ -4,9 +4,15 @@ import { useTheme } from "../../presentation/components/providers/ThemeProvider"
 import { useGameStore } from "../../presentation/stores/gameStore";
 
 export default function SettingsScreen() {
-  const { theme } = useTheme();
+  const { theme, themeMode, setThemeMode } = useTheme();
   const totalXp = useGameStore((s) => s.totalXp);
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
+
+  const toggleTheme = () => {
+    setThemeMode(isDark ? "light" : "dark");
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -17,8 +23,8 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
             <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Mode Gelap</Text>
             <Switch
-              value={theme.mode === "dark"}
-              onValueChange={() => {}}
+              value={isDark}
+              onValueChange={toggleTheme}
               trackColor={{ false: "#ccc", true: theme.colors.primary }}
               thumbColor="#fff"
             />
