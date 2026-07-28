@@ -39,11 +39,18 @@ export default function RootNavigator() {
         screenOptions={{
           animation: "slide_from_right",
           animationDuration: 300,
-          headerShown: false,
+          headerShown: true,
+          headerStyle: { backgroundColor: theme.colors.surface },
+          headerTintColor: theme.colors.text,
+          headerTitleStyle: { fontWeight: "700", fontSize: 16 },
           orientation: "portrait",
         }}
       >
-        <Stack.Screen name="MainMenu" component={MainMenuScreen} />
+        <Stack.Screen
+          name="MainMenu"
+          component={MainMenuScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Game"
           component={GameScreen}
@@ -51,11 +58,24 @@ export default function RootNavigator() {
             animation: "fade",
             animationDuration: 250,
             gestureEnabled: false,
+            title: "KotaKata",
           }}
         />
-        <Stack.Screen name="History" component={HistoryScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{ title: "Sejarah Saya" }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: "Profil" }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ title: "Pengaturan" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
