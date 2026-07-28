@@ -128,7 +128,7 @@ function tryPlaceWords(
     }
 
     // Validate no accidental new words formed
-    if (!validateGrid(testGrid, size)) continue;
+    if (!validateGrid(testGrid, size, placed, first.word, pos)) continue;
 
     applyGrid(grid, testGrid);
     placed.push({
@@ -268,47 +268,71 @@ function removeVertical(grid: string[][], row: number, col: number, len: number)
 
 // ---- Validation ----
 
-function validateGrid(grid: string[][], size: number): boolean {
-  // Check for accidental NEW words on the opposite axis
-  // This is called AFTER a word is placed, so existing runs from placed words
-  // are expected. Only flag runs that weren't there before.
-  // Since we check canPlaceHorizontal/ canPlaceVertical which already prevent
-  // adjacent parallel words, the primary concern is accidental perpendicular
-  // words at non-intersection points. The most reliable check: ensure no
-  // single cell UNCONNECTED to a placed word has a neighbor on both sides.
+function validateGrid(
+  grid: string[][],
+  size: number,
+  placed: PlacedWord[],
+  newWord: string,
+  newPos: { row: number; col: number; orientation: Orientation },
+): boolean {
+  // We only want to catch truly accidental 3+ letter sequences.
+  // The adjacency checks in canPlaceHorizontal/Vertical already prevent
+  // words from being adjacent on the same axis, so the only risk is
+  // forming an accidental perpendicular word.
+  //
+  // Strategy: for every filled cell, check if there are 3+ consecutive
+  // filled cells in any direction that DON'T belong to any placed word.
+  // We do this by tracking cells that belong to known words.
   
-  // Simplified: just check that no cell has filled neighbors on both
-  // adjacent perpendicular positions without being part of the current word.
-  // This is a lightweight version that catches real accidents.
+  const wordCells = new Set<string>();
+  for (const pw of placed) {
+    for (let i = 0; i < pw.word.length; i++) {
+      const r = pw.orientation === "horizontal" ? pw.startRow : pw.startRow + i;
+      const c = pw.orientation === "horizontal" ? pw.startCol + i : pw.startCol;
+      wordCells.add(`${r},${c}`);
+    }
+  }
+  // Add the new word's cells
+  for (let i = 0; i < newWord.length; i++) {
+    const r = newPos.orientation === "horizontal" ? newPos.row : newPos.row + i;
+    const c = newPos.orientation === "horizontal" ? newPos.col + i : newPos.col;
+    wordCells.add(`${r},${c}`);
+  }
+
+  // Check for any filled cell that has 3+ consecutive filled neighbors
+  // in a direction where none of those cells are in wordCells
   for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (grid[r][c] === "") continue;
-      
-      // Check horizontal: if this cell and two adjacent to it are filled,
-      // it might be an accidental word. But we only flag if none of the
-      // adjacent perpendicular cells are also filled (making it a real word).
-      if (c > 0 && c < size - 1) {
-        if (grid[r][c - 1] !== "" && grid[r][c + 1] !== "") {
-          // Three in a row horizontally — this is expected for placed words.
-          // Only flag as accident if it's ALSO disconnected vertically
-          if (r > 0 && r < size - 1) {
-            if (grid[r - 1][c] === "" && grid[r + 1][c] === "") {
-              // Check if this is truly isolated (doesn't connect to any
-              // perpendicular word via shared letter)
-              return false;
-            }
-          }
+    // Check horizontal runs
+    let runStart = -1;
+    for (let c = 0; c <= size; c++) {
+      const filled = c < size && grid[r][c] !== "";
+      if (filled && runStart === -1) runStart = c;
+      if (!filled && runStart !== -1) {
+        const runLen = c - runStart;
+        if (runLen >= 3) {
+          // Check if ALL cells in this run are part of known words
+          const allKnown = Array.from({ length: runLen }, (_, i) => `${r},${runStart + i}`)
+            .every((k) => wordCells.has(k));
+          if (!allKnown) return false;
         }
+        runStart = -1;
       }
-      
-      // Check vertical
-      if (r > 0 && r < size - 1) {
-        if (grid[r - 1][c] !== "" && grid[r + 1][c] !== "") {
-          if (c > 0 && c < size - 1) {
-            if (grid[r][c - 1] === "" && grid[r][c + 1] === "") {
-              return false;
-            }
+    }
+
+    // Check vertical runs
+    for (let c = 0; c < size; c++) {
+      runStart = -1;
+      for (let r2 = 0; r2 <= size; r2++) {
+        const filled = r2 < size && grid[r2][c] !== "";
+        if (filled && runStart === -1) runStart = r2;
+        if (!filled && runStart !== -1) {
+          const runLen = r2 - runStart;
+          if (runLen >= 3) {
+            const allKnown = Array.from({ length: runLen }, (_, i) => `${runStart + i},${c}`)
+              .every((k) => wordCells.has(k));
+            if (!allKnown) return false;
           }
+          runStart = -1;
         }
       }
     }
