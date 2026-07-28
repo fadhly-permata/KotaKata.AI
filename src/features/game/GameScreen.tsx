@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useCallback, useRef } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, Animated, Dimensions } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useEffect, useMemo, useRef } from "react";
+import { View, StyleSheet, Platform, Text } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
 import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
@@ -31,7 +30,6 @@ const DEMO_WORDS: WordCandidate[] = [
 
 export default function GameScreen() {
   const { theme } = useTheme();
-  const navigation = useNavigation();
   const board = useGameStore((s) => s.board);
   const setBoard = useGameStore((s) => s.setBoard);
   const selectedCell = useGameStore((s) => s.selectedCell);
@@ -105,21 +103,6 @@ export default function GameScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top bar with back button */}
-      <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          activeOpacity={0.6}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={[styles.backBtnText, { color: theme.colors.primary }]}>
-            ← Kembali
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, { color: theme.colors.text }]}>KotaKata</Text>
-        <View style={{ width: 70 }} />
-      </View>
-
       {/* Tier info bar */}
       <View style={[styles.tierBar, { backgroundColor: theme.colors.surface }]}>
         <Text style={[styles.tierText, { color: theme.colors.textSecondary }]}>
@@ -153,21 +136,6 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  backBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    width: 70,
-  },
-  backBtnText: { fontSize: 14, fontWeight: "600" },
-  topBarTitle: { fontSize: 15, fontWeight: "700" },
   tierBar: {
     flexDirection: "row",
     justifyContent: "space-between",
