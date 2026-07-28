@@ -1,6 +1,7 @@
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "../components/providers/ThemeProvider";
+import AuthScreen from "../../features/auth/AuthScreen";
 import MainMenuScreen from "../../features/game/MainMenuScreen";
 import GameScreen from "../../features/game/GameScreen";
 import HistoryScreen from "../../features/history/HistoryScreen";
@@ -8,6 +9,7 @@ import ProfileScreen from "../../features/profile/ProfileScreen";
 import SettingsScreen from "../../features/settings/SettingsScreen";
 
 export type RootStackParamList = {
+  Auth: undefined;
   MainMenu: undefined;
   Game: undefined;
   History: undefined;
@@ -46,6 +48,11 @@ export default function RootNavigator() {
           orientation: "portrait",
         }}
       >
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ headerShown: false, animation: "fade", animationDuration: 350 }}
+        />
         <Stack.Screen
           name="MainMenu"
           component={MainMenuScreen}
