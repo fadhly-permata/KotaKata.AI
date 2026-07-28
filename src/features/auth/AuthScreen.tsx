@@ -146,6 +146,12 @@ export default function AuthScreen() {
         {/* Auth Options */}
         {mode === "select" && (
           <View style={styles.authSection}>
+            {error ? (
+              <View style={[styles.errorBanner, { backgroundColor: theme.mode === "dark" ? "#3D1A1A" : "#FDE8E8" }]}>
+                <Text style={styles.errorBannerText}>{error}</Text>
+              </View>
+            ) : null}
+
             {/* Anonymous */}
             <Animated.View style={{ opacity: btn1Opacity, width: "100%" }}>
               <TouchableOpacity
@@ -364,6 +370,14 @@ const styles = StyleSheet.create({
   backText: { fontSize: 13, fontWeight: "500" },
   footer: { alignItems: "center", marginTop: 8 },
   footerText: { fontSize: 12, textAlign: "center", lineHeight: 18 },
+  errorBanner: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E74C3C33",
+  },
+  errorBannerText: { color: "#E74C3C", fontSize: 13, textAlign: "center", fontWeight: "500" },
   splashContainer: { justifyContent: "center", alignItems: "center", gap: 12 },
   splashEmoji: { fontSize: 64 },
   splashText: { fontSize: 24, fontWeight: "800" },
