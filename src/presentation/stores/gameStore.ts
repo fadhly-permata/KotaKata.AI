@@ -135,6 +135,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         );
 
         if (effectivelyComplete) {
+          // ⚠️ Lock cells NOW before moving cursor — prevents race with useEffect
+          // The useEffect in GameScreen also calls this, but it's a no-op if already solved
+          get().markWordSolved(selectedWordIndex);
+
           // Auto-advance to next unsolved word (by clue number order)
           const nextWord = findNextUnsolvedWord(board, selectedWordIndex, newLetters);
           if (nextWord) {
