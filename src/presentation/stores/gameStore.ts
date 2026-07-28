@@ -68,7 +68,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!board) return;
 
     const cell = board.grid[row]?.[col];
-    if (!cell || cell.isBlocked) return;
+    if (!cell || cell.isBlocked || cell.isLocked) return;
 
     const state = get();
     if (state.selectedCell?.row === row && state.selectedCell?.col === col) {
@@ -188,6 +188,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!word || word.solved) return;
 
     word.solved = true;
+    // Lock all cells in this word so they can't be edited
+    for (const cell of word.cells) {
+      cell.isLocked = true;
+    }
     const xpGain = calcXpGain(word.word.length, board.tierLevel);
     const newWordsSolved = get().wordsSolved + 1;
     const newCurrentXp = get().currentXp + xpGain;
