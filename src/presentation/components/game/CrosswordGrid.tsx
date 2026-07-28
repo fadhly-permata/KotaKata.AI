@@ -53,7 +53,7 @@ export default function CrosswordGrid({
     const key = `${cell.row},${cell.col}`;
     const isSelected = selectedCell?.row === cell.row && selectedCell?.col === cell.col;
     const isHighlighted = selectedCells.has(key);
-    const letter = filledLetters.get(key) || cell.letter;
+    const letter = filledLetters.get(key) ?? (cell.isLocked ? cell.letter : "");
 
     if (cell.isBlocked) {
       return (
