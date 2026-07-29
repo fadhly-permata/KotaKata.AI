@@ -7,6 +7,7 @@ import {
   ScrollView,
   Animated,
   Platform,
+  ImageBackground,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -228,36 +229,58 @@ export default function MainMenuScreen() {
         <View style={styles.bentoSection}>
           <Text style={[styles.bentoTitle, { color: CANDY.onSurface }]}>Koleksi Terbaru</Text>
           <View style={styles.bentoGrid}>
-            {/* Large card (row-span-2, col-span-1) */}
+            {/* Large card — Profil */}
             <TouchableOpacity
-              style={[styles.bentoLargeCard, { backgroundColor: CANDY.surfaceHigh }]}
+              style={styles.bentoLargeCard}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Profile")}
             >
-              <View style={styles.bentoLargeContent}>
-                <Text style={styles.bentoLargeEmoji}>🎨</Text>
-                <Text style={[styles.bentoLargeLabel, { color: CANDY.onSurface }]}>Profil</Text>
-              </View>
+              <ImageBackground
+                source={{ uri: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80" }}
+                style={styles.bentoLargeBg}
+                resizeMode="cover"
+              >
+                <View style={styles.bentoLargeOverlay}>
+                  <Text style={styles.bentoLargeEmoji}>🎨</Text>
+                  <Text style={styles.bentoLargeLabel}>Profil</Text>
+                </View>
+              </ImageBackground>
             </TouchableOpacity>
 
-            {/* Small card 1 */}
+            {/* Small card 1 — Kata Ajaib */}
             <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: CANDY.surfaceHigh }]}
+              style={styles.bentoSmallCard}
               activeOpacity={0.8}
               onPress={() => {}}
             >
-              <Text style={styles.bentoSmallEmoji}>✨</Text>
-              <Text style={[styles.bentoSmallLabel, { color: CANDY.onSurface }]}>Kata Ajaib</Text>
+              <ImageBackground
+                source={{ uri: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&q=80" }}
+                style={styles.bentoSmallBg}
+                resizeMode="cover"
+              >
+                <View style={styles.bentoSmallOverlay}>
+                  <Text style={styles.bentoSmallEmoji}>✨</Text>
+                  <Text style={styles.bentoSmallLabel}>Kata Ajaib</Text>
+                </View>
+              </ImageBackground>
             </TouchableOpacity>
 
-            {/* Small card 2 */}
+            {/* Small card 2 — Pengaturan */}
             <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: CANDY.surfaceHigh }]}
+              style={styles.bentoSmallCard}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Settings")}
             >
-              <Text style={styles.bentoSmallEmoji}>⚙️</Text>
-              <Text style={[styles.bentoSmallLabel, { color: CANDY.onSurface }]}>Pengaturan</Text>
+              <ImageBackground
+                source={{ uri: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&q=80" }}
+                style={styles.bentoSmallBg}
+                resizeMode="cover"
+              >
+                <View style={styles.bentoSmallOverlay}>
+                  <Text style={styles.bentoSmallEmoji}>⚙️</Text>
+                  <Text style={styles.bentoSmallLabel}>Pengaturan</Text>
+                </View>
+              </ImageBackground>
             </TouchableOpacity>
           </View>
         </View>
@@ -487,23 +510,38 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: "hidden",
   },
-  bentoLargeContent: {
+  bentoLargeBg: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  bentoLargeOverlay: {
     flex: 1,
     justifyContent: "flex-end",
     padding: 14,
     gap: 6,
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
   bentoLargeEmoji: { fontSize: 28 },
-  bentoLargeLabel: { fontSize: 14, fontWeight: "700" },
+  bentoLargeLabel: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
   bentoSmallCard: {
     width: "48%",
     height: "47%",
     borderRadius: 14,
-    justifyContent: "space-between",
-    padding: 14,
+    overflow: "hidden",
+  },
+  bentoSmallBg: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  bentoSmallOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 12,
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
   bentoSmallEmoji: { fontSize: 24 },
-  bentoSmallLabel: { fontSize: 13, fontWeight: "700" },
+  bentoSmallLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 
   /* ─── Bottom Navigation ─── */
   bottomNav: {
