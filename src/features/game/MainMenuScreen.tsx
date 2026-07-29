@@ -203,7 +203,7 @@ export default function MainMenuScreen() {
             onPress={() => navigation.navigate("History")}
           >
             <ImageBackground
-              source={{ uri: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&q=80" }}
+              source={{ uri: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80" }}
               style={styles.actionCardBg}
               resizeMode="cover"
             >
@@ -262,7 +262,7 @@ export default function MainMenuScreen() {
               onPress={() => navigation.navigate("Settings")}
             >
               <ImageBackground
-                source={{ uri: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&q=80" }}
+                source={{ uri: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&q=80" }}
                 style={styles.bentoSmallBg}
                 resizeMode="cover"
               >
