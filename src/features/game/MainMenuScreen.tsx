@@ -226,7 +226,7 @@ export default function MainMenuScreen() {
               onPress={() => navigation.navigate("Profile")}
             >
               <ImageBackground
-                source={{ uri: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80" }}
+                source={{ uri: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=400" }}
                 style={styles.bentoLargeBg}
                 resizeMode="cover"
               >
