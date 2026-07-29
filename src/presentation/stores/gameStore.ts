@@ -338,7 +338,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { hints } = get();
     set({
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue2Used: true, revealedCells: [] } },
-      currentXp: Math.max(0, get().currentXp - XP_PENALTY_CLUE_2),
+      currentXp: get().currentXp - XP_PENALTY_CLUE_2,
     });
   },
 
@@ -346,7 +346,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { hints } = get();
     set({
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue3Used: true, revealedCells: [] } },
-      currentXp: Math.max(0, get().currentXp - XP_PENALTY_CLUE_3),
+      currentXp: get().currentXp - XP_PENALTY_CLUE_3,
     });
   },
 
@@ -370,7 +370,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       filledLetters: { ...filledLetters, [key]: letter },
-      currentXp: Math.max(0, get().currentXp - XP_PENALTY_REVEAL),
+      currentXp: get().currentXp - XP_PENALTY_REVEAL,
       hints: {
         ...hints,
         [wordIndex]: {
@@ -402,7 +402,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       filledLetters: newLetters,
-      currentXp: Math.max(0, get().currentXp - XP_PENALTY_REVEAL),
+      currentXp: get().currentXp - XP_PENALTY_REVEAL,
       hints: {
         ...hints,
         [wordIndex]: {
