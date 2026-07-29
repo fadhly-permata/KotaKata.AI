@@ -9,6 +9,7 @@ import {
   Platform,
   ImageBackground,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
@@ -144,9 +145,9 @@ export default function MainMenuScreen() {
               <Text style={[styles.avatarText, { color: CANDY.onPrimaryContainer }]}>K</Text>
             </View>
             <Text style={[styles.appTitle, { color: CANDY.pink }]}>KotaKata AI</Text>
-          </View>
-          <View style={[styles.xpPill, { backgroundColor: CANDY.purpleContainer }]}>
-            <Text style={[styles.xpPillText, { color: CANDY.purple }]}>⭐ {totalXp} XP</Text>
+          </View>            <View style={[styles.xpPill, { backgroundColor: CANDY.purpleContainer }]}>
+            <FontAwesome name="star" size={12} color={CANDY.purple} />
+            <Text style={[styles.xpPillText, { color: CANDY.purple }]}>{totalXp} XP</Text>
           </View>
         </View>
 
@@ -155,7 +156,7 @@ export default function MainMenuScreen() {
           {/* Glassmorphism inner */}
           <View style={styles.heroInner}>
             <View style={[styles.tierIconCircle, { backgroundColor: CANDY.pink }]}>
-              <Text style={styles.tierIconText}>📖</Text>
+              <FontAwesome name="book" size={32} color="#FFFFFF" />
             </View>
             <Text style={[styles.heroLabel, { color: CANDY.purple }]}>PERINGKAT SAAT INI</Text>
             <Text style={[styles.heroTierName, { color: CANDY.pink }]}>{tierName}</Text>
@@ -187,14 +188,13 @@ export default function MainMenuScreen() {
         >
           <View style={styles.playButtonContent}>
             <Text style={styles.playButtonText}>Mulai Bermain</Text>
-            <Animated.Text
+            <Animated.View
               style={[
-                styles.playButtonIcon,
                 { transform: [{ translateY: bounceTranslate }] },
               ]}
             >
-              ▶️
-            </Animated.Text>
+              <FontAwesome name="play-circle" size={28} color="#FFFFFF" />
+            </Animated.View>
           </View>
           {/* Shine overlay */}
           <View style={styles.shineOverlay} />
@@ -207,7 +207,7 @@ export default function MainMenuScreen() {
             activeOpacity={0.8}
             onPress={() => {}}
           >
-            <Text style={styles.actionCardIcon}>🏆</Text>
+            <FontAwesome name="trophy" size={28} color={CANDY.onTertiaryContainer} />
             <Text style={[styles.actionCardLabel, { color: CANDY.onTertiaryContainer }]}>
               Misi Harian
             </Text>
@@ -218,7 +218,7 @@ export default function MainMenuScreen() {
             activeOpacity={0.8}
             onPress={() => navigation.navigate("History")}
           >
-            <Text style={styles.actionCardIcon}>🎓</Text>
+            <FontAwesome name="graduation-cap" size={28} color={CANDY.onSecondaryContainer} />
             <Text style={[styles.actionCardLabel, { color: CANDY.onSecondaryContainer }]}>
               Sejarah
             </Text>
@@ -241,7 +241,7 @@ export default function MainMenuScreen() {
                 resizeMode="cover"
               >
                 <View style={styles.bentoLargeOverlay}>
-                  <Text style={styles.bentoLargeEmoji}>🎨</Text>
+                  <FontAwesome name="user" size={28} color="#FFFFFF" />
                   <Text style={styles.bentoLargeLabel}>Profil</Text>
                 </View>
               </ImageBackground>
@@ -259,7 +259,7 @@ export default function MainMenuScreen() {
                 resizeMode="cover"
               >
                 <View style={styles.bentoSmallOverlay}>
-                  <Text style={styles.bentoSmallEmoji}>✨</Text>
+                  <FontAwesome name="magic" size={24} color="#FFFFFF" />
                   <Text style={styles.bentoSmallLabel}>Kata Ajaib</Text>
                 </View>
               </ImageBackground>
@@ -277,7 +277,7 @@ export default function MainMenuScreen() {
                 resizeMode="cover"
               >
                 <View style={styles.bentoSmallOverlay}>
-                  <Text style={styles.bentoSmallEmoji}>⚙️</Text>
+                  <FontAwesome name="cog" size={24} color="#FFFFFF" />
                   <Text style={styles.bentoSmallLabel}>Pengaturan</Text>
                 </View>
               </ImageBackground>
@@ -300,7 +300,7 @@ export default function MainMenuScreen() {
         ]}
       >
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Text style={[styles.navIcon, { color: CANDY.onSurfaceVariant }]}>☰</Text>
+          <FontAwesome name="bars" size={22} color={CANDY.onSurfaceVariant} style={styles.navIcon} />
           <Text style={[styles.navLabel, { color: CANDY.onSurfaceVariant }]}>Menu</Text>
         </TouchableOpacity>
 
@@ -309,7 +309,7 @@ export default function MainMenuScreen() {
           activeOpacity={0.8}
           onPress={handlePlay}
         >
-          <Text style={styles.navIconActive}>🧩</Text>
+          <FontAwesome name="puzzle-piece" size={22} color={CANDY.onPrimaryContainer} style={styles.navIconActive} />
           <Text style={[styles.navLabelActive, { color: CANDY.onPrimaryContainer }]}>Main</Text>
         </TouchableOpacity>
 
@@ -318,7 +318,7 @@ export default function MainMenuScreen() {
           activeOpacity={0.7}
           onPress={() => navigation.navigate("History")}
         >
-          <Text style={[styles.navIcon, { color: CANDY.onSurfaceVariant }]}>📚</Text>
+          <FontAwesome name="bookmark" size={22} color={CANDY.onSurfaceVariant} style={styles.navIcon} />
           <Text style={[styles.navLabel, { color: CANDY.onSurfaceVariant }]}>Koleksi</Text>
         </TouchableOpacity>
       </View>
@@ -404,7 +404,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  tierIconText: { fontSize: 32 },
   heroLabel: {
     fontSize: 11,
     fontWeight: "700",
@@ -459,7 +458,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.3,
   },
-  playButtonIcon: { fontSize: 28 },
   shineOverlay: {
     position: "absolute",
     top: 0,
@@ -484,7 +482,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  actionCardIcon: { fontSize: 28 },
   actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center" },
 
   /* ─── Bento Section ─── */
@@ -521,7 +518,6 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: "rgba(0,0,0,0.25)",
   },
-  bentoLargeEmoji: { fontSize: 28 },
   bentoLargeLabel: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
   bentoSmallCard: {
     width: "48%",
@@ -540,7 +536,6 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: "rgba(0,0,0,0.2)",
   },
-  bentoSmallEmoji: { fontSize: 24 },
   bentoSmallLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 
   /* ─── Bottom Navigation ─── */
