@@ -274,7 +274,7 @@ export default function GameScreen() {
         </View>
 
         {/* Crossword Grid (Scrollable + Zoomable) */}
-        <View style={styles.gridOuterWrapper}>
+        <View style={zoomLevel <= 1 ? [styles.gridOuterWrapper, styles.gridOuterCentered] : styles.gridOuterWrapper}>
           <Animated.View style={{ transform: [{ scale: zoomAnim }] }}>
             <ScrollView
               ref={scrollViewRef}
@@ -285,7 +285,7 @@ export default function GameScreen() {
               showsVerticalScrollIndicator={zoomLevel > 1}
               bounces={true}
             >
-              <View style={zoomLevel <= 1 ? [styles.gridCenterWrapper, styles.gridCenterCentered] : [styles.gridCenterWrapper, styles.gridCenterNormal]}>
+              <View style={styles.gridCenterWrapper}>
                 <CrosswordGrid
                   board={board}
                   selectedCell={selectedCell}
@@ -440,12 +440,11 @@ const styles = StyleSheet.create({
   zoomLabel: { fontSize: 12, fontWeight: "700", minWidth: 36, textAlign: "center" },
   actionDivider: { width: 1, height: 24, marginHorizontal: 8 },
   revealGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
-  gridOuterWrapper: { marginBottom: 8, overflow: "hidden", borderRadius: 12 },
+  gridOuterWrapper: { marginBottom: 8, borderRadius: 12 },
+  gridOuterCentered: { flexGrow: 1, justifyContent: "center" },
   gridScroll: { flexGrow: 0 },
   gridScrollContent: { flexGrow: 0 },
-  gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4 },
-  gridCenterCentered: { flexGrow: 1, justifyContent: "center" },
-  gridCenterNormal: { paddingVertical: 8 },
+  gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
   bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 8 },
   clueArrow: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
