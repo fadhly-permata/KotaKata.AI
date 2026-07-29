@@ -1,13 +1,43 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { useMemo, useRef, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Platform,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
-import TierBadge from "../../presentation/components/common/TierBadge";
-import SavedBoardList from "../../presentation/components/game/SavedBoardList";
 import { useGameStore } from "../../presentation/stores/gameStore";
+import { calcTier, calcTierProgress, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
+
+// ─── Candy palette (mengacu MainMenu.html) ───
+const CANDY = {
+  pink: "#e040a0",
+  pinkLight: "#ffd6ee",
+  pinkContainer: "#f080c0",
+  purple: "#7c52aa",
+  purpleContainer: "#eedcff",
+  teal: "#0096cc",
+  tealContainer: "#40c0ee",
+  bg: "#fef7ff",
+  surface: "#ffffff",
+  surfaceHigh: "#f2e8f2",
+  outline: "#907898",
+  outlineVariant: "#dcc8e0",
+  onSurface: "#2e1a28",
+  onSurfaceVariant: "#604868",
+  onPrimary: "#ffffff",
+  onPrimaryContainer: "#2e1a28",
+  onSecondaryContainer: "#2e2040",
+  onTertiaryContainer: "#00334d",
+};
 
 export default function MainMenuScreen() {
   const { theme } = useTheme();
@@ -15,102 +45,494 @@ export default function MainMenuScreen() {
   const totalXp = useGameStore((s) => s.totalXp);
   const reset = useGameStore((s) => s.reset);
 
+  const currentTier = useMemo(() => calcTier(totalXp), [totalXp]);
+  const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
+  const tierProgress = useMemo(() => calcTierProgress(totalXp), [totalXp]);
+  const xpToNext = useMemo(() => {
+    // Rough calculation: tier 1 = 200 max, tier 2 = 500 max, etc.
+    const nextThresholds = [200, 500, 1000, 1800, 3000, 5000, 8000, 12000, 20000];
+    const nextXp = nextThresholds[Math.min(currentTier - 1, nextThresholds.length - 1)] || 200;
+    const remaining = Math.max(1, Math.round((1 - tierProgress) * nextXp / 25));
+    return remaining;
+  }, [currentTier, tierProgress]);
+
+  // ─── Bounce animation for play button icon ───
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 1000, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [bounceAnim]);
+
+  const bounceTranslate = bounceAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -8],
+  });
+
   const handlePlay = () => {
     reset();
     navigation.navigate("Game");
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.logoSection}>
-          <Text style={[styles.logoEmoji]}>📖</Text>
-          <Text style={[styles.title, { color: theme.colors.text }]}>KotaKata.AI</Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Teka-Teki Silang Puitis
-          </Text>
+    <View style={[styles.root, { backgroundColor: CANDY.bg }]}>
+      {/* ─── Floating Background Shapes ─── */}
+      <View style={styles.floatingContainer} pointerEvents="none">
+        <View
+          style={[
+            styles.floatingOrb,
+            {
+              width: 160,
+              height: 160,
+              backgroundColor: CANDY.pinkLight,
+              top: "-5%",
+              left: "-10%",
+              opacity: 0.5,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.floatingOrb,
+            {
+              width: 200,
+              height: 200,
+              backgroundColor: CANDY.purpleContainer,
+              top: "35%",
+              right: "-15%",
+              opacity: 0.45,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.floatingOrb,
+            {
+              width: 120,
+              height: 120,
+              backgroundColor: CANDY.tealContainer,
+              bottom: "10%",
+              left: "5%",
+              opacity: 0.4,
+            },
+          ]}
+        />
+      </View>
+
+      {/* ─── Scrollable Content ─── */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ═══ Top AppBar ═══ */}
+        <View style={[styles.topBar, { backgroundColor: CANDY.surface }]}>
+          <View style={styles.topBarLeft}>
+            <View
+              style={[
+                styles.avatar,
+                { backgroundColor: CANDY.pinkContainer, borderColor: CANDY.pink },
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: CANDY.onPrimaryContainer }]}>K</Text>
+            </View>
+            <Text style={[styles.appTitle, { color: CANDY.pink }]}>KotaKata AI</Text>
+          </View>
+          <View style={[styles.xpPill, { backgroundColor: CANDY.purpleContainer }]}>
+            <Text style={[styles.xpPillText, { color: CANDY.purple }]}>⭐ {totalXp} XP</Text>
+          </View>
         </View>
 
-        {/* Tier Progress */}
-        <TierBadge totalXp={totalXp} />
+        {/* ═══ Hero Tier Card ═══ */}
+        <View style={styles.heroCard}>
+          {/* Glassmorphism inner */}
+          <View style={styles.heroInner}>
+            <View style={[styles.tierIconCircle, { backgroundColor: CANDY.pink }]}>
+              <Text style={styles.tierIconText}>📖</Text>
+            </View>
+            <Text style={[styles.heroLabel, { color: CANDY.purple }]}>PERINGKAT SAAT INI</Text>
+            <Text style={[styles.heroTierName, { color: CANDY.pink }]}>{tierName}</Text>
 
-        {/* Saved boards */}
-        <SavedBoardList
-          boards={[]}
-          onResume={() => {}}
-          onDelete={() => {}}
-        />
+            {/* Progress Bar */}
+            <View style={[styles.progressTrack, { backgroundColor: CANDY.surfaceHigh }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.round(tierProgress * 100)}%` as any,
+                    backgroundColor: CANDY.pink,
+                  },
+                ]}
+              />
+            </View>
 
-        {/* Main navigation buttons */}
-        <View style={styles.menuButtons}>
+            <Text style={[styles.heroSubtext, { color: CANDY.onSurfaceVariant }]}>
+              Lengkapi {xpToNext} kata lagi untuk level berikutnya!
+            </Text>
+          </View>
+        </View>
+
+        {/* ═══ Main Action: Mulai Bermain ═══ */}
+        <TouchableOpacity
+          style={[styles.playButton, { backgroundColor: CANDY.pink }]}
+          activeOpacity={0.9}
+          onPress={handlePlay}
+        >
+          <View style={styles.playButtonContent}>
+            <Text style={styles.playButtonText}>Mulai Bermain</Text>
+            <Animated.Text
+              style={[
+                styles.playButtonIcon,
+                { transform: [{ translateY: bounceTranslate }] },
+              ]}
+            >
+              ▶️
+            </Animated.Text>
+          </View>
+          {/* Shine overlay */}
+          <View style={styles.shineOverlay} />
+        </TouchableOpacity>
+
+        {/* ═══ Action Grid: Misi Harian + Akademi ═══ */}
+        <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={[styles.playBtn, { backgroundColor: theme.colors.primary }]}
+            style={[styles.actionCard, { backgroundColor: CANDY.tealContainer }]}
             activeOpacity={0.8}
-            onPress={handlePlay}
+            onPress={() => {}}
           >
-            <Text style={styles.playBtnText}>🎮 Main Sekarang</Text>
+            <Text style={styles.actionCardIcon}>🏆</Text>
+            <Text style={[styles.actionCardLabel, { color: CANDY.onTertiaryContainer }]}>
+              Misi Harian
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navBtn, { backgroundColor: theme.colors.surface }]}
-            activeOpacity={0.7}
+            style={[styles.actionCard, { backgroundColor: CANDY.purpleContainer }]}
+            activeOpacity={0.8}
             onPress={() => navigation.navigate("History")}
           >
-            <Text style={[styles.navBtnText, { color: theme.colors.text }]}>📖 Sejarah Saya</Text>
+            <Text style={styles.actionCardIcon}>🎓</Text>
+            <Text style={[styles.actionCardLabel, { color: CANDY.onSecondaryContainer }]}>
+              Sejarah
+            </Text>
           </TouchableOpacity>
+        </View>
 
-          <View style={styles.navRow}>
+        {/* ═══ Koleksi Terbaru (Bento) ═══ */}
+        <View style={styles.bentoSection}>
+          <Text style={[styles.bentoTitle, { color: CANDY.onSurface }]}>Koleksi Terbaru</Text>
+          <View style={styles.bentoGrid}>
+            {/* Large card (row-span-2, col-span-1) */}
             <TouchableOpacity
-              style={[styles.navBtnSmall, { backgroundColor: theme.colors.surface }]}
-              activeOpacity={0.7}
+              style={[styles.bentoLargeCard, { backgroundColor: CANDY.surfaceHigh }]}
+              activeOpacity={0.8}
               onPress={() => navigation.navigate("Profile")}
             >
-              <Text style={[styles.navBtnTextSmall, { color: theme.colors.text }]}>👤 Profil</Text>
+              <View style={styles.bentoLargeContent}>
+                <Text style={styles.bentoLargeEmoji}>🎨</Text>
+                <Text style={[styles.bentoLargeLabel, { color: CANDY.onSurface }]}>Profil</Text>
+              </View>
             </TouchableOpacity>
 
+            {/* Small card 1 */}
             <TouchableOpacity
-              style={[styles.navBtnSmall, { backgroundColor: theme.colors.surface }]}
-              activeOpacity={0.7}
+              style={[styles.bentoSmallCard, { backgroundColor: CANDY.surfaceHigh }]}
+              activeOpacity={0.8}
+              onPress={() => {}}
+            >
+              <Text style={styles.bentoSmallEmoji}>✨</Text>
+              <Text style={[styles.bentoSmallLabel, { color: CANDY.onSurface }]}>Kata Ajaib</Text>
+            </TouchableOpacity>
+
+            {/* Small card 2 */}
+            <TouchableOpacity
+              style={[styles.bentoSmallCard, { backgroundColor: CANDY.surfaceHigh }]}
+              activeOpacity={0.8}
               onPress={() => navigation.navigate("Settings")}
             >
-              <Text style={[styles.navBtnTextSmall, { color: theme.colors.text }]}>⚙️ Pengaturan</Text>
+              <Text style={styles.bentoSmallEmoji}>⚙️</Text>
+              <Text style={[styles.bentoSmallLabel, { color: CANDY.onSurface }]}>Pengaturan</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Bottom spacer untuk bottom nav */}
+        <View style={{ height: 80 }} />
+      </ScrollView>
+
+      {/* ═══ Bottom Navigation Bar ═══ */}
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: CANDY.surface,
+            borderTopColor: CANDY.outlineVariant,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          <Text style={[styles.navIcon, { color: CANDY.onSurfaceVariant }]}>☰</Text>
+          <Text style={[styles.navLabel, { color: CANDY.onSurfaceVariant }]}>Menu</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItemActive, { backgroundColor: CANDY.pinkContainer }]}
+          activeOpacity={0.8}
+          onPress={handlePlay}
+        >
+          <Text style={styles.navIconActive}>🧩</Text>
+          <Text style={[styles.navLabelActive, { color: CANDY.onPrimaryContainer }]}>Main</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("History")}
+        >
+          <Text style={[styles.navIcon, { color: CANDY.onSurfaceVariant }]}>📚</Text>
+          <Text style={[styles.navLabel, { color: CANDY.onSurfaceVariant }]}>Koleksi</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 16, gap: 16, paddingTop: 48 },
-  logoSection: { alignItems: "center", gap: 4, paddingVertical: 16 },
-  logoEmoji: { fontSize: 48 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: 1 },
-  subtitle: { fontSize: 14, fontWeight: "500", letterSpacing: 2, textTransform: "uppercase" },
-  menuButtons: { gap: 12 },
-  playBtn: {
-    paddingVertical: 18,
+  root: { flex: 1 },
+
+  /* ─── Floating Orbs ─── */
+  floatingContainer: {
+    ...StyleSheet.absoluteFill,
+    overflow: "hidden",
+    zIndex: -1,
+  },
+  floatingOrb: {
+    position: "absolute",
+    borderRadius: 9999,
+  },
+
+  /* ─── Scroll ─── */
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingBottom: 16,
+  },
+
+  /* ─── Top Bar ─── */
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "web" ? 16 : 48,
+    paddingBottom: 12,
+  },
+  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    overflow: "hidden",
+  },
+  avatarText: { fontSize: 14, fontWeight: "800" },
+  appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
+  xpPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  xpPillText: { fontSize: 12, fontWeight: "700" },
+
+  /* ─── Hero Tier Card ─── */
+  heroCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    borderRadius: 16,
+  },
+  heroInner: {
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: CANDY.surface,
+    padding: 24,
+    alignItems: "center",
+    gap: 8,
+    ...Platform.select({
+      web: { backdropFilter: "blur(20px)" },
+    }),
+  },
+  tierIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  tierIconText: { fontSize: 32 },
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  heroTierName: {
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    lineHeight: 38,
+  },
+  progressTrack: {
+    width: "100%",
+    height: 12,
+    borderRadius: 999,
+    marginTop: 8,
+    padding: 1,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  heroSubtext: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 4,
+  },
+
+  /* ─── Play Button ─── */
+  playButton: {
+    marginHorizontal: 16,
+    paddingVertical: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: "hidden",
+    ...Platform.select({
+      web: { cursor: "pointer" },
+    }),
+  },
+  playButtonContent: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    zIndex: 10,
+  },
+  playButtonText: {
+    color: CANDY.onPrimary,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+  playButtonIcon: { fontSize: 28 },
+  shineOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "transparent",
+  },
+
+  /* ─── Action Grid ─── */
+  actionGrid: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 20,
+  },
+  actionCard: {
+    flex: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     borderRadius: 14,
     alignItems: "center",
-    boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
-    elevation: 6,
+    gap: 8,
   },
-  playBtnText: { color: "#FFF", fontSize: 18, fontWeight: "700", letterSpacing: 1 },
-  navBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
+  actionCardIcon: { fontSize: 28 },
+  actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center" },
+
+  /* ─── Bento Section ─── */
+  bentoSection: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    gap: 12,
   },
-  navBtnText: { fontSize: 15, fontWeight: "600" },
-  navRow: { flexDirection: "row", gap: 12 },
-  navBtnSmall: {
+  bentoTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+  bentoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    height: 180,
+  },
+  bentoLargeCard: {
+    width: "48%",
+    height: "100%",
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  bentoLargeContent: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
+    justifyContent: "flex-end",
+    padding: 14,
+    gap: 6,
   },
-  navBtnTextSmall: { fontSize: 14, fontWeight: "600" },
+  bentoLargeEmoji: { fontSize: 28 },
+  bentoLargeLabel: { fontSize: 14, fontWeight: "700" },
+  bentoSmallCard: {
+    width: "48%",
+    height: "47%",
+    borderRadius: 14,
+    justifyContent: "space-between",
+    padding: 14,
+  },
+  bentoSmallEmoji: { fontSize: 24 },
+  bentoSmallLabel: { fontSize: 13, fontWeight: "700" },
+
+  /* ─── Bottom Navigation ─── */
+  bottomNav: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    paddingBottom: Platform.OS === "web" ? 10 : 24,
+  },
+  navItem: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    gap: 2,
+  },
+  navItemActive: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    gap: 2,
+    transform: [{ scale: 1.1 }],
+  },
+  navIcon: { fontSize: 22, opacity: 0.7 },
+  navLabel: { fontSize: 11, fontWeight: "500" },
+  navIconActive: { fontSize: 22 },
+  navLabelActive: { fontSize: 11, fontWeight: "600" },
 });

@@ -57,7 +57,7 @@ Lihat `DESIGN_PLAN.md` untuk detail per-halaman.
 ### Priority Order:
 1. [x] ThemeProvider — update palette warna ✅
 2. [x] AuthScreen — redesign ✅ (mengacu LoginScreen.html)
-3. [ ] MainMenu — redesign
+3. [x] MainMenu — redesign ✅ (mengacu MainMenu.html: hero tier card, play button, bento grid, bottom nav)
 4. [x] GameScreen — redesign ✅ (mengacu InGame.html: top bar avatar+XP, level card, clue pill, action bar)
 5. [x] CrosswordGrid — redesain ✅ (rounded cells, primary active color, scale effect)
 6. [ ] CompletionOverlay — redesign
