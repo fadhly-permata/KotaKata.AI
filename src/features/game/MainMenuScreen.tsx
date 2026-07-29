@@ -262,7 +262,7 @@ export default function MainMenuScreen() {
               onPress={() => navigation.navigate("Settings")}
             >
               <ImageBackground
-                source={{ uri: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&q=80" }}
+                source={{ uri: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&q=80" }}
                 style={styles.bentoSmallBg}
                 resizeMode="cover"
               >
