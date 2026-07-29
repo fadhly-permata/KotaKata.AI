@@ -22,6 +22,8 @@ export type Theme = {
     primary: string;
     secondary: string;
     secondaryContainer: string;
+    tertiary: string;
+    tertiaryContainer: string;
     accent: string;
     gold: string;
     success: string;
@@ -39,50 +41,54 @@ export type Theme = {
 const lightTheme: Theme = {
   mode: "light",
   colors: {
-    background: "#F8F6F0", // warm cream
-    surface: "#FFFFFF",
-    text: "#2D3436",
-    textSecondary: "#8E99A4",
-    border: "#E8E2D9",
-    primary: "#6C5CE7", // indigo
-    secondary: "#7c52aa", // purple
+    background: "#fef7ff", // very light pink-white — warm & playful
+    surface: "#ffffff",
+    text: "#2e1a28",
+    textSecondary: "#604868",
+    border: "#dcc8e0",
+    primary: "#e040a0", // hot pink — brand identity
+    secondary: "#7c52aa", // purple — secondary elements
     secondaryContainer: "#eedcff", // light purple bg
-    accent: "#00B894", // emerald
+    tertiary: "#0096cc", // sky blue — informational
+    tertiaryContainer: "#40c0ee", // light sky blue bg
+    accent: "#e040a0", // hot pink
     gold: "#FDCB6E",
     success: "#00B894",
-    error: "#E17055",
-    cellActive: "#FFFFFF",
-    cellBorder: "#E8E2D9",
-    cellText: "#2D3436",
-    cellBlocked: "#2D3436",
-    cellLocked: "#E8E2D9",
-    cellSolved: "#E8F8F3",
-    cellSolvedText: "#00B894",
+    error: "#e53e3e",
+    cellActive: "#ffffff",
+    cellBorder: "#dcc8e0",
+    cellText: "#2e1a28",
+    cellBlocked: "#2e1a28",
+    cellLocked: "#dcc8e0",
+    cellSolved: "#f0f0ff",
+    cellSolvedText: "#e040a0",
   },
 };
 
 const darkTheme: Theme = {
   mode: "dark",
   colors: {
-    background: "#0F0E17", // deep navy
-    surface: "#1A1926",
-    text: "#F5F5F5",
-    textSecondary: "#8E99A4",
-    border: "#2A2938",
-    primary: "#A29BFE", // soft purple
+    background: "#1a1020", // deep plum
+    surface: "#2a1a30",
+    text: "#fef7ff",
+    textSecondary: "#b8a0b8",
+    border: "#4a3850",
+    primary: "#f0a0cc", // soft hot pink
     secondary: "#c8a8e8", // light purple
-    secondaryContainer: "#4a3068", // dark purple bg
-    accent: "#55EFC4", // mint
+    secondaryContainer: "#3a2850", // dark purple bg
+    tertiary: "#80d0f0", // light sky blue
+    tertiaryContainer: "#004466", // dark blue bg
+    accent: "#f0a0cc",
     gold: "#F9CA24",
     success: "#55EFC4",
-    error: "#FF6B6B",
-    cellActive: "#1A1926",
-    cellBorder: "#2A2938",
-    cellText: "#F5F5F5",
-    cellBlocked: "#0F0E17",
-    cellLocked: "#2A2938",
-    cellSolved: "#1A3A2E",
-    cellSolvedText: "#55EFC4",
+    error: "#ff6b6b",
+    cellActive: "#2a1a30",
+    cellBorder: "#4a3850",
+    cellText: "#fef7ff",
+    cellBlocked: "#1a1020",
+    cellLocked: "#4a3850",
+    cellSolved: "#2a2040",
+    cellSolvedText: "#f0a0cc",
   },
 };
 
