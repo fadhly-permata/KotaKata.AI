@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -29,6 +29,10 @@ const DEMO_WORDS: WordCandidate[] = [
   { word: "RUMUS", clue_1: "Formula matematika", clue_2: "Pola perhitungan", clue_3: "Biasa ada di fisika", tier_level: 1 },
 ];
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+const ZOOM_STEP = 0.25;
+
 export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
@@ -37,6 +41,9 @@ export default function GameScreen() {
     Platform.OS !== "web" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches,
   );
   const pendingNavAction = useRef<any>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const prevSelectedCell = useRef<{ row: number; col: number } | null>(null);
 
   const board = useGameStore((s) => s.board);
   const setBoard = useGameStore((s) => s.setBoard);
@@ -58,6 +65,50 @@ export default function GameScreen() {
   const revealLetter = useGameStore((s) => s.revealLetter);
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
+
+  // Auto-center focused cell
+  const scrollToFocusedCell = useCallback(() => {
+    if (!selectedCell || !scrollViewRef.current || !board) return;
+    if (prevSelectedCell.current?.row === selectedCell.row && prevSelectedCell.current?.col === selectedCell.col) return;
+    prevSelectedCell.current = selectedCell;
+
+    const { width: screenWidth } = Dimensions.get("window");
+    const baseCellSize = Math.floor((screenWidth - 16) / board.size);
+    const cellSize = Math.floor(baseCellSize * zoomLevel);
+    const gap = 3;
+    const padding = 3;
+
+    const cellCenterX = padding + selectedCell.col * (cellSize + gap) + cellSize / 2;
+    const cellCenterY = padding + selectedCell.row * (cellSize + gap) + cellSize / 2;
+
+    const gridWidth = cellSize * board.size + padding * 2;
+    const viewportWidth = screenWidth;
+
+    const scrollX = Math.max(0, Math.min(cellCenterX - viewportWidth / 2, gridWidth - viewportWidth));
+    const scrollY = Math.max(0, cellCenterY - 150);
+
+    scrollViewRef.current.scrollTo({ x: scrollX, y: scrollY, animated: true });
+  }, [selectedCell, zoomLevel, board]);
+
+  useEffect(() => {
+    if (zoomLevel > 1) {
+      const timeout = setTimeout(scrollToFocusedCell, 150);
+      return () => clearTimeout(timeout);
+    }
+  }, [selectedCell, zoomLevel, scrollToFocusedCell]);
+
+  const zoomIn = useCallback(() => {
+    setZoomLevel((prev) => Math.min(ZOOM_MAX, prev + ZOOM_STEP));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoomLevel((prev) => Math.max(ZOOM_MIN, prev - ZOOM_STEP));
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    setZoomLevel(1);
+    scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
@@ -147,11 +198,6 @@ export default function GameScreen() {
     return <CompletionOverlay result={boardResult} onPlayAgain={reset} />;
   }
 
-  // Circular progress ring SVG params
-  const ringRadius = 14;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringProgress = ringCircumference * (1 - tierProgress);
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
@@ -159,7 +205,7 @@ export default function GameScreen() {
         bounces={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ═══ Top Bar: Back Btn + Avatar + Title + XP Pill ═══ */}
+        {/* Top Bar */}
         <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.topBarLeft}>
             <TouchableOpacity
@@ -179,7 +225,7 @@ export default function GameScreen() {
           </View>
         </View>
 
-        {/* ═══ Level Info Card ═══ */}
+        {/* Level Info Card */}
         <View style={[styles.levelCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.levelInfo}>
             <Text style={[styles.levelLabel, { color: theme.colors.secondary }]}>LEVEL {currentTier}</Text>
@@ -198,20 +244,56 @@ export default function GameScreen() {
           </View>
         </View>
 
-        {/* ═══ Crossword Grid ═══ */}
-        <View style={styles.gridWrapper}>
-          <CrosswordGrid
-            board={board}
-            selectedCell={selectedCell}
-            selectedWordIndex={selectedWordIndex}
-            inputOrientation={inputOrientation}
-            onCellPress={selectCell}
-            onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
-            filledLetters={new Map(Object.entries(filledLetters))}
-          />
+        {/* Zoom Controls */}
+        <View style={styles.zoomBar}>
+          <TouchableOpacity
+            style={[styles.zoomBtn, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 }]}
+            activeOpacity={0.7}
+            onPress={zoomOut}
+            disabled={zoomLevel <= ZOOM_MIN}
+          >
+            <Text style={[styles.zoomBtnText, { color: theme.colors.text }]}>−</Text>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7} onPress={resetZoom}>
+            <Text style={[styles.zoomLabel, { color: theme.colors.textSecondary }]}>{Math.round(zoomLevel * 100)}%</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.zoomBtn, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 }]}
+            activeOpacity={0.7}
+            onPress={zoomIn}
+            disabled={zoomLevel >= ZOOM_MAX}
+          >
+            <Text style={[styles.zoomBtnText, { color: theme.colors.text }]}>+</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* ═══ Clue Pill ═══ */}
+        {/* Crossword Grid (Scrollable + Zoomable) */}
+        <View style={styles.gridOuterWrapper}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.gridScroll}
+            contentContainerStyle={styles.gridScrollContent}
+            horizontal={zoomLevel > 1}
+            showsHorizontalScrollIndicator={zoomLevel > 1}
+            showsVerticalScrollIndicator={zoomLevel > 1}
+            bounces={true}
+          >
+            <View style={styles.gridCenterWrapper}>
+              <CrosswordGrid
+                board={board}
+                selectedCell={selectedCell}
+                selectedWordIndex={selectedWordIndex}
+                inputOrientation={inputOrientation}
+                onCellPress={selectCell}
+                onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
+                filledLetters={new Map(Object.entries(filledLetters))}
+                zoomLevel={zoomLevel}
+              />
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Clue Pill */}
         <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]}>
           <TouchableOpacity activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
             <Text style={styles.clueArrowText}>‹</Text>
@@ -238,7 +320,7 @@ export default function GameScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ═══ Floating Action Bar ═══ */}
+        {/* Action Bar */}
         <View style={[styles.actionBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <TouchableOpacity
             style={[styles.actionItem, { backgroundColor: theme.colors.primary }]}
@@ -247,7 +329,6 @@ export default function GameScreen() {
           >
             <Text style={styles.actionIcon}>🔍</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
             activeOpacity={0.7}
@@ -255,7 +336,6 @@ export default function GameScreen() {
           >
             <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.actionItem, { backgroundColor: theme.colors.surface }]}
             activeOpacity={0.7}
@@ -266,7 +346,6 @@ export default function GameScreen() {
         </View>
       </ScrollView>
 
-      {/* ═══ Keyboard (conditionally visible) ═══ */}
       {keyboardVisible && (
         <View style={styles.keyboardWrapper}>
           <InGameKeyboard />
@@ -291,166 +370,44 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 16 },
-
-  /* ── Top Bar ── */
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  backBtnText: {
-    fontSize: 18,
-    fontWeight: "600",
-    lineHeight: 32,
-    textAlign: "center",
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  backBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  backBtnText: { fontSize: 18, fontWeight: "600", lineHeight: 32, textAlign: "center" },
+  avatar: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   avatarText: { fontSize: 16, fontWeight: "800" },
   appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
-  xpPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
+  xpPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   xpPillText: { fontSize: 12, fontWeight: "700" },
-
-  /* ── Level Card ── */
-  levelCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginHorizontal: 16,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: 12,
-  },
+  levelCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, padding: 14, borderRadius: 12, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, marginBottom: 8 },
   levelInfo: { gap: 2 },
   levelLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
   levelName: { fontSize: 18, fontWeight: "800" },
   levelActions: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   iconBtnText: { fontSize: 16 },
-  progressRing: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 3,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  progressRingFill: {
-    position: "absolute",
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 3,
-    borderLeftColor: "transparent",
-    borderBottomColor: "transparent",
-    transform: [{ rotate: "-90deg" }],
-  },
+  progressRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, justifyContent: "center", alignItems: "center" },
+  progressRingFill: { position: "absolute", width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderLeftColor: "transparent", borderBottomColor: "transparent", transform: [{ rotate: "-90deg" }] },
   progressText: { fontSize: 10, fontWeight: "800" },
-
-  /* ── Grid ── */
-  gridWrapper: { alignItems: "center", marginBottom: 12, paddingHorizontal: 4 },
-
-  /* ── Clue Pill ── */
-  cluePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    marginBottom: 10,
-  },
-  clueArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  zoomBar: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 8 },
+  zoomBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
+  zoomBtnText: { fontSize: 20, fontWeight: "700" },
+  zoomLabel: { fontSize: 13, fontWeight: "700", minWidth: 40, textAlign: "center" },
+  gridOuterWrapper: { marginBottom: 8, overflow: "hidden", borderRadius: 12 },
+  gridScroll: { flexGrow: 0 },
+  gridScrollContent: { flexGrow: 0 },
+  gridCenterWrapper: { alignItems: "center", justifyContent: "center", paddingVertical: 8, paddingHorizontal: 4 },
+  cluePill: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 10 },
+  clueArrow: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   clueArrowText: { fontSize: 24, color: "#FFF", fontWeight: "300" },
-  clueContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 4,
-  },
-  clueNumberBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  clueContent: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4 },
+  clueNumberBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center" },
   clueNumberText: { fontSize: 14, fontWeight: "800", color: "#0096cc" },
   clueTextWrap: { flex: 1 },
   clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
   clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600" },
-
-  /* ── Action Bar ── */
-  actionBar: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 20,
-    marginHorizontal: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 999,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  actionItem: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  actionBar: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 20, marginHorizontal: 16, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  actionItem: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   actionIcon: { fontSize: 18 },
-
-  /* ── Keyboard ── */
   keyboardWrapper: {},
 });
