@@ -62,10 +62,10 @@ export default function RootNavigator() {
           name="Game"
           component={GameScreen}
           options={{
+            headerShown: false,
             animation: "fade",
             animationDuration: 250,
             gestureEnabled: false,
-            title: "KotaKata",
           }}
         />
         <Stack.Screen

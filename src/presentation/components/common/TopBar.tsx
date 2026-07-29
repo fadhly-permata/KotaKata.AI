@@ -5,7 +5,6 @@ import { useGameStore } from "../../stores/gameStore";
 
 interface TopBarProps {
   showBack?: boolean;
-  title?: string;
   onBack?: () => void;
 }
 
@@ -24,63 +23,67 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
   };
 
   return (
-    <View style={[styles.topBar, { backgroundColor: C.surface }]}>
-      <View style={styles.topBarLeft}>
-        {showBack && (
-          <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: C.secondaryContainer }]}
-            activeOpacity={0.7}
-            onPress={handleBack}
+    <View style={[styles.safeArea, { backgroundColor: C.surface }]}>
+      <View style={[styles.topBar, { backgroundColor: C.surface }]}>
+        <View style={styles.topBarLeft}>
+          {showBack && (
+            <TouchableOpacity
+              style={[styles.backBtn, { backgroundColor: C.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={handleBack}
+            >
+              <Text style={[styles.backBtnText, { color: C.text }]}>←</Text>
+            </TouchableOpacity>
+          )}
+          <View
+            style={[
+              styles.avatar,
+              { backgroundColor: C.secondaryContainer, borderColor: C.primary },
+            ]}
           >
-            <Text style={[styles.backBtnText, { color: C.text }]}>←</Text>
-          </TouchableOpacity>
-        )}
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: C.secondaryContainer, borderColor: C.primary },
-          ]}
-        >
-          <Text style={[styles.avatarText, { color: C.text }]}>K</Text>
+            <Text style={[styles.avatarText, { color: C.text }]}>K</Text>
+          </View>
+          <Text style={[styles.appTitle, { color: C.primary }]}>KotaKata AI</Text>
         </View>
-        <Text style={[styles.appTitle, { color: C.primary }]}>KotaKata AI</Text>
-      </View>
 
-      <View style={[styles.xpPill, { backgroundColor: C.secondaryContainer }]}>
-        <Text style={[styles.xpPillText, { color: C.secondary }]}>⭐ {totalXp} XP</Text>
+        <View style={[styles.xpPill, { backgroundColor: C.secondaryContainer }]}>
+          <Text style={[styles.xpPillText, { color: C.secondary }]}>⭐ {totalXp} XP</Text>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    paddingTop: Platform.OS === "web" ? 16 : 48,
+  },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "web" ? 16 : 48,
-    paddingBottom: 12,
+    paddingVertical: 14,
   },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   backBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
   },
-  backBtnText: { fontSize: 16, fontWeight: "700" },
+  backBtnText: { fontSize: 18, fontWeight: "700", lineHeight: 20 },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
     overflow: "hidden",
   },
-  avatarText: { fontSize: 12, fontWeight: "800" },
+  avatarText: { fontSize: 13, fontWeight: "800" },
   appTitle: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5 },
   xpPill: {
     flexDirection: "row",
