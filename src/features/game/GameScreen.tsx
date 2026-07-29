@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -9,7 +9,7 @@ import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
-import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
+import { calcTier, calcTierProgress, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
 
@@ -33,10 +33,8 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  // Auto-detect physical keyboard on mount: desktop/laptop → hide, mobile → show
   const [keyboardVisible, setKeyboardVisible] = useState(
-    Platform.OS !== "web" ||
-      !window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+    Platform.OS !== "web" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches,
   );
   const pendingNavAction = useRef<any>(null);
 
@@ -58,8 +56,9 @@ export default function GameScreen() {
   const goToPrevWord = useGameStore((s) => s.goToPrevWord);
   const goToNextWord = useGameStore((s) => s.goToNextWord);
   const revealLetter = useGameStore((s) => s.revealLetter);
+  const useClue2 = useGameStore((s) => s.useClue2);
+  const useClue3 = useGameStore((s) => s.useClue3);
 
-  // Block back navigation when game is in progress
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
       if (!board || boardResult) return;
@@ -84,7 +83,6 @@ export default function GameScreen() {
     pendingNavAction.current = null;
   }, []);
 
-  // Generate board on mount
   useEffect(() => {
     if (!board) {
       const generated = generateBoard(DEMO_WORDS, 10);
@@ -92,19 +90,14 @@ export default function GameScreen() {
     }
   }, []);
 
-  // Auto-detect correctly completed words
   const prevFilledRef = useRef(filledLetters);
   useEffect(() => {
     if (!board || boardResult) return;
-
-    const prev = prevFilledRef.current;
     prevFilledRef.current = filledLetters;
-
     for (let i = 0; i < board.words.length; i++) {
       const word = board.words[i];
       if (word.solved) continue;
       if (!isWordComplete(word, filledLetters)) continue;
-
       const result = validateWord(word, i, filledLetters);
       if (result.isCorrect) {
         markWordSolved(i);
@@ -115,37 +108,29 @@ export default function GameScreen() {
 
   const currentTier = useMemo(() => calcTier(totalXp), [totalXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
+  const tierProgress = useMemo(() => calcTierProgress(totalXp), [totalXp]);
 
   const selectedWord = useMemo(() => {
     if (selectedWordIndex === null || !board) return null;
     return board.words[selectedWordIndex] ?? null;
   }, [selectedWordIndex, board]);
 
-  // Keyboard nav (desktop/web) + auto-detect physical keyboard
   const hasPhysicalKeyboard = useRef(false);
   useEffect(() => {
     if (Platform.OS !== "web" || !board) return;
-
-    // 1) Use Keyboard API to detect physical keyboard (incl. Bluetooth)
     if ("keyboard" in navigator) {
-      (navigator as any).keyboard
-        .getLayoutMap()
-        .then((layout: any) => {
-          if (layout && layout.size > 0) {
-            hasPhysicalKeyboard.current = true;
-            setKeyboardVisible(false);
-          }
-        })
-        .catch(() => {});
+      (navigator as any).keyboard.getLayoutMap().then((layout: any) => {
+        if (layout && layout.size > 0) {
+          hasPhysicalKeyboard.current = true;
+          setKeyboardVisible(false);
+        }
+      }).catch(() => {});
     }
-
-    // 2) Fallback: detect on first physical keypress
     const handleKey = (e: KeyboardEvent) => {
       if (!hasPhysicalKeyboard.current && /^[a-zA-Z0-9]$/.test(e.key)) {
         hasPhysicalKeyboard.current = true;
         setKeyboardVisible(false);
       }
-
       if (e.key === "ArrowUp") { navigateToCell("up"); e.preventDefault(); }
       if (e.key === "ArrowDown") { navigateToCell("down"); e.preventDefault(); }
       if (e.key === "ArrowLeft") { navigateToCell("left"); e.preventDefault(); }
@@ -153,84 +138,128 @@ export default function GameScreen() {
       if (e.key === "Backspace") { useGameStore.getState().deleteLetter(); e.preventDefault(); }
       if (/^[a-zA-Z]$/.test(e.key)) { inputLetter(e.key); e.preventDefault(); }
     };
-
     window.addEventListener("keydown", handleKey);
-
-    return () => {
-      window.removeEventListener("keydown", handleKey);
-    };
+    return () => window.removeEventListener("keydown", handleKey);
   }, [board, navigateToCell, inputLetter]);
 
   if (!board) return null;
-
   if (boardResult) {
     return <CompletionOverlay result={boardResult} onPlayAgain={reset} />;
   }
 
+  // Circular progress ring SVG params
+  const ringRadius = 14;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringProgress = ringCircumference * (1 - tierProgress);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Tier info bar */}
-      <View style={[styles.tierBar, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.tierText, { color: theme.colors.textSecondary }]}>
-          Tier {currentTier}: {tierName}
-        </Text>
-        <Text style={[styles.xpText, { color: theme.colors.primary }]}>
-          +{currentXp} XP
-        </Text>
-      </View>
-
-      <View style={styles.gridWrapper}>
-        <CrosswordGrid
-          board={board}
-          selectedCell={selectedCell}
-          selectedWordIndex={selectedWordIndex}
-          inputOrientation={inputOrientation}
-          onCellPress={selectCell}
-          onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
-          filledLetters={new Map(Object.entries(filledLetters))}
-        />
-      </View>
-
-      {/* Compact toolbar: ◀ 🔍 ▶ clue_text 🎹 */}
-      <View style={[styles.toolbar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity activeOpacity={0.5} onPress={goToPrevWord} style={styles.toolBtn}>
-          <Text style={[styles.toolBtnText, { color: theme.colors.primary }]}>◀</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.5}
-          onPress={() => selectedWordIndex !== null && revealLetter(selectedWordIndex)}
-          style={[styles.toolBtn, { borderWidth: 1, borderColor: theme.colors.primary, borderRadius: 6 }]}
-        >
-          <Text style={styles.toolIcon}>🔍</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity activeOpacity={0.5} onPress={goToNextWord} style={styles.toolBtn}>
-          <Text style={[styles.toolBtnText, { color: theme.colors.primary }]}>▶</Text>
-        </TouchableOpacity>
-
-        {/* Clue text — flexible, truncated */}
-        <View style={styles.clueArea}>
-          <Text
-            style={[styles.clueText, { color: theme.colors.text }]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {selectedWord
-              ? `${selectedWord.clue_1}`
-              : "Ketuk kata di papan"}
-          </Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        bounces={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ═══ Top Bar: Avatar + Title + XP Pill ═══ */}
+        <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.topBarLeft}>
+            <View style={[styles.avatar, { backgroundColor: theme.colors.secondaryContainer }]}>
+              <Text style={[styles.avatarText, { color: theme.colors.primary }]}>K</Text>
+            </View>
+            <Text style={[styles.appTitle, { color: theme.colors.primary }]}>KotaKata AI</Text>
+          </View>
+          <View style={[styles.xpPill, { backgroundColor: "#ffd6ee" }]}>
+            <Text style={[styles.xpPillText, { color: "#a02070" }]}>⭐ {totalXp + currentXp} XP</Text>
+          </View>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.5}
-          onPress={() => setKeyboardVisible((v) => !v)}
-          style={[styles.toolBtn, { opacity: keyboardVisible ? 1 : 0.5 }]}
-        >
-          <Text style={styles.toolIcon}>⌨️</Text>
-        </TouchableOpacity>
-      </View>
+        {/* ═══ Level Info Card ═══ */}
+        <View style={[styles.levelCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.levelInfo}>
+            <Text style={[styles.levelLabel, { color: theme.colors.secondary }]}>LEVEL {currentTier}</Text>
+            <Text style={[styles.levelName, { color: theme.colors.text }]}>{tierName}</Text>
+          </View>
+          <View style={styles.levelActions}>
+            <TouchableOpacity style={[styles.iconBtn, { backgroundColor: theme.colors.surface }]}>
+              <Text style={styles.iconBtnText}>🔀</Text>
+            </TouchableOpacity>
+            <View style={[styles.progressRing, { borderColor: theme.colors.border }]}>
+              <View style={[styles.progressRingFill, { borderColor: theme.colors.primary }]} />
+              <Text style={[styles.progressText, { color: theme.colors.primary }]}>
+                {Math.round(tierProgress * 100)}%
+              </Text>
+            </View>
+          </View>
+        </View>
 
+        {/* ═══ Crossword Grid ═══ */}
+        <View style={styles.gridWrapper}>
+          <CrosswordGrid
+            board={board}
+            selectedCell={selectedCell}
+            selectedWordIndex={selectedWordIndex}
+            inputOrientation={inputOrientation}
+            onCellPress={selectCell}
+            onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
+            filledLetters={new Map(Object.entries(filledLetters))}
+          />
+        </View>
+
+        {/* ═══ Clue Pill ═══ */}
+        <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]}>
+          <TouchableOpacity activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
+            <Text style={styles.clueArrowText}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.clueContent}>
+            <View style={styles.clueNumberBadge}>
+              <Text style={styles.clueNumberText}>
+                {selectedWord?.cells[0]?.number ?? "?"}
+              </Text>
+            </View>
+            <View style={styles.clueTextWrap}>
+              <Text style={styles.clueOrientation}>
+                {selectedWord
+                  ? `${selectedWord.orientation === "horizontal" ? "Mendatar" : "Menurun"} (${selectedWord.word.length} Huruf)`
+                  : "Pilih kata di papan"}
+              </Text>
+              <Text style={styles.clueMain} numberOfLines={1}>
+                {selectedWord?.clue_1 ?? "Ketuk sel untuk memulai"}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity activeOpacity={0.7} onPress={goToNextWord} style={styles.clueArrow}>
+            <Text style={styles.clueArrowText}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ═══ Floating Action Bar ═══ */}
+        <View style={[styles.actionBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <TouchableOpacity
+            style={[styles.actionItem, { backgroundColor: theme.colors.primary }]}
+            activeOpacity={0.7}
+            onPress={() => selectedWordIndex !== null && revealLetter(selectedWordIndex)}
+          >
+            <Text style={styles.actionIcon}>🔍</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={() => selectedWordIndex !== null && useClue2(selectedWordIndex)}
+          >
+            <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionItem, { backgroundColor: theme.colors.surface }]}
+            activeOpacity={0.7}
+            onPress={() => setKeyboardVisible((v) => !v)}
+          >
+            <Text style={[styles.actionIcon, { opacity: keyboardVisible ? 1 : 0.4 }]}>⌨️</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* ═══ Keyboard (conditionally visible) ═══ */}
       {keyboardVisible && (
         <View style={styles.keyboardWrapper}>
           <InGameKeyboard />
@@ -254,46 +283,153 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  tierBar: {
+  scrollContent: { paddingBottom: 16 },
+
+  /* ── Top Bar ── */
+  topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
-  tierText: { fontSize: 12, fontWeight: "600" },
-  xpText: { fontSize: 12, fontWeight: "700" },
-  gridWrapper: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 16 },
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    gap: 6,
-  },
-  toolBtn: {
-    width: 34,
-    height: 30,
-    borderRadius: 6,
+  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
   },
-  toolBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
+  avatarText: { fontSize: 16, fontWeight: "800" },
+  appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
+  xpPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  toolIcon: {
-    fontSize: 16,
+  xpPillText: { fontSize: 12, fontWeight: "700" },
+
+  /* ── Level Card ── */
+  levelCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 12,
   },
-  clueArea: {
+  levelInfo: { gap: 2 },
+  levelLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
+  levelName: { fontSize: 18, fontWeight: "800" },
+  levelActions: { flexDirection: "row", alignItems: "center", gap: 10 },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  iconBtnText: { fontSize: 16 },
+  progressRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  progressRingFill: {
+    position: "absolute",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 3,
+    borderLeftColor: "transparent",
+    borderBottomColor: "transparent",
+    transform: [{ rotate: "-90deg" }],
+  },
+  progressText: { fontSize: 10, fontWeight: "800" },
+
+  /* ── Grid ── */
+  gridWrapper: { alignItems: "center", marginBottom: 12, paddingHorizontal: 16 },
+
+  /* ── Clue Pill ── */
+  cluePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginBottom: 10,
+  },
+  clueArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  clueArrowText: { fontSize: 24, color: "#FFF", fontWeight: "300" },
+  clueContent: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     paddingHorizontal: 4,
   },
-  clueText: {
-    fontSize: 12,
-    lineHeight: 16,
+  clueNumberBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  keyboardWrapper: { paddingTop: 4 },
+  clueNumberText: { fontSize: 14, fontWeight: "800", color: "#0096cc" },
+  clueTextWrap: { flex: 1 },
+  clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
+  clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600" },
+
+  /* ── Action Bar ── */
+  actionBar: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+    marginHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  actionItem: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionIcon: { fontSize: 18 },
+
+  /* ── Keyboard ── */
+  keyboardWrapper: {},
 });

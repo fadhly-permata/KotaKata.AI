@@ -58,10 +58,11 @@ Lihat `DESIGN_PLAN.md` untuk detail per-halaman.
 1. [x] ThemeProvider — update palette warna ✅
 2. [x] AuthScreen — redesign ✅ (mengacu LoginScreen.html)
 3. [ ] MainMenu — redesign
-4. [ ] GameScreen — redesign (grid, toolbar)
-5. [ ] CompletionOverlay — redesign
-6. [ ] ProfileScreen — redesign
-7. [ ] SettingsScreen — redesign
+4. [x] GameScreen — redesign ✅ (mengacu InGame.html: top bar avatar+XP, level card, clue pill, action bar)
+5. [x] CrosswordGrid — redesain ✅ (rounded cells, primary active color, scale effect)
+6. [ ] CompletionOverlay — redesign
+7. [ ] ProfileScreen — redesign
+8. [ ] SettingsScreen — redesign
 
 ---
 
