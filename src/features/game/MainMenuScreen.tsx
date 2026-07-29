@@ -285,43 +285,7 @@ export default function MainMenuScreen() {
           </View>
         </View>
 
-        {/* Bottom spacer untuk bottom nav */}
-        <View style={{ height: 80 }} />
       </ScrollView>
-
-      {/* ═══ Bottom Navigation Bar ═══ */}
-      <View
-        style={[
-          styles.bottomNav,
-          {
-            backgroundColor: CANDY.surface,
-            borderTopColor: CANDY.outlineVariant,
-          },
-        ]}
-      >
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Text style={[styles.navIcon, { color: CANDY.onSurfaceVariant }]}>☰</Text>
-          <Text style={[styles.navLabel, { color: CANDY.onSurfaceVariant }]}>Menu</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navItemActive, { backgroundColor: CANDY.pinkContainer }]}
-          activeOpacity={0.8}
-          onPress={handlePlay}
-        >
-          <Text style={styles.navIconActive}>🧩</Text>
-          <Text style={[styles.navLabelActive, { color: CANDY.onPrimaryContainer }]}>Main</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate("History")}
-        >
-          <Text style={[styles.navIcon, { color: CANDY.onSurfaceVariant }]}>📚</Text>
-          <Text style={[styles.navLabel, { color: CANDY.onSurfaceVariant }]}>Koleksi</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -543,34 +507,5 @@ const styles = StyleSheet.create({
   bentoSmallEmoji: { fontSize: 24 },
   bentoSmallLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 
-  /* ─── Bottom Navigation ─── */
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    paddingBottom: Platform.OS === "web" ? 10 : 24,
-  },
-  navItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    gap: 2,
-  },
-  navItemActive: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    borderRadius: 999,
-    gap: 2,
-    transform: [{ scale: 1.1 }],
-  },
-  navIcon: { fontSize: 22, opacity: 0.7 },
-  navLabel: { fontSize: 11, fontWeight: "500" },
-  navIconActive: { fontSize: 22 },
-  navLabelActive: { fontSize: 11, fontWeight: "600" },
+
 });
