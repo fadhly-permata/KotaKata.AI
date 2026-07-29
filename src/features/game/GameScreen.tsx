@@ -33,7 +33,11 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(true);
+  // Auto-detect physical keyboard on mount: desktop/laptop → hide, mobile → show
+  const [keyboardVisible, setKeyboardVisible] = useState(
+    Platform.OS !== "web" ||
+      !window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+  );
   const pendingNavAction = useRef<any>(null);
 
   const board = useGameStore((s) => s.board);
