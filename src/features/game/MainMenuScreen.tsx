@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   /* ─── Scroll ─── */
   scroll: { flex: 1 },
   scrollContent: {
-    paddingBottom: 16,
+    paddingBottom: 40,
   },
 
   /* ─── Top Bar ─── */
