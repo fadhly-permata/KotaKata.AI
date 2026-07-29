@@ -86,7 +86,13 @@ export default function GameScreen() {
     prevSelectedCell.current = selectedCell;
 
     const { width: screenWidth } = Dimensions.get("window");
-    const baseCellSize = Math.floor((screenWidth - 16) / board.size);
+    const outerMargin = 8; // matches gridCenterWrapper horizontal padding
+    const availableWidth = screenWidth - outerMargin;
+    const gapsTotal = CELL_GAP * (board.size - 1);
+    const borderTotal = 2;
+    const paddingTotal = GRID_PADDING * 2;
+    const fixedSpace = gapsTotal + borderTotal + paddingTotal;
+    const baseCellSize = Math.floor((availableWidth - fixedSpace) / board.size);
     const cellSize = Math.floor(baseCellSize * zoomLevel);
 
     const cellCenterX = GRID_PADDING + selectedCell.col * (cellSize + CELL_GAP) + cellSize / 2;
