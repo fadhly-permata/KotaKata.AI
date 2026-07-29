@@ -45,9 +45,11 @@ interface GameState {
   useClue2: (wordIndex: number) => void;
   useClue3: (wordIndex: number) => void;
   revealLetter: (wordIndex: number) => void;
+  revealWord: (wordIndex: number) => void;
   markWordSolved: (wordIndex: number) => void;
   setTotalXp: (totalXp: number) => void;
   reset: () => void;
+  resetBoard: () => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -376,6 +378,36 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  revealWord: (wordIndex: number) => {
+    const { board, filledLetters, hints } = get();
+    if (!board || !board.words[wordIndex]) return;
+
+    const word = board.words[wordIndex];
+    const newLetters = { ...filledLetters };
+    const newRevealed: string[] = [];
+
+    for (const cell of word.cells) {
+      const key = `${cell.row},${cell.col}`;
+      if (!newLetters[key] && !cell.isLocked) {
+        const offset = word.orientation === "vertical" ? cell.row - word.startRow : cell.col - word.startCol;
+        newLetters[key] = word.word[offset];
+        newRevealed.push(key);
+      }
+    }
+
+    set({
+      filledLetters: newLetters,
+      currentXp: Math.max(0, get().currentXp - XP_PENALTY_REVEAL),
+      hints: {
+        ...hints,
+        [wordIndex]: {
+          ...hints[wordIndex],
+          revealedCells: [...(hints[wordIndex]?.revealedCells ?? []), ...newRevealed],
+        },
+      },
+    });
+  },
+
   setTotalXp: (totalXp: number) => set({ totalXp }),
 
   reset: () =>
@@ -392,6 +424,24 @@ export const useGameStore = create<GameState>((set, get) => ({
       sessionStartTime: 0,
       boardResult: null,
     }),
+
+  resetBoard: () => {
+    const { board } = get();
+    if (!board) return;
+    // Unlock all cells and clear filled letters
+    for (const word of board.words) {
+      word.solved = false;
+      for (const cell of word.cells) {
+        cell.isLocked = false;
+      }
+    }
+    set({
+      filledLetters: {},
+      hints: {},
+      currentXp: 0,
+      wordsSolved: 0,
+    });
+  },
 }));
 
 function getSortedWordIndices(board: Board): number[] {
