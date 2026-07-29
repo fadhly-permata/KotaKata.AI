@@ -117,10 +117,18 @@ export default function GameScreen() {
     return board.words[selectedWordIndex] ?? null;
   }, [selectedWordIndex, board]);
 
-  // Keyboard nav (desktop/web)
+  // Keyboard nav (desktop/web) + auto-detect physical keyboard
+  const hasPhysicalKeyboard = useRef(false);
   useEffect(() => {
     if (Platform.OS !== "web") return;
+
     const handleKey = (e: KeyboardEvent) => {
+      // Auto-hide virtual keyboard when physical keyboard is used
+      if (!hasPhysicalKeyboard.current && /^[a-zA-Z0-9]$/.test(e.key)) {
+        hasPhysicalKeyboard.current = true;
+        setKeyboardVisible(false);
+      }
+
       if (e.key === "ArrowUp") { navigateToCell("up"); e.preventDefault(); }
       if (e.key === "ArrowDown") { navigateToCell("down"); e.preventDefault(); }
       if (e.key === "ArrowLeft") { navigateToCell("left"); e.preventDefault(); }
@@ -128,8 +136,24 @@ export default function GameScreen() {
       if (e.key === "Backspace") { useGameStore.getState().deleteLetter(); e.preventDefault(); }
       if (/^[a-zA-Z]$/.test(e.key)) { inputLetter(e.key); e.preventDefault(); }
     };
+
+    // Auto-show virtual keyboard on mouse/touch interaction
+    const handleInteraction = () => {
+      if (hasPhysicalKeyboard.current) {
+        hasPhysicalKeyboard.current = false;
+        setKeyboardVisible(true);
+      }
+    };
+
     window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    window.addEventListener("mousedown", handleInteraction);
+    window.addEventListener("touchstart", handleInteraction);
+
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("mousedown", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
+    };
   }, [navigateToCell, inputLetter]);
 
   if (!board) return null;
