@@ -1,12 +1,22 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
 import { useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
+import { useAuth } from "../auth/useAuth";
+import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
   const { theme, themeMode, setThemeMode } = useTheme();
+  const navigation = useNavigation<Nav>();
   const totalXp = useGameStore((s) => s.totalXp);
+  const reset = useGameStore((s) => s.reset);
+  const { signOut } = useAuth();
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
 
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
 
@@ -14,10 +24,36 @@ export default function SettingsScreen() {
     setThemeMode(isDark ? "light" : "dark");
   };
 
+  const handleSignOut = () => {
+    Alert.alert(
+      "Keluar Akun",
+      "Apakah kamu yakin ingin keluar? Progres game akan tetap tersimpan.",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Keluar",
+          style: "destructive",
+          onPress: async () => {
+            setSigningOut(true);
+            try {
+              await signOut();
+              reset();
+              navigation.reset({ index: 0, routes: [{ name: "Auth" }] });
+            } catch (e: any) {
+              Alert.alert("Gagal", e.message || "Terjadi kesalahan");
+            } finally {
+              setSigningOut(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
-        {/* Theme */}
+        {/* Tampilan */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tampilan</Text>
           <View style={styles.settingRow}>
@@ -41,6 +77,24 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Akun */}
+        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Akun</Text>
+          <TouchableOpacity
+            style={styles.actionRow}
+            activeOpacity={0.6}
+            onPress={handleSignOut}
+            disabled={signingOut}
+          >
+            <Text style={[styles.actionText, { color: theme.colors.error }]}>
+              {signingOut ? "Keluar..." : "Keluar Akun"}
+            </Text>
+            <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>
+              Kembali ke halaman login
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Data */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Data</Text>
@@ -52,7 +106,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* About */}
+        {/* Tentang */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tentang</Text>
           <View style={styles.settingRow}>
@@ -80,6 +134,9 @@ const styles = StyleSheet.create({
   settingValue: { fontSize: 14, fontWeight: "600" },
   settingHint: { fontSize: 13, lineHeight: 18 },
   divider: { height: 1 },
+  actionRow: { paddingVertical: 8 },
+  actionText: { fontSize: 15, fontWeight: "600" },
+  actionHint: { fontSize: 12, marginTop: 2 },
   dangerBtn: {
     paddingVertical: 10,
     paddingHorizontal: 16,
