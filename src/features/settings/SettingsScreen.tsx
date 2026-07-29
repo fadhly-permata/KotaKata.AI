@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import TopBar from "../../presentation/components/common/TopBar";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { useAuth } from "../auth/useAuth";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
@@ -41,8 +42,9 @@ export default function SettingsScreen() {
   }, [signOut, reset, navigation]);
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <TopBar />
+      <ScrollView contentContainerStyle={styles.content}>
         {/* Tampilan */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tampilan</Text>
@@ -109,7 +111,7 @@ export default function SettingsScreen() {
             <Text style={[styles.settingValue, { color: theme.colors.text }]}>KotaKata.AI</Text>
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       <ConfirmDialog
         visible={showSignOutConfirm}
@@ -122,7 +124,7 @@ export default function SettingsScreen() {
         variant="danger"
         emoji="🚪"
       />
-    </ScrollView>
+    </View>
   );
 }
 

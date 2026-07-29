@@ -71,17 +71,17 @@ export default function RootNavigator() {
         <Stack.Screen
           name="History"
           component={HistoryScreen}
-          options={{ title: "Sejarah Saya" }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: "Profil" }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
-          options={{ title: "Pengaturan" }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

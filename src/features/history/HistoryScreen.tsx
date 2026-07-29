@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import TopBar from "../../presentation/components/common/TopBar";
 
 interface DiscoveryItem {
   id: string;
@@ -65,6 +66,8 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <TopBar />
+
       {/* Search bar */}
       <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.searchIcon, { color: theme.colors.textSecondary }]}>🔍</Text>
