@@ -17,7 +17,7 @@ interface CrosswordGridProps {
   inputOrientation: "horizontal" | "vertical" | null;
   onCellPress: (row: number, col: number) => void;
   onToggleOrientation: () => void;
-  filledLetters: Map<string, string>; // "row,col" -> letter
+  filledLetters: Map<string, string>;
 }
 
 export default function CrosswordGrid({
@@ -37,9 +37,8 @@ export default function CrosswordGrid({
   }, [screenWidth, board.size]);
 
   const fontSize = useMemo(() => Math.max(14, cellSize * 0.45), [cellSize]);
-  const numberSize = useMemo(() => Math.max(8, fontSize * 0.45), [fontSize]);
+  const numberSize = useMemo(() => Math.max(8, fontSize * 0.4), [fontSize]);
 
-  // Build set of cells that belong to the selected word
   const selectedCells = useMemo(() => {
     const set = new Set<string>();
     if (selectedWordIndex !== null && board.words[selectedWordIndex]) {
@@ -50,7 +49,6 @@ export default function CrosswordGrid({
     return set;
   }, [selectedWordIndex, board.words]);
 
-  // Build set of solved cells (locked words)
   const solvedStateKey = board.words.map((w) => w.solved).join(",");
   const solvedCells = useMemo(() => {
     const set = new Set<string>();
@@ -76,17 +74,18 @@ export default function CrosswordGrid({
           key={key}
           style={[
             styles.cell,
+            styles.blockedCell,
             {
               width: cellSize,
               height: cellSize,
               backgroundColor: theme.colors.cellBlocked,
+              borderRadius: 4,
             },
           ]}
         />
       );
     }
 
-    // Color selection
     let bgColor: string;
     let borderColor: string;
     let borderW = 1;
@@ -113,19 +112,21 @@ export default function CrosswordGrid({
     return (
       <TouchableOpacity
         key={key}
-        activeOpacity={isSolved ? 1 : 0.6}
+        activeOpacity={isSolved ? 1 : 0.7}
         onPress={handlePress}
-        {...(Platform.OS === "web"
-          ? { onClick: handlePress }
-          : {})}
+        {...(Platform.OS === "web" ? { onClick: handlePress } : {})}
         style={[
           styles.cell,
+          styles.activeCell,
           {
             width: cellSize,
             height: cellSize,
             backgroundColor: bgColor,
             borderColor: borderColor,
             borderWidth: borderW,
+            transform: isSelected ? [{ scale: 1.08 }] : [{ scale: 1 }],
+            zIndex: isSelected ? 10 : 1,
+            ...(isSelected ? { shadowColor: theme.colors.primary } : {}),
           },
         ]}
       >
@@ -135,7 +136,7 @@ export default function CrosswordGrid({
               styles.cellNumber,
               {
                 fontSize: numberSize,
-                color: theme.colors.textSecondary,
+                color: isSelected ? "#FFF" : theme.colors.textSecondary,
               },
             ]}
           >
@@ -147,7 +148,7 @@ export default function CrosswordGrid({
             styles.cellLetter,
             {
               fontSize,
-              color: isSolved ? theme.colors.cellSolvedText : theme.colors.cellText,
+              color: isSelected ? "#FFF" : isSolved ? theme.colors.cellSolvedText : theme.colors.cellText,
             },
           ]}
         >
@@ -164,7 +165,9 @@ export default function CrosswordGrid({
         {
           width: cellSize * board.size,
           backgroundColor: theme.colors.surface,
-          borderRadius: 8,
+          borderRadius: 12,
+          borderColor: theme.colors.border,
+          shadowColor: "#000",
         },
       ]}
     >
@@ -173,19 +176,6 @@ export default function CrosswordGrid({
           {row.map((cell) => renderCell(cell))}
         </View>
       ))}
-
-      {inputOrientation && (
-        <View style={styles.orientationBadge}>
-          <Text
-            style={[
-              styles.orientationText,
-              { color: theme.colors.primary },
-            ]}
-          >
-            {inputOrientation === "horizontal" ? "→ MENDATAR" : "↓ MENURUN"}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -193,10 +183,17 @@ export default function CrosswordGrid({
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
-    padding: 1,
+    padding: 3,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
   },
   row: {
     flexDirection: "row",
+    gap: 3,
+    marginBottom: 3,
   },
   cell: {
     justifyContent: "center",
@@ -204,6 +201,10 @@ const styles = StyleSheet.create({
     position: "relative",
     cursor: "pointer",
   },
+  activeCell: {
+    borderRadius: 6,
+  },
+  blockedCell: {},
   cellNumber: {
     position: "absolute",
     top: 1,
@@ -213,19 +214,5 @@ const styles = StyleSheet.create({
   cellLetter: {
     fontWeight: "600",
     textTransform: "uppercase",
-  },
-  orientationBadge: {
-    position: "absolute",
-    bottom: -30,
-    alignSelf: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.08)",
-  },
-  orientationText: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
   },
 });

@@ -20,6 +20,8 @@ export type Theme = {
     textSecondary: string;
     border: string;
     primary: string;
+    secondary: string;
+    secondaryContainer: string;
     accent: string;
     gold: string;
     success: string;
@@ -43,6 +45,8 @@ const lightTheme: Theme = {
     textSecondary: "#8E99A4",
     border: "#E8E2D9",
     primary: "#6C5CE7", // indigo
+    secondary: "#7c52aa", // purple
+    secondaryContainer: "#eedcff", // light purple bg
     accent: "#00B894", // emerald
     gold: "#FDCB6E",
     success: "#00B894",
@@ -66,6 +70,8 @@ const darkTheme: Theme = {
     textSecondary: "#8E99A4",
     border: "#2A2938",
     primary: "#A29BFE", // soft purple
+    secondary: "#c8a8e8", // light purple
+    secondaryContainer: "#4a3068", // dark purple bg
     accent: "#55EFC4", // mint
     gold: "#F9CA24",
     success: "#55EFC4",
