@@ -18,30 +18,9 @@ import type { RootStackParamList } from "../../presentation/navigation/RootNavig
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
-// ─── Candy palette (mengacu MainMenu.html) ───
-const CANDY = {
-  pink: "#e040a0",
-  pinkLight: "#ffd6ee",
-  pinkContainer: "#f080c0",
-  purple: "#7c52aa",
-  purpleContainer: "#eedcff",
-  teal: "#0096cc",
-  tealContainer: "#40c0ee",
-  bg: "#fef7ff",
-  surface: "#ffffff",
-  surfaceHigh: "#f2e8f2",
-  outline: "#907898",
-  outlineVariant: "#dcc8e0",
-  onSurface: "#2e1a28",
-  onSurfaceVariant: "#604868",
-  onPrimary: "#ffffff",
-  onPrimaryContainer: "#2e1a28",
-  onSecondaryContainer: "#2e2040",
-  onTertiaryContainer: "#00334d",
-};
-
 export default function MainMenuScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  const C = theme.colors;
   const navigation = useNavigation<Nav>();
   const totalXp = useGameStore((s) => s.totalXp);
   const reset = useGameStore((s) => s.reset);
@@ -50,7 +29,6 @@ export default function MainMenuScreen() {
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
   const tierProgress = useMemo(() => calcTierProgress(totalXp), [totalXp]);
   const xpToNext = useMemo(() => {
-    // Rough calculation: tier 1 = 200 max, tier 2 = 500 max, etc.
     const nextThresholds = [200, 500, 1000, 1800, 3000, 5000, 8000, 12000, 20000];
     const nextXp = nextThresholds[Math.min(currentTier - 1, nextThresholds.length - 1)] || 200;
     const remaining = Math.max(1, Math.round((1 - tierProgress) * nextXp / 25));
@@ -80,8 +58,10 @@ export default function MainMenuScreen() {
     navigation.navigate("Game");
   };
 
+  const heroBg = isDark ? "rgba(42,26,48,0.85)" : "rgba(255,255,255,0.7)";
+
   return (
-    <View style={[styles.root, { backgroundColor: CANDY.bg }]}>
+    <View style={[styles.root, { backgroundColor: C.background }]}>
       {/* ─── Floating Background Shapes ─── */}
       <View style={styles.floatingContainer} pointerEvents="none">
         <View
@@ -90,7 +70,7 @@ export default function MainMenuScreen() {
             {
               width: 160,
               height: 160,
-              backgroundColor: CANDY.pinkLight,
+              backgroundColor: isDark ? "#3a2050" : "#ffd6ee",
               top: "-5%",
               left: "-10%",
               opacity: 0.5,
@@ -103,7 +83,7 @@ export default function MainMenuScreen() {
             {
               width: 200,
               height: 200,
-              backgroundColor: CANDY.purpleContainer,
+              backgroundColor: C.secondaryContainer,
               top: "35%",
               right: "-15%",
               opacity: 0.45,
@@ -116,7 +96,7 @@ export default function MainMenuScreen() {
             {
               width: 120,
               height: 120,
-              backgroundColor: CANDY.tealContainer,
+              backgroundColor: C.tertiaryContainer,
               bottom: "10%",
               left: "5%",
               opacity: 0.4,
@@ -133,47 +113,46 @@ export default function MainMenuScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ Top AppBar ═══ */}
-        <View style={[styles.topBar, { backgroundColor: CANDY.surface }]}>
+        <View style={[styles.topBar, { backgroundColor: C.surface }]}>
           <View style={styles.topBarLeft}>
             <View
               style={[
                 styles.avatar,
-                { backgroundColor: CANDY.pinkContainer, borderColor: CANDY.pink },
+                { backgroundColor: C.secondaryContainer, borderColor: C.primary },
               ]}
             >
-              <Text style={[styles.avatarText, { color: CANDY.onPrimaryContainer }]}>K</Text>
+              <Text style={[styles.avatarText, { color: C.text }]}>K</Text>
             </View>
-            <Text style={[styles.appTitle, { color: CANDY.pink }]}>KotaKata AI</Text>
+            <Text style={[styles.appTitle, { color: C.primary }]}>KotaKata AI</Text>
           </View>
-          <View style={[styles.xpPill, { backgroundColor: CANDY.purpleContainer }]}>
-            <Text style={[styles.xpPillText, { color: CANDY.purple }]}>⭐ {totalXp} XP</Text>
+          <View style={[styles.xpPill, { backgroundColor: C.secondaryContainer }]}>
+            <Text style={[styles.xpPillText, { color: C.secondary }]}>⭐ {totalXp} XP</Text>
           </View>
         </View>
 
         {/* ═══ Hero Tier Card ═══ */}
         <View style={styles.heroCard}>
-          {/* Glassmorphism inner */}
-          <View style={styles.heroInner}>
-            <View style={[styles.tierIconCircle, { backgroundColor: CANDY.pink }]}>
+          <View style={[styles.heroInner, { backgroundColor: heroBg, borderColor: C.surface }]}>
+            <View style={[styles.tierIconCircle, { backgroundColor: C.primary }]}>
               <Text style={styles.tierIconText}>📖</Text>
             </View>
-            <Text style={[styles.heroLabel, { color: CANDY.purple }]}>PERINGKAT SAAT INI</Text>
-            <Text style={[styles.heroTierName, { color: CANDY.pink }]}>{tierName}</Text>
+            <Text style={[styles.heroLabel, { color: C.secondary }]}>PERINGKAT SAAT INI</Text>
+            <Text style={[styles.heroTierName, { color: C.primary }]}>{tierName}</Text>
 
             {/* Progress Bar */}
-            <View style={[styles.progressTrack, { backgroundColor: CANDY.surfaceHigh }]}>
+            <View style={[styles.progressTrack, { backgroundColor: C.border }]}>
               <View
                 style={[
                   styles.progressFill,
                   {
                     width: `${Math.round(tierProgress * 100)}%` as any,
-                    backgroundColor: CANDY.pink,
+                    backgroundColor: C.primary,
                   },
                 ]}
               />
             </View>
 
-            <Text style={[styles.heroSubtext, { color: CANDY.onSurfaceVariant }]}>
+            <Text style={[styles.heroSubtext, { color: C.textSecondary }]}>
               Lengkapi {xpToNext} kata lagi untuk level berikutnya!
             </Text>
           </View>
@@ -181,7 +160,7 @@ export default function MainMenuScreen() {
 
         {/* ═══ Main Action: Mulai Bermain ═══ */}
         <TouchableOpacity
-          style={[styles.playButton, { backgroundColor: CANDY.pink }]}
+          style={[styles.playButton, { backgroundColor: C.primary }]}
           activeOpacity={0.9}
           onPress={handlePlay}
         >
@@ -196,30 +175,29 @@ export default function MainMenuScreen() {
               ▶️
             </Animated.Text>
           </View>
-          {/* Shine overlay */}
           <View style={styles.shineOverlay} />
         </TouchableOpacity>
 
-        {/* ═══ Action Grid: Misi Harian + Akademi ═══ */}
+        {/* ═══ Action Grid: Misi Harian + Sejarah ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: CANDY.tealContainer }]}
+            style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
             activeOpacity={0.8}
             onPress={() => {}}
           >
             <Text style={styles.actionCardIcon}>🏆</Text>
-            <Text style={[styles.actionCardLabel, { color: CANDY.onTertiaryContainer }]}>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>
               Misi Harian
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: CANDY.purpleContainer }]}
+            style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate("History")}
           >
             <Text style={styles.actionCardIcon}>🎓</Text>
-            <Text style={[styles.actionCardLabel, { color: CANDY.onSecondaryContainer }]}>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>
               Sejarah
             </Text>
           </TouchableOpacity>
@@ -227,7 +205,7 @@ export default function MainMenuScreen() {
 
         {/* ═══ Koleksi Terbaru (Bento) ═══ */}
         <View style={styles.bentoSection}>
-          <Text style={[styles.bentoTitle, { color: CANDY.onSurface }]}>Koleksi Terbaru</Text>
+          <Text style={[styles.bentoTitle, { color: C.text }]}>Koleksi Terbaru</Text>
           <View style={styles.bentoGrid}>
             {/* Large card — Profil */}
             <TouchableOpacity
@@ -284,7 +262,6 @@ export default function MainMenuScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
       </ScrollView>
     </View>
   );
@@ -349,10 +326,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   heroInner: {
-    backgroundColor: "rgba(255,255,255,0.7)",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: CANDY.surface,
     padding: 24,
     alignItems: "center",
     gap: 8,
@@ -418,7 +393,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   playButtonText: {
-    color: CANDY.onPrimary,
+    color: "#FFFFFF",
     fontSize: 22,
     fontWeight: "900",
     letterSpacing: -0.3,
@@ -506,6 +481,4 @@ const styles = StyleSheet.create({
   },
   bentoSmallEmoji: { fontSize: 24 },
   bentoSmallLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
-
-
 });
