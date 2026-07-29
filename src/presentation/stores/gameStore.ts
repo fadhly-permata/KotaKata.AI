@@ -365,6 +365,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const offset = word.orientation === "vertical" ? target.row - word.startRow : target.col - word.startCol;
     const letter = word.word[offset];
 
+    // Lock the revealed cell so user can't edit it (per PRD §4.3)
+    target.isLocked = true;
+
     set({
       filledLetters: { ...filledLetters, [key]: letter },
       currentXp: Math.max(0, get().currentXp - XP_PENALTY_REVEAL),
@@ -392,6 +395,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         const offset = word.orientation === "vertical" ? cell.row - word.startRow : cell.col - word.startCol;
         newLetters[key] = word.word[offset];
         newRevealed.push(key);
+        // Lock the revealed cell so user can't edit it (per PRD §4.3)
+        cell.isLocked = true;
       }
     }
 
