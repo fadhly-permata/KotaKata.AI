@@ -154,22 +154,10 @@ export default function GameScreen() {
       if (/^[a-zA-Z]$/.test(e.key)) { inputLetter(e.key); e.preventDefault(); }
     };
 
-    // 3) Auto-show virtual keyboard on mouse/touch interaction
-    const handleInteraction = () => {
-      if (hasPhysicalKeyboard.current) {
-        hasPhysicalKeyboard.current = false;
-        setKeyboardVisible(true);
-      }
-    };
-
     window.addEventListener("keydown", handleKey);
-    window.addEventListener("mousedown", handleInteraction);
-    window.addEventListener("touchstart", handleInteraction);
 
     return () => {
       window.removeEventListener("keydown", handleKey);
-      window.removeEventListener("mousedown", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
     };
   }, [board, navigateToCell, inputLetter]);
 
