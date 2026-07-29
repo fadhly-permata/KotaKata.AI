@@ -4,7 +4,6 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
 import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
-import CluePanel from "../../presentation/components/game/CluePanel";
 import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
@@ -34,6 +33,7 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(true);
   const pendingNavAction = useRef<any>(null);
 
   const board = useGameStore((s) => s.board);
@@ -162,43 +162,51 @@ export default function GameScreen() {
         />
       </View>
 
-      {/* Nav toolbar: prev word | reveal letter | next word */}
-      <View style={[styles.navToolbar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-        <TouchableOpacity
-          activeOpacity={0.5}
-          onPress={goToPrevWord}
-          style={[styles.navToolBtn, { backgroundColor: theme.colors.border }]}
-        >
-          <Text style={[styles.navToolText, { color: theme.colors.primary }]}>◀</Text>
+      {/* Compact toolbar: ◀ 🔍 ▶ clue_text 🎹 */}
+      <View style={[styles.toolbar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderBottomColor: theme.colors.border }]}>
+        <TouchableOpacity activeOpacity={0.5} onPress={goToPrevWord} style={styles.toolBtn}>
+          <Text style={[styles.toolBtnText, { color: theme.colors.primary }]}>◀</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.5}
-          onPress={() => {
-            if (selectedWordIndex !== null) revealLetter(selectedWordIndex);
-          }}
-          style={[
-            styles.revealBtn,
-            { backgroundColor: theme.colors.border, borderColor: theme.colors.primary },
-          ]}
+          onPress={() => selectedWordIndex !== null && revealLetter(selectedWordIndex)}
+          style={[styles.toolBtn, { borderWidth: 1, borderColor: theme.colors.primary, borderRadius: 6 }]}
         >
-          <Text style={[styles.revealBtnIcon, { color: theme.colors.primary }]}>🔍</Text>
+          <Text style={styles.toolIcon}>🔍</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity activeOpacity={0.5} onPress={goToNextWord} style={styles.toolBtn}>
+          <Text style={[styles.toolBtnText, { color: theme.colors.primary }]}>▶</Text>
+        </TouchableOpacity>
+
+        {/* Clue text — flexible, truncated */}
+        <View style={styles.clueArea}>
+          <Text
+            style={[styles.clueText, { color: theme.colors.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {selectedWord
+              ? `${selectedWord.clue_1}`
+              : "Ketuk kata di papan"}
+          </Text>
+        </View>
 
         <TouchableOpacity
           activeOpacity={0.5}
-          onPress={goToNextWord}
-          style={[styles.navToolBtn, { backgroundColor: theme.colors.border }]}
+          onPress={() => setKeyboardVisible((v) => !v)}
+          style={[styles.toolBtn, { opacity: keyboardVisible ? 1 : 0.5 }]}
         >
-          <Text style={[styles.navToolText, { color: theme.colors.primary }]}>▶</Text>
+          <Text style={styles.toolIcon}>⌨️</Text>
         </TouchableOpacity>
       </View>
 
-      <CluePanel word={selectedWord} wordIndex={selectedWordIndex} />
-
-      <View style={styles.keyboardWrapper}>
-        <InGameKeyboard />
-      </View>
+      {keyboardVisible && (
+        <View style={styles.keyboardWrapper}>
+          <InGameKeyboard />
+        </View>
+      )}
 
       <ConfirmDialog
         visible={showQuitConfirm}
@@ -227,36 +235,36 @@ const styles = StyleSheet.create({
   tierText: { fontSize: 12, fontWeight: "600" },
   xpText: { fontSize: 12, fontWeight: "700" },
   gridWrapper: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 16 },
-  navToolbar: {
+  toolbar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 24,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
     borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 6,
   },
-  navToolBtn: {
-    width: 40,
-    height: 32,
-    borderRadius: 8,
+  toolBtn: {
+    width: 34,
+    height: 30,
+    borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",
   },
-  navToolText: {
-    fontSize: 16,
+  toolBtnText: {
+    fontSize: 14,
     fontWeight: "700",
   },
-  revealBtn: {
-    width: 44,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
+  toolIcon: {
+    fontSize: 16,
   },
-  revealBtnIcon: {
-    fontSize: 18,
+  clueArea: {
+    flex: 1,
+    paddingHorizontal: 4,
+  },
+  clueText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   keyboardWrapper: { paddingTop: 4 },
 });
