@@ -34,6 +34,7 @@ const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.25;
 const CELL_GAP = 3;
 const GRID_PADDING = 3;
+const BOTTOM_PANELS_HEIGHT = 120;
 
 export default function GameScreen() {
   const { theme } = useTheme();
@@ -69,7 +70,7 @@ export default function GameScreen() {
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
 
-  // Show keyboard on first tap to a cell and auto-center
+  // Show keyboard on first tap to a cell
   const handleCellPress = useCallback((row: number, col: number) => {
     selectCell(row, col);
     if (!keyboardAutoShown.current) {
@@ -78,7 +79,7 @@ export default function GameScreen() {
     }
   }, [selectCell]);
 
-  // Auto-center focused cell
+  // Auto-center focused cell when zoomed in
   const scrollToFocusedCell = useCallback(() => {
     if (!selectedCell || !scrollViewRef.current || !board) return;
     if (prevSelectedCell.current?.row === selectedCell.row && prevSelectedCell.current?.col === selectedCell.col) return;
@@ -201,7 +202,6 @@ export default function GameScreen() {
     return board.words[selectedWordIndex] ?? null;
   }, [selectedWordIndex, board]);
 
-  // Listen for keyboard events (web only) — hide virtual keyboard when physical keyboard detected
   useEffect(() => {
     if (Platform.OS !== "web" || !board) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -223,8 +223,9 @@ export default function GameScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Scrollable area */}
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: BOTTOM_PANELS_HEIGHT }]}
         bounces={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -294,7 +295,10 @@ export default function GameScreen() {
             </ScrollView>
           </Animated.View>
         </View>
+      </ScrollView>
 
+      {/* === Fixed Bottom Panels (always visible) === */}
+      <View style={[styles.bottomPanels, { backgroundColor: theme.colors.background }]}>
         {/* Clue Pill */}
         <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]}>
           <TouchableOpacity activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
@@ -380,7 +384,7 @@ export default function GameScreen() {
             <Text style={[styles.actionIcon, { opacity: keyboardVisible ? 1 : 0.4 }]}>⌨️</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
 
       {keyboardVisible && (
         <View style={styles.keyboardWrapper}>
@@ -405,7 +409,7 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 16 },
+  scrollContent: {},
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   backBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", overflow: "hidden" },
@@ -435,7 +439,8 @@ const styles = StyleSheet.create({
   gridScroll: { flexGrow: 0 },
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", justifyContent: "center", paddingVertical: 8, paddingHorizontal: 4 },
-  cluePill: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 10 },
+  bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 8 },
   clueArrow: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   clueArrowText: { fontSize: 24, color: "#FFF", fontWeight: "300" },
   clueContent: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4 },
@@ -444,7 +449,7 @@ const styles = StyleSheet.create({
   clueTextWrap: { flex: 1 },
   clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
   clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600" },
-  actionBar: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  actionBar: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   actionItem: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   actionIcon: { fontSize: 18 },
   keyboardWrapper: {},
