@@ -7,7 +7,6 @@ import {
   ScrollView,
   Animated,
   Platform,
-  ImageBackground,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -53,6 +52,9 @@ export default function MainMenuScreen() {
     outputRange: [0, -8],
   });
 
+  // ─── Parallax scroll ───
+  const scrollY = useRef(new Animated.Value(0)).current;
+
   const handlePlay = () => {
     reset();
     navigation.navigate("Game");
@@ -62,9 +64,9 @@ export default function MainMenuScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: C.background }]}>
-      {/* ─── Floating Background Shapes ─── */}
+      {/* ─── Floating Background Shapes (Parallax) ─── */}
       <View style={styles.floatingContainer} pointerEvents="none">
-        <View
+        <Animated.View
           style={[
             styles.floatingOrb,
             {
@@ -74,10 +76,19 @@ export default function MainMenuScreen() {
               top: "-5%",
               left: "-10%",
               opacity: 0.5,
+              transform: [
+                {
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 300],
+                    outputRange: [0, -80],
+                    extrapolate: "clamp",
+                  }),
+                },
+              ],
             },
           ]}
         />
-        <View
+        <Animated.View
           style={[
             styles.floatingOrb,
             {
@@ -87,10 +98,19 @@ export default function MainMenuScreen() {
               top: "35%",
               right: "-15%",
               opacity: 0.45,
+              transform: [
+                {
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 300],
+                    outputRange: [0, -120],
+                    extrapolate: "clamp",
+                  }),
+                },
+              ],
             },
           ]}
         />
-        <View
+        <Animated.View
           style={[
             styles.floatingOrb,
             {
@@ -100,6 +120,15 @@ export default function MainMenuScreen() {
               bottom: "10%",
               left: "5%",
               opacity: 0.4,
+              transform: [
+                {
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 300],
+                    outputRange: [0, -160],
+                    extrapolate: "clamp",
+                  }),
+                },
+              ],
             },
           ]}
         />
@@ -111,6 +140,11 @@ export default function MainMenuScreen() {
         contentContainerStyle={styles.scrollContent}
         bounces={false}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
         {/* ═══ Top AppBar ═══ */}
         <View style={[styles.topBar, { backgroundColor: C.surface }]}>
@@ -181,96 +215,62 @@ export default function MainMenuScreen() {
         {/* ═══ Action Grid: Misi Harian + Sejarah ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={styles.actionCard}
+            style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
             activeOpacity={0.8}
             onPress={() => {}}
           >
-            <ImageBackground
-              source={{ uri: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&q=80" }}
-              style={styles.actionCardBg}
-              resizeMode="cover"
-            >
-              <View style={styles.actionCardOverlay}>
-                <Text style={styles.actionCardIcon}>🏆</Text>
-                <Text style={styles.actionCardLabel}>Misi Harian</Text>
-              </View>
-            </ImageBackground>
+            <Text style={styles.actionCardIcon}>🏆</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Misi Harian</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionCard}
+            style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate("History")}
           >
-            <ImageBackground
-              source={{ uri: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80" }}
-              style={styles.actionCardBg}
-              resizeMode="cover"
-            >
-              <View style={styles.actionCardOverlay}>
-                <Text style={styles.actionCardIcon}>🎓</Text>
-                <Text style={styles.actionCardLabel}>Sejarah</Text>
-              </View>
-            </ImageBackground>
+            <Text style={styles.actionCardIcon}>🎓</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Sejarah</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ═══ Koleksi Terbaru (Bento) ═══ */}
+        {/* ═══ Koleksi Terbaru (Bento) — Solid Colors ═══ */}
         <View style={styles.bentoSection}>
           <Text style={[styles.bentoTitle, { color: C.text }]}>Koleksi Terbaru</Text>
           <View style={styles.bentoGrid}>
             {/* Large card — Profil */}
             <TouchableOpacity
-              style={styles.bentoLargeCard}
+              style={[styles.bentoLargeCard, { backgroundColor: C.primary }]}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Profile")}
             >
-              <ImageBackground
-                source={{ uri: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=400" }}
-                style={styles.bentoLargeBg}
-                resizeMode="cover"
-              >
-                <View style={styles.bentoLargeOverlay}>
-                  <Text style={styles.bentoLargeEmoji}>🎨</Text>
-                  <Text style={styles.bentoLargeLabel}>Profil</Text>
-                </View>
-              </ImageBackground>
+              <View style={styles.bentoLargeContent}>
+                <Text style={styles.bentoLargeEmoji}>🎨</Text>
+                <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Profil</Text>
+              </View>
             </TouchableOpacity>
 
             {/* Small card 1 — Kata Ajaib */}
             <TouchableOpacity
-              style={styles.bentoSmallCard}
+              style={[styles.bentoSmallCard, { backgroundColor: C.tertiaryContainer }]}
               activeOpacity={0.8}
               onPress={() => {}}
             >
-              <ImageBackground
-                source={{ uri: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&q=80" }}
-                style={styles.bentoSmallBg}
-                resizeMode="cover"
-              >
-                <View style={styles.bentoSmallOverlay}>
-                  <Text style={styles.bentoSmallEmoji}>✨</Text>
-                  <Text style={styles.bentoSmallLabel}>Kata Ajaib</Text>
-                </View>
-              </ImageBackground>
+              <View style={styles.bentoSmallContent}>
+                <Text style={styles.bentoSmallEmoji}>✨</Text>
+                <Text style={[styles.bentoSmallLabel, { color: C.text }]}>Kata Ajaib</Text>
+              </View>
             </TouchableOpacity>
 
             {/* Small card 2 — Pengaturan */}
             <TouchableOpacity
-              style={styles.bentoSmallCard}
+              style={[styles.bentoSmallCard, { backgroundColor: C.secondaryContainer }]}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Settings")}
             >
-              <ImageBackground
-                source={{ uri: "https://images.unsplash.com/photo-1526897515823-424cd784315f?q=80&w=400" }}
-                style={styles.bentoSmallBg}
-                resizeMode="cover"
-              >
-                <View style={styles.bentoSmallOverlay}>
-                  <Text style={styles.bentoSmallEmoji}>⚙️</Text>
-                  <Text style={styles.bentoSmallLabel}>Pengaturan</Text>
-                </View>
-              </ImageBackground>
+              <View style={styles.bentoSmallContent}>
+                <Text style={styles.bentoSmallEmoji}>⚙️</Text>
+                <Text style={[styles.bentoSmallLabel, { color: C.text }]}>Pengaturan</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -429,21 +429,14 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  actionCardBg: {
-    width: "100%",
-  },
-  actionCardOverlay: {
     paddingVertical: 20,
     paddingHorizontal: 16,
+    borderRadius: 14,
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(0,0,0,0.30)",
   },
   actionCardIcon: { fontSize: 28 },
-  actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center", color: "#FFFFFF" },
+  actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center" },
 
   /* ─── Bento Section ─── */
   bentoSection: {
@@ -467,37 +460,29 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 14,
     overflow: "hidden",
-  },
-  bentoLargeBg: {
-    flex: 1,
     justifyContent: "flex-end",
   },
-  bentoLargeOverlay: {
+  bentoLargeContent: {
     flex: 1,
     justifyContent: "flex-end",
     padding: 14,
     gap: 6,
-    backgroundColor: "rgba(0,0,0,0.25)",
   },
   bentoLargeEmoji: { fontSize: 28 },
-  bentoLargeLabel: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  bentoLargeLabel: { fontSize: 14, fontWeight: "700" },
   bentoSmallCard: {
     width: "48%",
     height: "47%",
     borderRadius: 14,
+    justifyContent: "flex-end",
     overflow: "hidden",
   },
-  bentoSmallBg: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  bentoSmallOverlay: {
+  bentoSmallContent: {
     flex: 1,
     justifyContent: "flex-end",
     padding: 12,
     gap: 4,
-    backgroundColor: "rgba(0,0,0,0.2)",
   },
   bentoSmallEmoji: { fontSize: 24 },
-  bentoSmallLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
+  bentoSmallLabel: { fontSize: 13, fontWeight: "700" },
 });
