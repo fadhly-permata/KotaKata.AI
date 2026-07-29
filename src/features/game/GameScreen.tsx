@@ -34,7 +34,6 @@ const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.25;
 const CELL_GAP = 3;
 const GRID_PADDING = 3;
-const BOTTOM_PANELS_HEIGHT = 120;
 
 export default function GameScreen() {
   const { theme } = useTheme();
@@ -231,7 +230,7 @@ export default function GameScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Scrollable area */}
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: BOTTOM_PANELS_HEIGHT }]}
+        contentContainerStyle={styles.scrollContent}
         bounces={false}
         keyboardShouldPersistTaps="handled"
       >
