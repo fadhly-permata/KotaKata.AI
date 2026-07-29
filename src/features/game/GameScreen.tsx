@@ -9,7 +9,7 @@ import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
-import { calcTier, calcTierProgress, TIER_NAMES } from "../../domain/usecases/xpEngine";
+import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
 
@@ -40,6 +40,8 @@ export default function GameScreen() {
   const navigation = useNavigation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
+  const [showRevealWordConfirm, setShowRevealWordConfirm] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const keyboardAutoShown = useRef(false);
   const pendingNavAction = useRef<any>(null);
@@ -58,6 +60,7 @@ export default function GameScreen() {
   const navigateToCell = useGameStore((s) => s.navigateToCell);
   const inputLetter = useGameStore((s) => s.inputLetter);
   const filledLetters = useGameStore((s) => s.filledLetters);
+  const hints = useGameStore((s) => s.hints);
   const wordsSolved = useGameStore((s) => s.wordsSolved);
   const currentXp = useGameStore((s) => s.currentXp);
   const totalXp = useGameStore((s) => s.totalXp);
@@ -201,6 +204,7 @@ export default function GameScreen() {
     }
   }, []);
 
+  // Auto-solve check — skip words that were fully revealed (no XP for revealed words)
   const prevFilledRef = useRef(filledLetters);
   useEffect(() => {
     if (!board || boardResult) return;
@@ -209,13 +213,27 @@ export default function GameScreen() {
       const word = board.words[i];
       if (word.solved) continue;
       if (!isWordComplete(word, filledLetters)) continue;
+
+      // Skip words that were fully revealed — user used hints, no XP gain
+      const hint = hints[String(i)];
+      if (hint?.revealedCells?.length) {
+        const allNonLocked = word.cells.filter((c) => !c.isLocked);
+        const allRevealed = allNonLocked.every(
+          (c) => hint.revealedCells.includes(`${c.row},${c.col}`)
+        );
+        if (allRevealed) {
+          loggerInfo(`Word ${i} fully revealed — skipping auto-solve`);
+          continue;
+        }
+      }
+
       const result = validateWord(word, i, filledLetters);
       if (result.isCorrect) {
         markWordSolved(i);
         loggerInfo(`Word ${i} CORRECT: ${word.word}`);
       }
     }
-  }, [filledLetters, board, boardResult, markWordSolved]);
+  }, [filledLetters, board, boardResult, markWordSolved, hints]);
 
   const currentTier = useMemo(() => calcTier(totalXp + currentXp), [totalXp, currentXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
@@ -288,7 +306,7 @@ export default function GameScreen() {
             >
               <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
             </TouchableOpacity>
-            {/* Progress ring — now shows fill progress */}
+            {/* Progress ring — shows fill progress */}
             <View style={[styles.progressRing, { borderColor: theme.colors.border }]}>
               <View style={[styles.progressRingFill, { borderColor: theme.colors.primary }]} />
               <Text style={[styles.progressText, { color: theme.colors.primary }]}>
@@ -389,14 +407,14 @@ export default function GameScreen() {
             <TouchableOpacity
               style={[styles.actionItem, { backgroundColor: theme.colors.primary }]}
               activeOpacity={0.7}
-              onPress={() => selectedWordIndex !== null && revealLetter(selectedWordIndex)}
+              onPress={() => selectedWordIndex !== null && setShowRevealLetterConfirm(true)}
             >
               <Text style={styles.actionIcon}>🔍</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
-              onPress={() => selectedWordIndex !== null && revealWord(selectedWordIndex)}
+              onPress={() => selectedWordIndex !== null && setShowRevealWordConfirm(true)}
             >
               <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
             </TouchableOpacity>
@@ -446,6 +464,38 @@ export default function GameScreen() {
         onCancel={() => setShowResetConfirm(false)}
         variant="danger"
         emoji="🔄"
+      />
+
+      {/* Reveal letter confirmation */}
+      <ConfirmDialog
+        visible={showRevealLetterConfirm}
+        title="Buka Satu Huruf?"
+        message={`Menggunakan fitur ini akan mengurangi XP sebesar ${XP_PENALTY_REVEAL}. Lanjutkan?`}
+        confirmText="Ya, Buka"
+        cancelText="Batal"
+        onConfirm={() => {
+          if (selectedWordIndex !== null) revealLetter(selectedWordIndex);
+          setShowRevealLetterConfirm(false);
+        }}
+        onCancel={() => setShowRevealLetterConfirm(false)}
+        variant="danger"
+        emoji="🔍"
+      />
+
+      {/* Reveal word confirmation */}
+      <ConfirmDialog
+        visible={showRevealWordConfirm}
+        title="Buka Semua Huruf?"
+        message={`Menggunakan fitur ini akan mengurangi XP sebesar ${XP_PENALTY_REVEAL} dan kata yang terbuka tidak akan mendapat XP. Lanjutkan?`}
+        confirmText="Ya, Buka Semua"
+        cancelText="Batal"
+        onConfirm={() => {
+          if (selectedWordIndex !== null) revealWord(selectedWordIndex);
+          setShowRevealWordConfirm(false);
+        }}
+        onCancel={() => setShowRevealWordConfirm(false)}
+        variant="danger"
+        emoji="💡"
       />
     </View>
   );
