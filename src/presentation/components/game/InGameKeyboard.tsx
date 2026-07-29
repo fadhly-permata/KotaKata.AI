@@ -26,43 +26,66 @@ export default function InGameKeyboard() {
   const isHorizontal = inputOrientation === "horizontal";
 
   return (
-    <View style={styles.container}>
-      {ROWS.map((row, ri) => (
-        <View key={ri} style={styles.row}>
-          {row.map((key) => {
-            const isBackspace = key === "⌫";
-            return (
-              <TouchableOpacity
-                key={key}
-                activeOpacity={0.6}
-                onPress={() => handlePress(key)}
+    <View
+      style={[
+        styles.panel,
+        {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
+        },
+      ]}
+    >
+      {/* Row 1: Q-P */}
+      <View style={styles.row}>
+        {ROWS[0].map((key) => (
+          <TouchableOpacity
+            key={key}
+            activeOpacity={0.6}
+            onPress={() => handlePress(key)}
+            style={[
+              styles.key,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+            ]}
+          >
+            <Text style={[styles.keyText, { color: theme.colors.text }]}>
+              {key}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Row 2: A-⌫ */}
+      <View style={styles.row}>
+        {ROWS[1].map((key) => {
+          const isBackspace = key === "⌫";
+          return (
+            <TouchableOpacity
+              key={key}
+              activeOpacity={0.6}
+              onPress={() => handlePress(key)}
+              style={[
+                styles.key,
+                {
+                  backgroundColor: isBackspace ? theme.colors.border : theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  flex: isBackspace ? 1.3 : 1,
+                },
+              ]}
+            >
+              <Text
                 style={[
-                  styles.key,
-                  {
-                    backgroundColor: isBackspace
-                      ? theme.colors.border
-                      : theme.colors.surface,
-                    borderColor: theme.colors.border,
-                    minWidth: isBackspace ? 52 : key === "Z" ? 56 : 32,
-                    width: isBackspace ? 52 : undefined,
-                  },
+                  styles.keyText,
+                  { color: theme.colors.text, fontSize: isBackspace ? 14 : 18 },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.keyText,
-                    { color: theme.colors.text, fontSize: isBackspace ? 14 : 18 },
-                  ]}
-                >
-                  {key}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      ))}
+                {key}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-      {/* Row 3: Z X C V B N M + navigation arrows */}
+      {/* Row 3: Z-M + navigation arrows */}
       <View style={styles.row}>
         {ROWS[2].map((key) => (
           <TouchableOpacity
@@ -71,11 +94,7 @@ export default function InGameKeyboard() {
             onPress={() => handlePress(key)}
             style={[
               styles.key,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                minWidth: key === "Z" ? 56 : 32,
-              },
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
             ]}
           >
             <Text style={[styles.keyText, { color: theme.colors.text }]}>
@@ -83,20 +102,25 @@ export default function InGameKeyboard() {
             </Text>
           </TouchableOpacity>
         ))}
-        {/* Nav arrows after M */}
         {isHorizontal ? (
           <>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => navigateToCell("left")}
-              style={[styles.navKey, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              style={[
+                styles.navKey,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+              ]}
             >
               <Text style={[styles.navText, { color: theme.colors.text }]}>◀</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => navigateToCell("right")}
-              style={[styles.navKey, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              style={[
+                styles.navKey,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+              ]}
             >
               <Text style={[styles.navText, { color: theme.colors.text }]}>▶</Text>
             </TouchableOpacity>
@@ -106,14 +130,20 @@ export default function InGameKeyboard() {
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => navigateToCell("up")}
-              style={[styles.navKey, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              style={[
+                styles.navKey,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+              ]}
             >
               <Text style={[styles.navText, { color: theme.colors.text }]}>▲</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => navigateToCell("down")}
-              style={[styles.navKey, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              style={[
+                styles.navKey,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+              ]}
             >
               <Text style={[styles.navText, { color: theme.colors.text }]}>▼</Text>
             </TouchableOpacity>
@@ -125,37 +155,41 @@ export default function InGameKeyboard() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  panel: {
+    borderTopWidth: 1,
     paddingHorizontal: 8,
+    paddingTop: 8,
     paddingBottom: 16,
     gap: 6,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   row: {
     flexDirection: "row",
-    justifyContent: "center",
     gap: 4,
   },
   key: {
-    height: 44,
+    flex: 1,
+    height: 46,
     borderRadius: 6,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
   },
   keyText: {
     fontWeight: "600",
+    fontSize: 18,
   },
   navKey: {
-    width: 48,
-    height: 44,
+    flex: 1,
+    height: 46,
     borderRadius: 6,
-    borderWidth: 1,
+    borderWidth: 1.5,
     justifyContent: "center",
     alignItems: "center",
   },
   navText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
 });
