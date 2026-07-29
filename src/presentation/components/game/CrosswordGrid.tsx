@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   useWindowDimensions,
   StyleSheet,
+  Platform,
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import type { Board, BoardCell } from "../../../domain/entities/board";
@@ -50,7 +51,6 @@ export default function CrosswordGrid({
   }, [selectedWordIndex, board.words]);
 
   // Build set of solved cells (locked words)
-  // Keyed by solved state string to detect mutations on board.words
   const solvedStateKey = board.words.map((w) => w.solved).join(",");
   const solvedCells = useMemo(() => {
     const set = new Set<string>();
@@ -63,7 +63,7 @@ export default function CrosswordGrid({
     return set;
   }, [board.words, solvedStateKey]);
 
-  const renderCell = (cell: BoardCell) => {
+  const renderCell = useCallback((cell: BoardCell) => {
     const key = `${cell.row},${cell.col}`;
     const isSelected = selectedCell?.row === cell.row && selectedCell?.col === cell.col;
     const isHighlighted = selectedCells.has(key);
@@ -106,11 +106,18 @@ export default function CrosswordGrid({
       borderColor = theme.colors.cellBorder;
     }
 
+    const handlePress = () => {
+      if (!isSolved) onCellPress(cell.row, cell.col);
+    };
+
     return (
       <TouchableOpacity
         key={key}
         activeOpacity={isSolved ? 1 : 0.6}
-        onPress={isSolved ? undefined : () => onCellPress(cell.row, cell.col)}
+        onPress={handlePress}
+        {...(Platform.OS === "web"
+          ? { onClick: handlePress }
+          : {})}
         style={[
           styles.cell,
           {
@@ -148,7 +155,7 @@ export default function CrosswordGrid({
         </Text>
       </TouchableOpacity>
     );
-  };
+  }, [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme]);
 
   return (
     <View
@@ -195,6 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
+    cursor: "pointer",
   },
   cellNumber: {
     position: "absolute",
