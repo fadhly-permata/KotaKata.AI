@@ -160,46 +160,65 @@ export default function MainMenuScreen() {
 
         {/* ═══ Main Action: Mulai Bermain ═══ */}
         <TouchableOpacity
-          style={[styles.playButton, { backgroundColor: C.primary }]}
+          style={styles.playButton}
           activeOpacity={0.9}
           onPress={handlePlay}
         >
-          <View style={styles.playButtonContent}>
-            <Text style={styles.playButtonText}>Mulai Bermain</Text>
-            <Animated.Text
-              style={[
-                styles.playButtonIcon,
-                { transform: [{ translateY: bounceTranslate }] },
-              ]}
-            >
-              ▶️
-            </Animated.Text>
-          </View>
-          <View style={styles.shineOverlay} />
+          <ImageBackground
+            source={{ uri: "https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&q=80" }}
+            style={styles.playButtonBg}
+            resizeMode="cover"
+          >
+            <View style={styles.playButtonOverlay}>
+              <View style={styles.playButtonContent}>
+                <Text style={styles.playButtonText}>Mulai Bermain</Text>
+                <Animated.Text
+                  style={[
+                    styles.playButtonIcon,
+                    { transform: [{ translateY: bounceTranslate }] },
+                  ]}
+                >
+                  ▶️
+                </Animated.Text>
+              </View>
+            </View>
+          </ImageBackground>
         </TouchableOpacity>
 
         {/* ═══ Action Grid: Misi Harian + Sejarah ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
+            style={styles.actionCard}
             activeOpacity={0.8}
             onPress={() => {}}
           >
-            <Text style={styles.actionCardIcon}>🏆</Text>
-            <Text style={[styles.actionCardLabel, { color: C.text }]}>
-              Misi Harian
-            </Text>
+            <ImageBackground
+              source={{ uri: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&q=80" }}
+              style={styles.actionCardBg}
+              resizeMode="cover"
+            >
+              <View style={styles.actionCardOverlay}>
+                <Text style={styles.actionCardIcon}>🏆</Text>
+                <Text style={styles.actionCardLabel}>Misi Harian</Text>
+              </View>
+            </ImageBackground>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
+            style={styles.actionCard}
             activeOpacity={0.8}
             onPress={() => navigation.navigate("History")}
           >
-            <Text style={styles.actionCardIcon}>🎓</Text>
-            <Text style={[styles.actionCardLabel, { color: C.text }]}>
-              Sejarah
-            </Text>
+            <ImageBackground
+              source={{ uri: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&q=80" }}
+              style={styles.actionCardBg}
+              resizeMode="cover"
+            >
+              <View style={styles.actionCardOverlay}>
+                <Text style={styles.actionCardIcon}>🎓</Text>
+                <Text style={styles.actionCardLabel}>Sejarah</Text>
+              </View>
+            </ImageBackground>
           </TouchableOpacity>
         </View>
 
@@ -377,7 +396,6 @@ const styles = StyleSheet.create({
   /* ─── Play Button ─── */
   playButton: {
     marginHorizontal: 16,
-    paddingVertical: 20,
     borderRadius: 16,
     marginBottom: 16,
     overflow: "hidden",
@@ -385,12 +403,18 @@ const styles = StyleSheet.create({
       web: { cursor: "pointer" },
     }),
   },
+  playButtonBg: {
+    width: "100%",
+  },
+  playButtonOverlay: {
+    backgroundColor: "rgba(0,0,0,0.40)",
+    paddingVertical: 20,
+  },
   playButtonContent: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 12,
-    zIndex: 10,
   },
   playButtonText: {
     color: "#FFFFFF",
@@ -399,14 +423,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   playButtonIcon: { fontSize: 28 },
-  shineOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "transparent",
-  },
 
   /* ─── Action Grid ─── */
   actionGrid: {
@@ -417,14 +433,21 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  actionCardBg: {
+    width: "100%",
+  },
+  actionCardOverlay: {
     paddingVertical: 20,
     paddingHorizontal: 16,
-    borderRadius: 14,
     alignItems: "center",
     gap: 8,
+    backgroundColor: "rgba(0,0,0,0.30)",
   },
   actionCardIcon: { fontSize: 28 },
-  actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center" },
+  actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center", color: "#FFFFFF" },
 
   /* ─── Bento Section ─── */
   bentoSection: {
