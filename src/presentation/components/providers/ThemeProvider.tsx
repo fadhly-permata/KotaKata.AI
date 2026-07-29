@@ -20,45 +20,63 @@ export type Theme = {
     textSecondary: string;
     border: string;
     primary: string;
+    accent: string;
+    gold: string;
+    success: string;
+    error: string;
     cellActive: string;
     cellBorder: string;
     cellText: string;
     cellBlocked: string;
     cellLocked: string;
+    cellSolved: string;
+    cellSolvedText: string;
   };
 };
 
 const lightTheme: Theme = {
   mode: "light",
   colors: {
-    background: "#FFFFFF",
-    surface: "#F5F5F5",
-    text: "#1A1A2E",
-    textSecondary: "#666680",
-    border: "#E0E0E0",
-    primary: "#4A90D9",
+    background: "#F8F6F0", // warm cream
+    surface: "#FFFFFF",
+    text: "#2D3436",
+    textSecondary: "#8E99A4",
+    border: "#E8E2D9",
+    primary: "#6C5CE7", // indigo
+    accent: "#00B894", // emerald
+    gold: "#FDCB6E",
+    success: "#00B894",
+    error: "#E17055",
     cellActive: "#FFFFFF",
-    cellBorder: "#E0E0E0",
-    cellText: "#1A1A2E",
-    cellBlocked: "#333333",
-    cellLocked: "#D3D3D3",
+    cellBorder: "#E8E2D9",
+    cellText: "#2D3436",
+    cellBlocked: "#2D3436",
+    cellLocked: "#E8E2D9",
+    cellSolved: "#E8F8F3",
+    cellSolvedText: "#00B894",
   },
 };
 
 const darkTheme: Theme = {
   mode: "dark",
   colors: {
-    background: "#121212",
-    surface: "#1E1E1E",
+    background: "#0F0E17", // deep navy
+    surface: "#1A1926",
     text: "#F5F5F5",
-    textSecondary: "#AAAAAA",
-    border: "#333333",
-    primary: "#6BB3F0",
-    cellActive: "#1E1E1E",
-    cellBorder: "#333333",
+    textSecondary: "#8E99A4",
+    border: "#2A2938",
+    primary: "#A29BFE", // soft purple
+    accent: "#55EFC4", // mint
+    gold: "#F9CA24",
+    success: "#55EFC4",
+    error: "#FF6B6B",
+    cellActive: "#1A1926",
+    cellBorder: "#2A2938",
     cellText: "#F5F5F5",
-    cellBlocked: "#121212",
-    cellLocked: "#2A2A2A",
+    cellBlocked: "#0F0E17",
+    cellLocked: "#2A2938",
+    cellSolved: "#1A3A2E",
+    cellSolvedText: "#55EFC4",
   },
 };
 
