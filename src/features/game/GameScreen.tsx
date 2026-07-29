@@ -32,14 +32,15 @@ const DEMO_WORDS: WordCandidate[] = [
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.25;
+const CELL_GAP = 3;
+const GRID_PADDING = 3;
 
 export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(
-    Platform.OS !== "web" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches,
-  );
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const keyboardAutoShown = useRef(false);
   const pendingNavAction = useRef<any>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const prevZoomLevel = useRef(1);
@@ -68,6 +69,15 @@ export default function GameScreen() {
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
 
+  // Show keyboard on first tap to a cell and auto-center
+  const handleCellPress = useCallback((row: number, col: number) => {
+    selectCell(row, col);
+    if (!keyboardAutoShown.current) {
+      keyboardAutoShown.current = true;
+      setKeyboardVisible(true);
+    }
+  }, [selectCell]);
+
   // Auto-center focused cell
   const scrollToFocusedCell = useCallback(() => {
     if (!selectedCell || !scrollViewRef.current || !board) return;
@@ -77,16 +87,14 @@ export default function GameScreen() {
     const { width: screenWidth } = Dimensions.get("window");
     const baseCellSize = Math.floor((screenWidth - 16) / board.size);
     const cellSize = Math.floor(baseCellSize * zoomLevel);
-    const gap = 3;
-    const padding = 3;
 
-    const cellCenterX = padding + selectedCell.col * (cellSize + gap) + cellSize / 2;
-    const cellCenterY = padding + selectedCell.row * (cellSize + gap) + cellSize / 2;
+    const cellCenterX = GRID_PADDING + selectedCell.col * (cellSize + CELL_GAP) + cellSize / 2;
+    const cellCenterY = GRID_PADDING + selectedCell.row * (cellSize + CELL_GAP) + cellSize / 2;
 
-    const gridWidth = cellSize * board.size + padding * 2;
+    const gridSize = cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2;
     const viewportWidth = screenWidth;
 
-    const scrollX = Math.max(0, Math.min(cellCenterX - viewportWidth / 2, gridWidth - viewportWidth));
+    const scrollX = Math.max(0, Math.min(cellCenterX - viewportWidth / 2, gridSize - viewportWidth));
     const scrollY = Math.max(0, cellCenterY - 150);
 
     scrollViewRef.current.scrollTo({ x: scrollX, y: scrollY, animated: true });
@@ -103,8 +111,6 @@ export default function GameScreen() {
     const oldZoom = prevZoomLevel.current;
     if (oldZoom === newZoom) return;
     
-    // Start at a scale that visually matches the OLD size, then spring to 1.0
-    // This creates a smooth grow/shrink animation to the NEW cell size
     const ratio = oldZoom / newZoom;
     zoomAnim.setValue(ratio);
     Animated.spring(zoomAnim, {
@@ -195,22 +201,10 @@ export default function GameScreen() {
     return board.words[selectedWordIndex] ?? null;
   }, [selectedWordIndex, board]);
 
-  const hasPhysicalKeyboard = useRef(false);
+  // Listen for keyboard events (web only) — hide virtual keyboard when physical keyboard detected
   useEffect(() => {
     if (Platform.OS !== "web" || !board) return;
-    if ("keyboard" in navigator) {
-      (navigator as any).keyboard.getLayoutMap().then((layout: any) => {
-        if (layout && layout.size > 0) {
-          hasPhysicalKeyboard.current = true;
-          setKeyboardVisible(false);
-        }
-      }).catch(() => {});
-    }
     const handleKey = (e: KeyboardEvent) => {
-      if (!hasPhysicalKeyboard.current && /^[a-zA-Z0-9]$/.test(e.key)) {
-        hasPhysicalKeyboard.current = true;
-        setKeyboardVisible(false);
-      }
       if (e.key === "ArrowUp") { navigateToCell("up"); e.preventDefault(); }
       if (e.key === "ArrowDown") { navigateToCell("down"); e.preventDefault(); }
       if (e.key === "ArrowLeft") { navigateToCell("left"); e.preventDefault(); }
@@ -291,7 +285,7 @@ export default function GameScreen() {
                   selectedCell={selectedCell}
                   selectedWordIndex={selectedWordIndex}
                   inputOrientation={inputOrientation}
-                  onCellPress={selectCell}
+                  onCellPress={handleCellPress}
                   onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
                   filledLetters={new Map(Object.entries(filledLetters))}
                   zoomLevel={zoomLevel}
