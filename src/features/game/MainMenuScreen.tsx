@@ -239,7 +239,7 @@ export default function MainMenuScreen() {
           <View style={styles.bentoGrid}>
             {/* Large card — Profil */}
             <TouchableOpacity
-              style={[styles.bentoLargeCard, { backgroundColor: C.primary }]}
+              style={[styles.bentoLargeCard, { backgroundColor: "#FF8A65" }]}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Profile")}
             >
@@ -251,25 +251,25 @@ export default function MainMenuScreen() {
 
             {/* Small card 1 — Kata Ajaib */}
             <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: C.surface }]}
+              style={[styles.bentoSmallCard, { backgroundColor: "#00B894" }]}
               activeOpacity={0.8}
               onPress={() => {}}
             >
               <View style={styles.bentoSmallContent}>
                 <Text style={styles.bentoSmallEmoji}>✨</Text>
-                <Text style={[styles.bentoSmallLabel, { color: C.primary }]}>Kata Ajaib</Text>
+                <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Kata Ajaib</Text>
               </View>
             </TouchableOpacity>
 
             {/* Small card 2 — Pengaturan */}
             <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: C.surface }]}
+              style={[styles.bentoSmallCard, { backgroundColor: "#74B9FF" }]}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Settings")}
             >
               <View style={styles.bentoSmallContent}>
                 <Text style={styles.bentoSmallEmoji}>⚙️</Text>
-                <Text style={[styles.bentoSmallLabel, { color: C.tertiary }]}>Pengaturan</Text>
+                <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Pengaturan</Text>
               </View>
             </TouchableOpacity>
           </View>
