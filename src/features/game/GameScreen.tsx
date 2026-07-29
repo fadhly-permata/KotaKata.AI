@@ -124,10 +124,23 @@ export default function GameScreen() {
   // Keyboard nav (desktop/web) + auto-detect physical keyboard
   const hasPhysicalKeyboard = useRef(false);
   useEffect(() => {
-    if (Platform.OS !== "web") return;
+    if (Platform.OS !== "web" || !board) return;
 
+    // 1) Use Keyboard API to detect physical keyboard (incl. Bluetooth)
+    if ("keyboard" in navigator) {
+      (navigator as any).keyboard
+        .getLayoutMap()
+        .then((layout: any) => {
+          if (layout && layout.size > 0) {
+            hasPhysicalKeyboard.current = true;
+            setKeyboardVisible(false);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // 2) Fallback: detect on first physical keypress
     const handleKey = (e: KeyboardEvent) => {
-      // Auto-hide virtual keyboard when physical keyboard is used
       if (!hasPhysicalKeyboard.current && /^[a-zA-Z0-9]$/.test(e.key)) {
         hasPhysicalKeyboard.current = true;
         setKeyboardVisible(false);
@@ -141,7 +154,7 @@ export default function GameScreen() {
       if (/^[a-zA-Z]$/.test(e.key)) { inputLetter(e.key); e.preventDefault(); }
     };
 
-    // Auto-show virtual keyboard on mouse/touch interaction
+    // 3) Auto-show virtual keyboard on mouse/touch interaction
     const handleInteraction = () => {
       if (hasPhysicalKeyboard.current) {
         hasPhysicalKeyboard.current = false;
@@ -158,7 +171,7 @@ export default function GameScreen() {
       window.removeEventListener("mousedown", handleInteraction);
       window.removeEventListener("touchstart", handleInteraction);
     };
-  }, [navigateToCell, inputLetter]);
+  }, [board, navigateToCell, inputLetter]);
 
   if (!board) return null;
 
