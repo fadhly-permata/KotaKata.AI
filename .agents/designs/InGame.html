@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+
+<html lang="id" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KotaKata AI - Crossword Game</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#4a3068",
+                        "inverse-primary": "#f0a0cc",
+                        "secondary-container": "#eedcff",
+                        "primary-fixed-dim": "#f0a0cc",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed": "#eedcff",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#ffd6ee",
+                        "on-surface-variant": "#604868",
+                        "on-primary-fixed": "#3d0028",
+                        "surface-tint": "#e040a0",
+                        "on-surface": "#2e1a28",
+                        "inverse-on-surface": "#fef7ff",
+                        "tertiary-container": "#40c0ee",
+                        "primary": "#e040a0",
+                        "tertiary-fixed-dim": "#80d0f0",
+                        "on-background": "#2e1a28",
+                        "surface-dim": "#e0d6e0",
+                        "outline-variant": "#dcc8e0",
+                        "outline": "#907898",
+                        "on-tertiary-container": "#00334d",
+                        "on-primary-container": "#2e1a28",
+                        "surface-container-highest": "#ece2ec",
+                        "inverse-surface": "#2e1a28",
+                        "background": "#fef7ff",
+                        "primary-container": "#f080c0",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed": "#1a1030",
+                        "error-container": "#ffe8e8",
+                        "on-tertiary-fixed-variant": "#005580",
+                        "surface-bright": "#fef7ff",
+                        "secondary": "#7c52aa",
+                        "on-error-container": "#9b1c1c",
+                        "surface-container": "#f8eef8",
+                        "error": "#e53e3e",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#fef7ff",
+                        "secondary-fixed-dim": "#c8a8e8",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#2e2040",
+                        "surface-variant": "#f2e8f2",
+                        "tertiary": "#0096cc",
+                        "surface-container-low": "#fbf2fb",
+                        "surface-container-high": "#f2e8f2",
+                        "on-tertiary-fixed": "#001a33",
+                        "on-primary-fixed-variant": "#a02070",
+                        "tertiary-fixed": "#c8eaff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["DM Sans"],
+                        "display": ["DM Sans"],
+                        "body": ["DM Sans"],
+                        "label": ["DM Sans"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'DM Sans', sans-serif; background-color: #fef7ff; }
+        .crossword-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+        .bouncy-hover:hover { transform: scale(1.03); }
+        .bouncy-active:active { transform: scale(0.95); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .filled-icon { font-variation-settings: 'FILL' 1; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim shadow-md fixed top-0 w-full z-50 flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container overflow-hidden border-2 border-primary">
+<img class="w-full h-full object-cover" data-alt="A friendly and playful user profile avatar with soft studio lighting. The person has a joyful expression, wearing a vibrant pink shirt that matches the Candy UI design system. The background is a clean, minimalist studio setting with pastel purple and pink hues, creating a modern and approachable look for the KotaKata AI app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5GDwepsRwJkfuKrP9OJEpXIefaRlzK0oUPKoAkkqZmvA4iuv70ScYlgDmBgh1qP14g1hK8f-FjqFqS5Lj4CxFG8CLdQkYQpbY5wV09LeTiMdW4LPe4Z072mR83rD8LLbXmT2X0or5g3bUnjPdmQW5PS05KR-7BUDX51HOoNelrLGhBq-E4TJdpwZwC8tubBPXcijQMu0BvsKCXeSxRV78uBlqIULLPIhOUCmxt900xd_sp7yttvWSz1-PkkNClJPHRh6n3Zo83uU"/>
+</div>
+<h1 class="font-headline font-bold tracking-tight text-2xl font-black text-primary dark:text-inverse-primary tracking-tighter">KotaKata AI</h1>
+</div>
+<div class="flex items-center gap-2 px-4 py-1.5 bg-primary-fixed rounded-full shadow-[0_4px_12px_rgba(224,64,160,0.15)] hover:scale-105 transition-transform duration-200">
+<span class="material-symbols-outlined text-primary text-xl">star</span>
+<span class="font-bold text-on-primary-fixed">1,250 XP</span>
+</div>
+</header>
+<!-- Main Game Canvas -->
+<main class="flex-grow pt-24 pb-32 px-4 max-w-2xl mx-auto w-full flex flex-col gap-6">
+<!-- Game Status / Level Info -->
+<div class="flex justify-between items-center bg-surface-container rounded-lg p-4 shadow-[0_4px_16px_rgba(124,82,170,0.08)]">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-secondary uppercase tracking-widest">Level 12</span>
+<span class="text-on-surface font-headline font-bold text-xl">Nuansa Alam</span>
+</div>
+<div class="flex gap-2">
+<button class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm active:scale-95 transition-all">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm border-2 border-primary/20 relative">
+<svg class="absolute inset-0 w-full h-full -rotate-90" viewbox="0 0 36 36">
+<circle class="stroke-surface-container-highest" cx="18" cy="18" fill="none" r="16" stroke-width="3"></circle>
+<circle class="stroke-primary" cx="18" cy="18" fill="none" r="16" stroke-dasharray="65, 100" stroke-linecap="round" stroke-width="3"></circle>
+</svg>
+<span class="text-[10px] font-bold">65%</span>
+</div>
+</div>
+</div>
+<!-- Crossword Grid -->
+<div class="p-4 bg-white rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.05)] border-4 border-surface-variant">
+<div class="crossword-grid aspect-square">
+<!-- Row 1 -->
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+<span class="absolute top-1 left-1 text-[10px] text-outline leading-none">1</span>
+                    H
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+<span class="absolute top-1 left-1 text-[10px] text-outline leading-none">2</span>
+                    A
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<!-- Row 2 -->
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+<span class="absolute top-1 left-1 text-[10px] text-outline leading-none">3</span>
+                    M
+                </div>
+<div class="bg-primary border-4 border-primary-fixed rounded-md flex items-center justify-center text-xl font-bold text-white relative shadow-[0_4px_12px_rgba(224,64,160,0.4)] z-10 scale-110">
+<span class="absolute top-1 left-1 text-[10px] text-white leading-none">4</span>
+                    A
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    T
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    A
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    H
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    A
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    R
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    I
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<!-- Row 3 -->
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    R
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    K
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<!-- Row 4 -->
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    I
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    I
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<!-- Row 5 -->
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+<span class="absolute top-1 left-1 text-[10px] text-outline leading-none">5</span>
+                    R
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    I
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    M
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    B
+                </div>
+<div class="bg-white border-2 border-outline-variant rounded-md flex items-center justify-center text-xl font-bold text-on-surface relative bouncy-hover cursor-pointer" onclick="setActiveCell(this)">
+                    A
+                </div>
+<div class="bg-surface-dim rounded-md"></div>
+<!-- Filling the rest with blocks for the crossword feel -->
+<div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div>
+<div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div><div class="bg-surface-dim rounded-md"></div>
+</div>
+</div>
+<!-- Clue Section -->
+<div class="bg-tertiary-container rounded-full px-8 shadow-[0_8px_24px_rgba(0,150,204,0.25)] flex items-center gap-4 border-2 border-white/50 animate-pulse-subtle py-3"><button class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<div class="flex items-center gap-4 flex-grow justify-center">
+<div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0">
+<span class="font-bold text-tertiary">4</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-white/80 uppercase tracking-widest font-medium">Mendatar (8 Huruf)</span>
+<p class="text-white font-headline text-lg leading-tight font-medium">Sumber energi cahaya terbesar di Bumi.</p>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button></div>
+</main>
+<!-- Floating Action Button (Hint) -->
+<div class="fixed bottom-24 left-4 right-4 z-50 bg-surface-container-high rounded-full shadow-lg border border-white/50 px-6 py-3 flex justify-around items-center gap-2"><!-- Zoom Group -->
+<div class="flex items-center gap-2">
+<button class="flex flex-col items-center justify-center w-10 h-10 rounded-full bg-white text-primary shadow-sm active:scale-95 transition-all hover:bg-primary-fixed">
+<span class="material-symbols-outlined text-xl">zoom_out</span>
+</button>
+<div class="flex flex-col items-center px-2">
+<span class="text-[10px] font-bold text-secondary uppercase tracking-widest">Zoom</span>
+<span class="text-lg font-headline font-bold text-on-surface">100%</span>
+</div>
+<button class="flex flex-col items-center justify-center w-10 h-10 rounded-full bg-white text-primary shadow-sm active:scale-95 transition-all hover:bg-primary-fixed">
+<span class="material-symbols-outlined text-xl">zoom_in</span>
+</button>
+</div>
+<!-- Separator -->
+<div class="h-8 w-px bg-outline-variant opacity-50"></div>
+<!-- Hints Group -->
+<div class="flex items-center gap-3">
+<button class="flex flex-col items-center justify-center gap-0.5">
+<div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-md active:scale-95 transition-all">
+<span class="material-symbols-outlined text-xl">spellcheck</span>
+</div>
+</button>
+<button class="flex flex-col items-center justify-center gap-0.5">
+<div class="w-10 h-10 rounded-full bg-tertiary text-white flex items-center justify-center shadow-md active:scale-95 transition-all">
+<span class="material-symbols-outlined text-xl">lightbulb</span>
+</div>
+</button>
+</div>
+<!-- Separator -->
+<div class="h-8 w-px bg-outline-variant opacity-50"></div>
+<!-- Settings Group -->
+<div class="flex items-center">
+<button class="flex flex-col items-center justify-center w-10 h-10 rounded-full bg-white text-on-surface-variant shadow-sm active:scale-95 transition-all hover:bg-secondary-container/50">
+<span class="material-symbols-outlined text-xl">settings</span>
+</button>
+</div></div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-3 bg-surface/90 backdrop-blur-md border-t border-outline-variant dark:border-outline shadow-[0_-4px_16px_rgba(124,82,170,0.1)] rounded-t-lg">
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:bg-secondary-container/50 transition-colors">
+<span class="material-symbols-outlined text-2xl">menu</span>
+<span class="font-label font-medium text-xs">Menu</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-2 scale-110 shadow-[0_4px_12px_rgba(224,64,160,0.3)]">
+<span class="material-symbols-outlined text-2xl">extension</span>
+<span class="font-label font-medium text-xs">Main</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:bg-secondary-container/50 transition-colors">
+<span class="material-symbols-outlined text-2xl">collections_bookmark</span>
+<span class="font-label font-medium text-xs">Koleksi</span>
+</button>
+</nav>
+<script>
+        function setActiveCell(element) {
+            // Remove active classes from all cells
+            const cells = document.querySelectorAll('.crossword-grid > div');
+            cells.forEach(cell => {
+                if (cell.classList.contains('bg-primary')) {
+                    cell.classList.remove('bg-primary', 'border-4', 'border-primary-fixed', 'text-white', 'shadow-[0_4px_12px_rgba(224,64,160,0.4)]', 'z-10', 'scale-110');
+                    cell.classList.add('bg-white', 'border-2', 'border-outline-variant', 'text-on-surface', 'bouncy-hover', 'cursor-pointer');
+                    // Reset small number color
+                    const num = cell.querySelector('span');
+                    if (num) {
+                        num.classList.remove('text-white');
+                        num.classList.add('text-outline');
+                    }
+                }
+            });
+
+            // Add active classes to clicked cell
+            element.classList.remove('bg-white', 'border-2', 'border-outline-variant', 'text-on-surface', 'bouncy-hover', 'cursor-pointer');
+            element.classList.add('bg-primary', 'border-4', 'border-primary-fixed', 'text-white', 'shadow-[0_4px_12px_rgba(224,64,160,0.4)]', 'z-10', 'scale-110');
+            
+            const num = element.querySelector('span');
+            if (num) {
+                num.classList.remove('text-outline');
+                num.classList.add('text-white');
+            }
+        }
+    </script>
+<style>
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.01); opacity: 0.95; }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 4s infinite ease-in-out;
+        }
+    </style>
+</body></html>
