@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   /* ─── Scroll ─── */
   scroll: { flex: 1 },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
 
   /* ─── Top Bar ─── */
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   /* ─── Bento Section ─── */
   bentoSection: {
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 24,
     gap: 12,
   },
   bentoTitle: {
