@@ -18,6 +18,7 @@ interface CrosswordGridProps {
   onCellPress: (row: number, col: number) => void;
   onToggleOrientation: () => void;
   filledLetters: Map<string, string>;
+  zoomLevel?: number;
 }
 
 export default function CrosswordGrid({
@@ -27,17 +28,19 @@ export default function CrosswordGrid({
   inputOrientation,
   onCellPress,
   filledLetters,
+  zoomLevel = 1,
 }: CrosswordGridProps) {
   const { theme } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
-  const cellSize = useMemo(() => {
+  const baseCellSize = useMemo(() => {
     const maxGridWidth = screenWidth - 16;
     return Math.floor(maxGridWidth / board.size);
   }, [screenWidth, board.size]);
 
-  const fontSize = useMemo(() => Math.max(14, cellSize * 0.45), [cellSize]);
-  const numberSize = useMemo(() => Math.max(8, fontSize * 0.4), [fontSize]);
+  const cellSize = useMemo(() => Math.floor(baseCellSize * zoomLevel), [baseCellSize, zoomLevel]);
+  const fontSize = useMemo(() => Math.max(12, cellSize * 0.45), [cellSize]);
+  const numberSize = useMemo(() => Math.max(7, fontSize * 0.4), [fontSize]);
 
   const selectedCells = useMemo(() => {
     const set = new Set<string>();
@@ -61,109 +64,102 @@ export default function CrosswordGrid({
     return set;
   }, [board.words, solvedStateKey]);
 
-  const renderCell = useCallback((cell: BoardCell) => {
-    const key = `${cell.row},${cell.col}`;
-    const isSelected = selectedCell?.row === cell.row && selectedCell?.col === cell.col;
-    const isHighlighted = selectedCells.has(key);
-    const isSolved = solvedCells.has(key);
-    const letter = filledLetters.get(key) ?? (cell.isLocked ? cell.letter : "");
+  const renderCell = useCallback(
+    (cell: BoardCell) => {
+      const key = `${cell.row},${cell.col}`;
+      const isSelected = selectedCell?.row === cell.row && selectedCell?.col === cell.col;
+      const isHighlighted = selectedCells.has(key);
+      const isSolved = solvedCells.has(key);
+      const letter = filledLetters.get(key) ?? (cell.isLocked ? cell.letter : "");
 
-    if (cell.isBlocked) {
+      if (cell.isBlocked) {
+        return (
+          <View
+            key={key}
+            testID={`blocked-${cell.row}-${cell.col}`}
+            style={[
+              styles.cell,
+              styles.blockedCell,
+              { width: cellSize, height: cellSize, backgroundColor: theme.colors.cellBlocked, borderRadius: 4 },
+            ]}
+          />
+        );
+      }
+
+      let bgColor: string;
+      let borderColor: string;
+      let borderW = 1;
+
+      if (isSolved) {
+        bgColor = theme.colors.cellSolved;
+        borderColor = theme.colors.cellSolvedText;
+      } else if (isSelected) {
+        bgColor = theme.colors.primary;
+        borderColor = theme.colors.primary;
+        borderW = 2;
+      } else if (isHighlighted) {
+        bgColor = theme.mode === "dark" ? "#2A2938" : "#EDE8FF";
+        borderColor = theme.colors.primary;
+      } else {
+        bgColor = theme.colors.cellActive;
+        borderColor = theme.colors.cellBorder;
+      }
+
+      const handlePress = () => {
+        if (!isSolved) onCellPress(cell.row, cell.col);
+      };
+
       return (
-        <View
+        <TouchableOpacity
           key={key}
+          testID={`cell-${cell.row}-${cell.col}`}
+          activeOpacity={isSolved ? 1 : 0.7}
+          onPress={handlePress}
+          {...(Platform.OS === "web" ? { onClick: handlePress } : {})}
           style={[
             styles.cell,
-            styles.blockedCell,
+            styles.activeCell,
             {
               width: cellSize,
               height: cellSize,
-              backgroundColor: theme.colors.cellBlocked,
-              borderRadius: 4,
-            },
-          ]}
-        />
-      );
-    }
-
-    let bgColor: string;
-    let borderColor: string;
-    let borderW = 1;
-
-    if (isSolved) {
-      bgColor = theme.colors.cellSolved;
-      borderColor = theme.colors.cellSolvedText;
-    } else if (isSelected) {
-      bgColor = theme.colors.primary;
-      borderColor = theme.colors.primary;
-      borderW = 2;
-    } else if (isHighlighted) {
-      bgColor = theme.mode === "dark" ? "#2A2938" : "#EDE8FF";
-      borderColor = theme.colors.primary;
-    } else {
-      bgColor = theme.colors.cellActive;
-      borderColor = theme.colors.cellBorder;
-    }
-
-    const handlePress = () => {
-      if (!isSolved) onCellPress(cell.row, cell.col);
-    };
-
-    return (
-      <TouchableOpacity
-        key={key}
-        activeOpacity={isSolved ? 1 : 0.7}
-        onPress={handlePress}
-        {...(Platform.OS === "web" ? { onClick: handlePress } : {})}
-        style={[
-          styles.cell,
-          styles.activeCell,
-          {
-            width: cellSize,
-            height: cellSize,
-            backgroundColor: bgColor,
-            borderColor: borderColor,
-            borderWidth: borderW,
-            transform: isSelected ? [{ scale: 1.08 }] : [{ scale: 1 }],
-            zIndex: isSelected ? 10 : 1,
-            ...(isSelected ? { shadowColor: theme.colors.primary } : {}),
-          },
-        ]}
-      >
-        {cell.number != null && (
-          <Text
-            style={[
-              styles.cellNumber,
-              {
-                fontSize: numberSize,
-                color: isSelected ? "#FFF" : theme.colors.textSecondary,
-              },
-            ]}
-          >
-            {cell.number}
-          </Text>
-        )}
-        <Text
-          style={[
-            styles.cellLetter,
-            {
-              fontSize,
-              color: isSelected ? "#FFF" : isSolved ? theme.colors.cellSolvedText : theme.colors.cellText,
+              backgroundColor: bgColor,
+              borderColor: borderColor,
+              borderWidth: borderW,
+              transform: isSelected ? [{ scale: 1.08 }] : [{ scale: 1 }],
+              zIndex: isSelected ? 10 : 1,
+              ...(isSelected ? { shadowColor: theme.colors.primary } : {}),
             },
           ]}
         >
-          {letter}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme]);
+          {cell.number != null && (
+            <Text
+              style={[styles.cellNumber, { fontSize: numberSize, color: isSelected ? "#FFF" : theme.colors.textSecondary }]}
+            >
+              {cell.number}
+            </Text>
+          )}
+          <Text
+            style={[
+              styles.cellLetter,
+              { fontSize, color: isSelected ? "#FFF" : isSolved ? theme.colors.cellSolvedText : theme.colors.cellText },
+            ]}
+          >
+            {letter}
+          </Text>
+        </TouchableOpacity>
+      );
+    },
+    [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme],
+  );
+
+  const gridWidth = cellSize * board.size + 6;
 
   return (
     <View
       style={[
         styles.container,
         {
-          width: cellSize * board.size,
+          width: gridWidth,
           backgroundColor: theme.colors.surface,
           borderRadius: 12,
           borderColor: theme.colors.border,
@@ -190,29 +186,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
-  row: {
-    flexDirection: "row",
-    gap: 3,
-    marginBottom: 3,
-  },
-  cell: {
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-    cursor: "pointer",
-  },
-  activeCell: {
-    borderRadius: 6,
-  },
+  row: { flexDirection: "row", gap: 3, marginBottom: 3 },
+  cell: { justifyContent: "center", alignItems: "center", position: "relative", cursor: "pointer" },
+  activeCell: { borderRadius: 6 },
   blockedCell: {},
-  cellNumber: {
-    position: "absolute",
-    top: 1,
-    left: 2,
-    fontWeight: "500",
-  },
-  cellLetter: {
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
+  cellNumber: { position: "absolute", top: 1, left: 2, fontWeight: "500" },
+  cellLetter: { fontWeight: "600", textTransform: "uppercase" },
 });
