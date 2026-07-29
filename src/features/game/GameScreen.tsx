@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -51,6 +51,9 @@ export default function GameScreen() {
   const boardResult = useGameStore((s) => s.boardResult);
   const markWordSolved = useGameStore((s) => s.markWordSolved);
   const reset = useGameStore((s) => s.reset);
+  const goToPrevWord = useGameStore((s) => s.goToPrevWord);
+  const goToNextWord = useGameStore((s) => s.goToNextWord);
+  const revealLetter = useGameStore((s) => s.revealLetter);
 
   // Block back navigation when game is in progress
   useEffect(() => {
@@ -159,6 +162,38 @@ export default function GameScreen() {
         />
       </View>
 
+      {/* Nav toolbar: prev word | reveal letter | next word */}
+      <View style={[styles.navToolbar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+        <TouchableOpacity
+          activeOpacity={0.5}
+          onPress={goToPrevWord}
+          style={[styles.navToolBtn, { backgroundColor: theme.colors.border }]}
+        >
+          <Text style={[styles.navToolText, { color: theme.colors.primary }]}>◀</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.5}
+          onPress={() => {
+            if (selectedWordIndex !== null) revealLetter(selectedWordIndex);
+          }}
+          style={[
+            styles.revealBtn,
+            { backgroundColor: theme.colors.border, borderColor: theme.colors.primary },
+          ]}
+        >
+          <Text style={[styles.revealBtnIcon, { color: theme.colors.primary }]}>🔍</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.5}
+          onPress={goToNextWord}
+          style={[styles.navToolBtn, { backgroundColor: theme.colors.border }]}
+        >
+          <Text style={[styles.navToolText, { color: theme.colors.primary }]}>▶</Text>
+        </TouchableOpacity>
+      </View>
+
       <CluePanel word={selectedWord} wordIndex={selectedWordIndex} />
 
       <View style={styles.keyboardWrapper}>
@@ -192,5 +227,36 @@ const styles = StyleSheet.create({
   tierText: { fontSize: 12, fontWeight: "600" },
   xpText: { fontSize: 12, fontWeight: "700" },
   gridWrapper: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 16 },
+  navToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 24,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+  },
+  navToolBtn: {
+    width: 40,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  navToolText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  revealBtn: {
+    width: 44,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  revealBtnIcon: {
+    fontSize: 18,
+  },
   keyboardWrapper: { paddingTop: 4 },
 });

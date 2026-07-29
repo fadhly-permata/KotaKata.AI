@@ -30,9 +30,6 @@ export default function CluePanel({ word, wordIndex }: CluePanelProps) {
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
   const revealLetter = useGameStore((s) => s.revealLetter);
-  const goToPrevWord = useGameStore((s) => s.goToPrevWord);
-  const goToNextWord = useGameStore((s) => s.goToNextWord);
-
   // Reset carousel when word changes
   useEffect(() => {
     setActivePage(0);
@@ -77,16 +74,8 @@ export default function CluePanel({ word, wordIndex }: CluePanelProps) {
 
   return (
     <View style={[styles.bar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-      {/* Top row: prev arrow + word info + page dots + next arrow */}
+      {/* Top row: word info + page dots (nav buttons moved to separate toolbar) */}
       <View style={styles.topRow}>
-        <TouchableOpacity
-          activeOpacity={0.5}
-          onPress={goToPrevWord}
-          style={styles.navBtn}
-        >
-          <Text style={[styles.navBtnText, { color: theme.colors.primary }]}>◀</Text>
-        </TouchableOpacity>
-
         <View style={[styles.wordChip, { backgroundColor: theme.colors.border }]}>
           <Text style={[styles.wordChipText, { color: theme.colors.text }]}>
             {word.word.length} → {word.orientation === "horizontal" ? "Mendatar" : "Menurun"}
@@ -117,14 +106,6 @@ export default function CluePanel({ word, wordIndex }: CluePanelProps) {
             );
           })}
         </View>
-
-        <TouchableOpacity
-          activeOpacity={0.5}
-          onPress={goToNextWord}
-          style={styles.navBtn}
-        >
-          <Text style={[styles.navBtnText, { color: theme.colors.primary }]}>▶</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Carousel area */}
@@ -252,16 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     gap: 8,
   },
-  navBtn: {
-    width: 30,
-    height: 24,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  navBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
+
   wordChip: {
     borderRadius: 10,
     paddingHorizontal: 10,
