@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -42,6 +42,8 @@ export default function GameScreen() {
   );
   const pendingNavAction = useRef<any>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const prevZoomLevel = useRef(1);
+  const zoomAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const prevSelectedCell = useRef<{ row: number; col: number } | null>(null);
 
@@ -97,18 +99,45 @@ export default function GameScreen() {
     }
   }, [selectedCell, zoomLevel, scrollToFocusedCell]);
 
+  const animateZoom = useCallback((newZoom: number) => {
+    const oldZoom = prevZoomLevel.current;
+    if (oldZoom === newZoom) return;
+    
+    // Start at a scale that visually matches the OLD size, then spring to 1.0
+    // This creates a smooth grow/shrink animation to the NEW cell size
+    const ratio = oldZoom / newZoom;
+    zoomAnim.setValue(ratio);
+    Animated.spring(zoomAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 14,
+      bounciness: 6,
+    }).start();
+    
+    prevZoomLevel.current = newZoom;
+    setZoomLevel(newZoom);
+  }, [zoomAnim]);
+
   const zoomIn = useCallback(() => {
-    setZoomLevel((prev) => Math.min(ZOOM_MAX, prev + ZOOM_STEP));
-  }, []);
+    setZoomLevel((prev) => {
+      const newZoom = Math.min(ZOOM_MAX, prev + ZOOM_STEP);
+      animateZoom(newZoom);
+      return newZoom;
+    });
+  }, [animateZoom]);
 
   const zoomOut = useCallback(() => {
-    setZoomLevel((prev) => Math.max(ZOOM_MIN, prev - ZOOM_STEP));
-  }, []);
+    setZoomLevel((prev) => {
+      const newZoom = Math.max(ZOOM_MIN, prev - ZOOM_STEP);
+      animateZoom(newZoom);
+      return newZoom;
+    });
+  }, [animateZoom]);
 
   const resetZoom = useCallback(() => {
-    setZoomLevel(1);
+    animateZoom(1);
     scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
-  }, []);
+  }, [animateZoom]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
@@ -246,28 +275,30 @@ export default function GameScreen() {
 
         {/* Crossword Grid (Scrollable + Zoomable) */}
         <View style={styles.gridOuterWrapper}>
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.gridScroll}
-            contentContainerStyle={styles.gridScrollContent}
-            horizontal={zoomLevel > 1}
-            showsHorizontalScrollIndicator={zoomLevel > 1}
-            showsVerticalScrollIndicator={zoomLevel > 1}
-            bounces={true}
-          >
-            <View style={styles.gridCenterWrapper}>
-              <CrosswordGrid
-                board={board}
-                selectedCell={selectedCell}
-                selectedWordIndex={selectedWordIndex}
-                inputOrientation={inputOrientation}
-                onCellPress={selectCell}
-                onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
-                filledLetters={new Map(Object.entries(filledLetters))}
-                zoomLevel={zoomLevel}
-              />
-            </View>
-          </ScrollView>
+          <Animated.View style={{ transform: [{ scale: zoomAnim }] }}>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.gridScroll}
+              contentContainerStyle={styles.gridScrollContent}
+              horizontal={zoomLevel > 1}
+              showsHorizontalScrollIndicator={zoomLevel > 1}
+              showsVerticalScrollIndicator={zoomLevel > 1}
+              bounces={true}
+            >
+              <View style={styles.gridCenterWrapper}>
+                <CrosswordGrid
+                  board={board}
+                  selectedCell={selectedCell}
+                  selectedWordIndex={selectedWordIndex}
+                  inputOrientation={inputOrientation}
+                  onCellPress={selectCell}
+                  onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
+                  filledLetters={new Map(Object.entries(filledLetters))}
+                  zoomLevel={zoomLevel}
+                />
+              </View>
+            </ScrollView>
+          </Animated.View>
         </View>
 
         {/* Clue Pill */}
