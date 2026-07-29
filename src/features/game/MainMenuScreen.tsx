@@ -7,7 +7,6 @@ import {
   ScrollView,
   Animated,
   Platform,
-  Image,
   ImageBackground,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -161,28 +160,22 @@ export default function MainMenuScreen() {
 
         {/* ═══ Main Action: Mulai Bermain ═══ */}
         <TouchableOpacity
-          style={styles.playButton}
+          style={[styles.playButton, { backgroundColor: C.primary }]}
           activeOpacity={0.9}
           onPress={handlePlay}
         >
-          <Image
-            source={{ uri: "https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&q=80" }}
-            style={styles.playButtonBgImage}
-            resizeMode="cover"
-          />
-          <View style={styles.playButtonOverlay}>
-            <View style={styles.playButtonContent}>
-              <Text style={styles.playButtonText}>Mulai Bermain</Text>
-              <Animated.Text
-                style={[
-                  styles.playButtonIcon,
-                  { transform: [{ translateY: bounceTranslate }] },
-                ]}
-              >
-                ▶️
-              </Animated.Text>
-            </View>
+          <View style={styles.playButtonContent}>
+            <Text style={styles.playButtonText}>Mulai Bermain</Text>
+            <Animated.Text
+              style={[
+                styles.playButtonIcon,
+                { transform: [{ translateY: bounceTranslate }] },
+              ]}
+            >
+              ▶️
+            </Animated.Text>
           </View>
+          <View style={styles.shineOverlay} />
         </TouchableOpacity>
 
         {/* ═══ Action Grid: Misi Harian + Sejarah ═══ */}
@@ -396,26 +389,13 @@ const styles = StyleSheet.create({
   /* ─── Play Button ─── */
   playButton: {
     marginHorizontal: 16,
+    paddingVertical: 20,
     borderRadius: 16,
     marginBottom: 16,
     overflow: "hidden",
-    paddingVertical: 22,
-    position: "relative",
     ...Platform.select({
       web: { cursor: "pointer" },
     }),
-  },
-  playButtonBgImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  playButtonOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.40)",
-    borderRadius: 16,
   },
   playButtonContent: {
     flexDirection: "row",
@@ -431,6 +411,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   playButtonIcon: { fontSize: 28 },
+  shineOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "transparent",
+  },
 
   /* ─── Action Grid ─── */
   actionGrid: {
