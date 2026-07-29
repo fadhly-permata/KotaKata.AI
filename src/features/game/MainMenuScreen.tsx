@@ -251,25 +251,25 @@ export default function MainMenuScreen() {
 
             {/* Small card 1 — Kata Ajaib */}
             <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: C.tertiaryContainer }]}
+              style={[styles.bentoSmallCard, { backgroundColor: C.surface }]}
               activeOpacity={0.8}
               onPress={() => {}}
             >
               <View style={styles.bentoSmallContent}>
                 <Text style={styles.bentoSmallEmoji}>✨</Text>
-                <Text style={[styles.bentoSmallLabel, { color: C.text }]}>Kata Ajaib</Text>
+                <Text style={[styles.bentoSmallLabel, { color: C.primary }]}>Kata Ajaib</Text>
               </View>
             </TouchableOpacity>
 
             {/* Small card 2 — Pengaturan */}
             <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: C.secondaryContainer }]}
+              style={[styles.bentoSmallCard, { backgroundColor: C.surface }]}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Settings")}
             >
               <View style={styles.bentoSmallContent}>
                 <Text style={styles.bentoSmallEmoji}>⚙️</Text>
-                <Text style={[styles.bentoSmallLabel, { color: C.text }]}>Pengaturan</Text>
+                <Text style={[styles.bentoSmallLabel, { color: C.tertiary }]}>Pengaturan</Text>
               </View>
             </TouchableOpacity>
           </View>
