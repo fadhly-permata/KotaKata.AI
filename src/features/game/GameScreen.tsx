@@ -39,6 +39,7 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const keyboardAutoShown = useRef(false);
   const pendingNavAction = useRef<any>(null);
@@ -63,9 +64,11 @@ export default function GameScreen() {
   const boardResult = useGameStore((s) => s.boardResult);
   const markWordSolved = useGameStore((s) => s.markWordSolved);
   const reset = useGameStore((s) => s.reset);
+  const resetBoard = useGameStore((s) => s.resetBoard);
   const goToPrevWord = useGameStore((s) => s.goToPrevWord);
   const goToNextWord = useGameStore((s) => s.goToNextWord);
   const revealLetter = useGameStore((s) => s.revealLetter);
+  const revealWord = useGameStore((s) => s.revealWord);
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
 
@@ -78,6 +81,22 @@ export default function GameScreen() {
     }
   }, [selectCell]);
 
+  // Fill progress: % of active (non-blocked) cells that have been filled
+  const fillProgress = useMemo(() => {
+    if (!board) return 0;
+    let totalActive = 0;
+    let filled = 0;
+    for (const row of board.grid) {
+      for (const cell of row) {
+        if (cell.isBlocked) continue;
+        totalActive++;
+        const key = `${cell.row},${cell.col}`;
+        if (filledLetters[key] || cell.isLocked) filled++;
+      }
+    }
+    return totalActive > 0 ? filled / totalActive : 0;
+  }, [board, filledLetters]);
+
   // Auto-center focused cell when zoomed in
   const scrollToFocusedCell = useCallback(() => {
     if (!selectedCell || !scrollViewRef.current || !board) return;
@@ -85,7 +104,7 @@ export default function GameScreen() {
     prevSelectedCell.current = selectedCell;
 
     const { width: screenWidth } = Dimensions.get("window");
-    const outerMargin = 8; // matches gridCenterWrapper horizontal padding
+    const outerMargin = 8;
     const availableWidth = screenWidth - outerMargin;
     const gapsTotal = CELL_GAP * (board.size - 1);
     const borderTotal = 2;
@@ -198,9 +217,9 @@ export default function GameScreen() {
     }
   }, [filledLetters, board, boardResult, markWordSolved]);
 
-  const currentTier = useMemo(() => calcTier(totalXp), [totalXp]);
+  const currentTier = useMemo(() => calcTier(totalXp + currentXp), [totalXp, currentXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
-  const tierProgress = useMemo(() => calcTierProgress(totalXp), [totalXp]);
+  const tierProgress = useMemo(() => calcTierProgress(totalXp + currentXp), [totalXp, currentXp]);
 
   const selectedWord = useMemo(() => {
     if (selectedWordIndex === null || !board) return null;
@@ -261,13 +280,19 @@ export default function GameScreen() {
             <Text style={[styles.levelName, { color: theme.colors.text }]}>{tierName}</Text>
           </View>
           <View style={styles.levelActions}>
-            <TouchableOpacity style={[styles.iconBtn, { backgroundColor: theme.colors.surface }]}>
-              <Text style={styles.iconBtnText}>🔀</Text>
+            {/* Reset button — circular refresh icon */}
+            <TouchableOpacity
+              style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={() => setShowResetConfirm(true)}
+            >
+              <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
             </TouchableOpacity>
+            {/* Progress ring — now shows fill progress */}
             <View style={[styles.progressRing, { borderColor: theme.colors.border }]}>
               <View style={[styles.progressRingFill, { borderColor: theme.colors.primary }]} />
               <Text style={[styles.progressText, { color: theme.colors.primary }]}>
-                {Math.round(tierProgress * 100)}%
+                {Math.round(fillProgress * 100)}%
               </Text>
             </View>
           </View>
@@ -371,7 +396,7 @@ export default function GameScreen() {
             <TouchableOpacity
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
-              onPress={() => selectedWordIndex !== null && useClue2(selectedWordIndex)}
+              onPress={() => selectedWordIndex !== null && revealWord(selectedWordIndex)}
             >
               <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
             </TouchableOpacity>
@@ -397,6 +422,7 @@ export default function GameScreen() {
         </View>
       )}
 
+      {/* Quit confirmation */}
       <ConfirmDialog
         visible={showQuitConfirm}
         title="Keluar Permainan?"
@@ -407,6 +433,19 @@ export default function GameScreen() {
         onCancel={handleCancelQuit}
         variant="danger"
         emoji="🚪"
+      />
+
+      {/* Reset board confirmation */}
+      <ConfirmDialog
+        visible={showResetConfirm}
+        title="Reset Permainan?"
+        message="Semua jawaban yang sudah terisi akan dikosongkan dan XP akan di-reset. Apa kamu yakin?"
+        confirmText="Ya, Reset"
+        cancelText="Batal"
+        onConfirm={() => { resetBoard(); setShowResetConfirm(false); }}
+        onCancel={() => setShowResetConfirm(false)}
+        variant="danger"
+        emoji="🔄"
       />
     </View>
   );
@@ -424,13 +463,13 @@ const styles = StyleSheet.create({
   appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
   xpPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   xpPillText: { fontSize: 12, fontWeight: "700" },
-  levelCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, padding: 14, borderRadius: 12, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, marginBottom: 8 },
+  levelCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginTop: 4, padding: 14, borderRadius: 12, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, marginBottom: 8 },
   levelInfo: { gap: 2 },
   levelLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
   levelName: { fontSize: 18, fontWeight: "800" },
   levelActions: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
-  iconBtnText: { fontSize: 16 },
+  rstBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
+  rstBtnText: { fontSize: 16 },
   progressRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, justifyContent: "center", alignItems: "center" },
   progressRingFill: { position: "absolute", width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderLeftColor: "transparent", borderBottomColor: "transparent", transform: [{ rotate: "-90deg" }] },
   progressText: { fontSize: 10, fontWeight: "800" },
