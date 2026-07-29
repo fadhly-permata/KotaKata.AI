@@ -37,8 +37,14 @@ export default function CrosswordGrid({
   const { width: screenWidth } = useWindowDimensions();
 
   const baseCellSize = useMemo(() => {
-    const maxGridWidth = screenWidth - 16;
-    return Math.floor(maxGridWidth / board.size);
+    // Account for ALL fixed spacing so grid perfectly fits available width
+    const outerMargin = 8; // 4px padding on each side of gridCenterWrapper
+    const availableWidth = screenWidth - outerMargin;
+    const gapsTotal = CELL_GAP * (board.size - 1);
+    const borderTotal = 2; // 1px on each side
+    const paddingTotal = GRID_PADDING * 2;
+    const fixedSpace = gapsTotal + borderTotal + paddingTotal;
+    return Math.floor((availableWidth - fixedSpace) / board.size);
   }, [screenWidth, board.size]);
 
   const cellSize = useMemo(() => Math.floor(baseCellSize * zoomLevel), [baseCellSize, zoomLevel]);
