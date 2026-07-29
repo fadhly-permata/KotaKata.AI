@@ -286,7 +286,7 @@ export default function GameScreen() {
               showsVerticalScrollIndicator={zoomLevel > 1}
               bounces={true}
             >
-              <View style={styles.gridCenterWrapper}>
+              <View style={zoomLevel <= 1 ? [styles.gridCenterWrapper, styles.gridCenterCentered] : [styles.gridCenterWrapper, styles.gridCenterNormal]}>
                 <CrosswordGrid
                   board={board}
                   selectedCell={selectedCell}
@@ -444,7 +444,9 @@ const styles = StyleSheet.create({
   gridOuterWrapper: { marginBottom: 8, overflow: "hidden", borderRadius: 12 },
   gridScroll: { flexGrow: 0 },
   gridScrollContent: { flexGrow: 0 },
-  gridCenterWrapper: { alignItems: "center", justifyContent: "center", paddingVertical: 8, paddingHorizontal: 4 },
+  gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4 },
+  gridCenterCentered: { flexGrow: 1, justifyContent: "center" },
+  gridCenterNormal: { paddingVertical: 8 },
   bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 8 },
   clueArrow: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
