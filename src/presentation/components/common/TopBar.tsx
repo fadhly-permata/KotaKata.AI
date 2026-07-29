@@ -32,7 +32,7 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
               activeOpacity={0.7}
               onPress={handleBack}
             >
-              <Text style={[styles.backBtnText, { color: C.text }]}>←</Text>
+              <Text style={[styles.backBtnText, { color: C.text }]}>‹</Text>
             </TouchableOpacity>
           )}
           <View
@@ -70,13 +70,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
   backBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 32,
     textAlign: "center",
-    textAlignVertical: "center",
-    includeFontPadding: false,
   },
   avatar: {
     width: 32,
