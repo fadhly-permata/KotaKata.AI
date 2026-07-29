@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
-import { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from "react-native";
+import { useState, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { useAuth } from "../auth/useAuth";
+import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -16,6 +17,7 @@ export default function SettingsScreen() {
   const reset = useGameStore((s) => s.reset);
   const { signOut } = useAuth();
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
@@ -24,31 +26,19 @@ export default function SettingsScreen() {
     setThemeMode(isDark ? "light" : "dark");
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      "Keluar Akun",
-      "Apakah kamu yakin ingin keluar? Progres game akan tetap tersimpan.",
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Keluar",
-          style: "destructive",
-          onPress: async () => {
-            setSigningOut(true);
-            try {
-              await signOut();
-              reset();
-              navigation.reset({ index: 0, routes: [{ name: "Auth" }] });
-            } catch (e: any) {
-              Alert.alert("Gagal", e.message || "Terjadi kesalahan");
-            } finally {
-              setSigningOut(false);
-            }
-          },
-        },
-      ],
-    );
-  };
+  const handleSignOut = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+      reset();
+      navigation.reset({ index: 0, routes: [{ name: "Auth" }] });
+    } catch (e: any) {
+      // Silently fail — user stays on settings
+    } finally {
+      setSigningOut(false);
+      setShowSignOutConfirm(false);
+    }
+  }, [signOut, reset, navigation]);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -83,7 +73,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.actionRow}
             activeOpacity={0.6}
-            onPress={handleSignOut}
+            onPress={() => setShowSignOutConfirm(true)}
             disabled={signingOut}
           >
             <Text style={[styles.actionText, { color: theme.colors.error }]}>
@@ -120,6 +110,18 @@ export default function SettingsScreen() {
           </View>
         </View>
       </View>
+
+      <ConfirmDialog
+        visible={showSignOutConfirm}
+        title="Keluar Akun"
+        message="Apakah kamu yakin ingin keluar? Progres game akan tetap tersimpan."
+        confirmText="Keluar"
+        cancelText="Batal"
+        onConfirm={handleSignOut}
+        onCancel={() => setShowSignOutConfirm(false)}
+        variant="danger"
+        emoji="🚪"
+      />
     </ScrollView>
   );
 }
