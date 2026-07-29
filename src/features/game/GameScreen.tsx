@@ -159,9 +159,16 @@ export default function GameScreen() {
         bounces={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ═══ Top Bar: Avatar + Title + XP Pill ═══ */}
+        {/* ═══ Top Bar: Back Btn + Avatar + Title + XP Pill ═══ */}
         <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.topBarLeft}>
+            <TouchableOpacity
+              style={[styles.backBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={[styles.backBtnText, { color: theme.colors.text }]}>←</Text>
+            </TouchableOpacity>
             <View style={[styles.avatar, { backgroundColor: theme.colors.secondaryContainer }]}>
               <Text style={[styles.avatarText, { color: theme.colors.primary }]}>K</Text>
             </View>
@@ -294,6 +301,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  backBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backBtnText: { fontSize: 18, fontWeight: "700", lineHeight: 20 },
   avatar: {
     width: 36,
     height: 36,
