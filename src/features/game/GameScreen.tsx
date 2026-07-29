@@ -244,29 +244,6 @@ export default function GameScreen() {
           </View>
         </View>
 
-        {/* Zoom Controls */}
-        <View style={styles.zoomBar}>
-          <TouchableOpacity
-            style={[styles.zoomBtn, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 }]}
-            activeOpacity={0.7}
-            onPress={zoomOut}
-            disabled={zoomLevel <= ZOOM_MIN}
-          >
-            <Text style={[styles.zoomBtnText, { color: theme.colors.text }]}>−</Text>
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={resetZoom}>
-            <Text style={[styles.zoomLabel, { color: theme.colors.textSecondary }]}>{Math.round(zoomLevel * 100)}%</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.zoomBtn, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 }]}
-            activeOpacity={0.7}
-            onPress={zoomIn}
-            disabled={zoomLevel >= ZOOM_MAX}
-          >
-            <Text style={[styles.zoomBtnText, { color: theme.colors.text }]}>+</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Crossword Grid (Scrollable + Zoomable) */}
         <View style={styles.gridOuterWrapper}>
           <ScrollView
@@ -320,22 +297,56 @@ export default function GameScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Action Bar */}
+        {/* Action Bar + Zoom */}
         <View style={[styles.actionBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: theme.colors.primary }]}
-            activeOpacity={0.7}
-            onPress={() => selectedWordIndex !== null && revealLetter(selectedWordIndex)}
-          >
-            <Text style={styles.actionIcon}>🔍</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
-            activeOpacity={0.7}
-            onPress={() => selectedWordIndex !== null && useClue2(selectedWordIndex)}
-          >
-            <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
-          </TouchableOpacity>
+          {/* Zoom Controls (Left) */}
+          <View style={styles.zoomGroup}>
+            <TouchableOpacity
+              style={[styles.zoomBtnSmall, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 }]}
+              activeOpacity={0.7}
+              onPress={zoomOut}
+              disabled={zoomLevel <= ZOOM_MIN}
+            >
+              <Text style={[styles.zoomBtnSmallText, { color: theme.colors.text }]}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={resetZoom}>
+              <Text style={[styles.zoomLabel, { color: theme.colors.textSecondary }]}>{Math.round(zoomLevel * 100)}%</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.zoomBtnSmall, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 }]}
+              activeOpacity={0.7}
+              onPress={zoomIn}
+              disabled={zoomLevel >= ZOOM_MAX}
+            >
+              <Text style={[styles.zoomBtnSmallText, { color: theme.colors.text }]}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Divider */}
+          <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
+
+          {/* Reveal Actions (Center) */}
+          <View style={styles.revealGroup}>
+            <TouchableOpacity
+              style={[styles.actionItem, { backgroundColor: theme.colors.primary }]}
+              activeOpacity={0.7}
+              onPress={() => selectedWordIndex !== null && revealLetter(selectedWordIndex)}
+            >
+              <Text style={styles.actionIcon}>🔍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={() => selectedWordIndex !== null && useClue2(selectedWordIndex)}
+            >
+              <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Spacer */}
+          <View style={{ flex: 1 }} />
+
+          {/* Keyboard Toggle (Right) */}
           <TouchableOpacity
             style={[styles.actionItem, { backgroundColor: theme.colors.surface }]}
             activeOpacity={0.7}
@@ -389,10 +400,12 @@ const styles = StyleSheet.create({
   progressRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, justifyContent: "center", alignItems: "center" },
   progressRingFill: { position: "absolute", width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderLeftColor: "transparent", borderBottomColor: "transparent", transform: [{ rotate: "-90deg" }] },
   progressText: { fontSize: 10, fontWeight: "800" },
-  zoomBar: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 8 },
-  zoomBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
-  zoomBtnText: { fontSize: 20, fontWeight: "700" },
-  zoomLabel: { fontSize: 13, fontWeight: "700", minWidth: 40, textAlign: "center" },
+  zoomGroup: { flexDirection: "row", alignItems: "center", gap: 6 },
+  zoomBtnSmall: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  zoomBtnSmallText: { fontSize: 18, fontWeight: "700", lineHeight: 32, textAlign: "center" },
+  zoomLabel: { fontSize: 12, fontWeight: "700", minWidth: 36, textAlign: "center" },
+  actionDivider: { width: 1, height: 24, marginHorizontal: 8 },
+  revealGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
   gridOuterWrapper: { marginBottom: 8, overflow: "hidden", borderRadius: 12 },
   gridScroll: { flexGrow: 0 },
   gridScrollContent: { flexGrow: 0 },
@@ -406,7 +419,7 @@ const styles = StyleSheet.create({
   clueTextWrap: { flex: 1 },
   clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
   clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600" },
-  actionBar: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 20, marginHorizontal: 16, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  actionBar: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   actionItem: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   actionIcon: { fontSize: 18 },
   keyboardWrapper: {},
