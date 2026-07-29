@@ -308,7 +308,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  backBtnText: { fontSize: 18, fontWeight: "700", lineHeight: 20 },
+  backBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+  },
   avatar: {
     width: 36,
     height: 36,

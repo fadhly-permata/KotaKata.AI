@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import { useGameStore } from "../../stores/gameStore";
@@ -55,9 +55,7 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    paddingTop: Platform.OS === "web" ? 16 : 48,
-  },
+  safeArea: {},
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -73,7 +71,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  backBtnText: { fontSize: 18, fontWeight: "700", lineHeight: 20 },
+  backBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+  },
   avatar: {
     width: 32,
     height: 32,
