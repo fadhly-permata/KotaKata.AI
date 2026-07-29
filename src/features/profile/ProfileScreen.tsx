@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import TopBar from "../../presentation/components/common/TopBar";
 import TierBadge from "../../presentation/components/common/TierBadge";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
@@ -14,8 +15,9 @@ export default function ProfileScreen() {
   const tierName = TIER_NAMES[Math.max(0, tier - 1)];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <TopBar />
+      <ScrollView contentContainerStyle={styles.content}>
         {/* Profile header */}
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.surface }]}>
           <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
@@ -55,8 +57,8 @@ export default function ProfileScreen() {
             <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>v1.0.0</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
