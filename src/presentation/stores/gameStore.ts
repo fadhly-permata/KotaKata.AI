@@ -40,6 +40,8 @@ interface GameState {
   inputLetter: (letter: string) => void;
   deleteLetter: () => void;
   navigateToCell: (direction: "up" | "down" | "left" | "right") => void;
+  goToPrevWord: () => void;
+  goToNextWord: () => void;
   useClue2: (wordIndex: number) => void;
   useClue3: (wordIndex: number) => void;
   revealLetter: (wordIndex: number) => void;
@@ -62,7 +64,24 @@ export const useGameStore = create<GameState>((set, get) => ({
   sessionStartTime: 0,
   boardResult: null,
 
-  setBoard: (board: Board) => set({ board, loading: false, sessionStartTime: Date.now() }),
+  setBoard: (board: Board) => {
+    set({ board, loading: false, sessionStartTime: Date.now() });
+    // Auto-focus on first unsolved word (smallest clue number)
+    const sortedIndices = getSortedWordIndices(board);
+    for (const idx of sortedIndices) {
+      const word = board.words[idx];
+      if (word.solved) continue;
+      const firstUnlocked = word.cells.find((c) => !c.isLocked);
+      if (firstUnlocked) {
+        set({
+          selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
+          selectedWordIndex: idx,
+          inputOrientation: word.orientation,
+        });
+        return;
+      }
+    }
+  },
 
   selectCell: (row: number, col: number) => {
     const { board } = get();
@@ -200,6 +219,50 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
+  goToPrevWord: () => {
+    const { board, selectedWordIndex, filledLetters } = get();
+    if (!board) return;
+    const sortedIndices = getSortedWordIndices(board);
+    const currentPos = sortedIndices.indexOf(selectedWordIndex ?? -1);
+    for (let offset = sortedIndices.length - 1; offset > 0; offset--) {
+      const idx = sortedIndices[(currentPos + offset) % sortedIndices.length];
+      const word = board.words[idx];
+      if (word.solved) continue;
+      if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`] || c.isLocked)) continue;
+      const firstUnlocked = word.cells.find((c) => !c.isLocked);
+      if (firstUnlocked) {
+        set({
+          selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
+          selectedWordIndex: idx,
+          inputOrientation: word.orientation,
+        });
+        return;
+      }
+    }
+  },
+
+  goToNextWord: () => {
+    const { board, selectedWordIndex, filledLetters } = get();
+    if (!board) return;
+    const sortedIndices = getSortedWordIndices(board);
+    const currentPos = sortedIndices.indexOf(selectedWordIndex ?? -1);
+    for (let offset = 1; offset < sortedIndices.length; offset++) {
+      const idx = sortedIndices[(currentPos + offset) % sortedIndices.length];
+      const word = board.words[idx];
+      if (word.solved) continue;
+      if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`] || c.isLocked)) continue;
+      const firstUnlocked = word.cells.find((c) => !c.isLocked);
+      if (firstUnlocked) {
+        set({
+          selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
+          selectedWordIndex: idx,
+          inputOrientation: word.orientation,
+        });
+        return;
+      }
+    }
+  },
+
   navigateToCell: (direction: "up" | "down" | "left" | "right") => {
     const { board, selectedCell } = get();
     if (!board || !selectedCell) return;
@@ -330,6 +393,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       boardResult: null,
     }),
 }));
+
+function getSortedWordIndices(board: Board): number[] {
+  const wordNumbers = board.words.map((w) => w.cells[0]?.number ?? 999);
+  return board.words
+    .map((_, i) => i)
+    .sort((a, b) => (wordNumbers[a] ?? 999) - (wordNumbers[b] ?? 999));
+}
 
 function getNextCell(
   board: Board,
