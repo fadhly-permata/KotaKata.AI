@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 10, fontWeight: "800" },
 
   /* ── Grid ── */
-  gridWrapper: { alignItems: "center", marginBottom: 12, paddingHorizontal: 16 },
+  gridWrapper: { alignItems: "center", marginBottom: 12, paddingHorizontal: 4 },
 
   /* ── Clue Pill ── */
   cluePill: {

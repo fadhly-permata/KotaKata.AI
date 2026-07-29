@@ -32,7 +32,7 @@ export default function CrosswordGrid({
   const { width: screenWidth } = useWindowDimensions();
 
   const cellSize = useMemo(() => {
-    const maxGridWidth = Math.min(screenWidth - 32, 480);
+    const maxGridWidth = screenWidth - 16;
     return Math.floor(maxGridWidth / board.size);
   }, [screenWidth, board.size]);
 
