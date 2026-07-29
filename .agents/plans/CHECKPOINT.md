@@ -55,7 +55,7 @@
 Lihat `DESIGN_PLAN.md` untuk detail per-halaman.
 
 ### Priority Order:
-1. [ ] ThemeProvider — update palette warna
+1. [x] ThemeProvider — update palette warna ✅
 2. [ ] AuthScreen — redesign
 3. [ ] MainMenu — redesign
 4. [ ] GameScreen — redesign (grid, toolbar)

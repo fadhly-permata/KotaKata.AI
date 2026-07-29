@@ -92,14 +92,14 @@ export default function CrosswordGrid({
     let borderW = 1;
 
     if (isSolved) {
-      bgColor = "#1B5E20"; // dark green
-      borderColor = "#2E7D32";
+      bgColor = theme.colors.cellSolved;
+      borderColor = theme.colors.cellSolvedText;
     } else if (isSelected) {
       bgColor = theme.colors.primary;
       borderColor = theme.colors.primary;
       borderW = 2;
     } else if (isHighlighted) {
-      bgColor = theme.mode === "dark" ? "#2A3A5C" : "#E3F0FF";
+      bgColor = theme.mode === "dark" ? "#2A2938" : "#EDE8FF";
       borderColor = theme.colors.primary;
     } else {
       bgColor = theme.colors.cellActive;
@@ -147,7 +147,7 @@ export default function CrosswordGrid({
             styles.cellLetter,
             {
               fontSize,
-              color: isSolved ? "#81C784" : theme.colors.cellText,
+              color: isSolved ? theme.colors.cellSolvedText : theme.colors.cellText,
             },
           ]}
         >
