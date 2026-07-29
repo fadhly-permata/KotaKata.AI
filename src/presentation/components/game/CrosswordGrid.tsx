@@ -21,6 +21,9 @@ interface CrosswordGridProps {
   zoomLevel?: number;
 }
 
+const CELL_GAP = 3;
+const GRID_PADDING = 3;
+
 export default function CrosswordGrid({
   board,
   selectedCell,
@@ -52,7 +55,7 @@ export default function CrosswordGrid({
     return set;
   }, [selectedWordIndex, board.words]);
 
-  const solvedStateKey = board.words.map((w) => w.solved).join(",");
+  const solvedCellKey = useMemo(() => board.words.map((w) => w.solved).join(","), [board.words]);
   const solvedCells = useMemo(() => {
     const set = new Set<string>();
     for (const w of board.words) {
@@ -62,7 +65,7 @@ export default function CrosswordGrid({
       }
     }
     return set;
-  }, [board.words, solvedStateKey]);
+  }, [board.words, solvedCellKey]);
 
   const renderCell = useCallback(
     (cell: BoardCell) => {
@@ -152,14 +155,15 @@ export default function CrosswordGrid({
     [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme],
   );
 
-  const gridWidth = cellSize * board.size + 6;
+  // Account for gaps between cells + padding so nothing overflows / gets clipped
+  const gridSize = cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2;
 
   return (
     <View
       style={[
         styles.container,
         {
-          width: gridWidth,
+          width: gridSize,
           backgroundColor: theme.colors.surface,
           borderRadius: 12,
           borderColor: theme.colors.border,
@@ -179,14 +183,14 @@ export default function CrosswordGrid({
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
-    padding: 3,
+    padding: GRID_PADDING,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 4,
   },
-  row: { flexDirection: "row", gap: 3, marginBottom: 3 },
+  row: { flexDirection: "row", gap: CELL_GAP, marginBottom: CELL_GAP },
   cell: { justifyContent: "center", alignItems: "center", position: "relative", cursor: "pointer" },
   activeCell: { borderRadius: 6 },
   blockedCell: {},
