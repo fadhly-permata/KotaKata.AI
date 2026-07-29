@@ -405,6 +405,7 @@ const styles = StyleSheet.create({
   },
   playButtonBg: {
     width: "100%",
+    minHeight: 64,
   },
   playButtonOverlay: {
     backgroundColor: "rgba(0,0,0,0.40)",
