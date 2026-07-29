@@ -167,7 +167,7 @@ export default function GameScreen() {
               activeOpacity={0.7}
               onPress={() => navigation.goBack()}
             >
-              <Text style={[styles.backBtnText, { color: theme.colors.text }]}>←</Text>
+              <Text style={[styles.backBtnText, { color: theme.colors.text }]}>‹</Text>
             </TouchableOpacity>
             <View style={[styles.avatar, { backgroundColor: theme.colors.secondaryContainer }]}>
               <Text style={[styles.avatarText, { color: theme.colors.primary }]}>K</Text>
@@ -307,13 +307,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
   backBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 32,
     textAlign: "center",
-    textAlignVertical: "center",
-    includeFontPadding: false,
   },
   avatar: {
     width: 36,
