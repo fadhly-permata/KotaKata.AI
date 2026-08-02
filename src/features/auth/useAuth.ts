@@ -58,12 +58,58 @@ export function useAuth() {
     [],
   );
 
-  /** Sign in with Google OAuth */
+  /** Sign in with Google OAuth — popup flow so it works inside the preview iframe */
   const signInWithGoogle = useCallback(async () => {
+    const isWeb = typeof window !== "undefined";
+
+    // Open the popup synchronously (inside the tap gesture) so popup blockers allow it.
+    // Google refuses to render its login page inside an iframe (403), so we never
+    // navigate the preview iframe itself.
+    const popup = isWeb
+      ? window.open("", "_blank", "width=520,height=640,popup=yes")
+      : null;
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: isWeb
+        ? {
+            // Always return to the app's own origin instead of Supabase's default Site URL
+            redirectTo: window.location.origin,
+            skipBrowserRedirect: true,
+          }
+        : {},
     });
-    if (error) throw error;
+
+    if (error) {
+      popup?.close();
+      throw error;
+    }
+
+    if (isWeb && data?.url) {
+      if (popup) {
+        popup.location.assign(data.url);
+
+        // Poll as a fallback in case cross-tab session sync doesn't fire.
+        // The popup (same origin) stores the session, then we pick it up here.
+        const deadline = Date.now() + 120_000;
+        const timer = setInterval(async () => {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session) {
+            setUser(mapSession(session));
+            clearInterval(timer);
+            return;
+          }
+          if (Date.now() > deadline || popup.closed) {
+            clearInterval(timer);
+          }
+        }, 800);
+      } else {
+        throw new Error("Popup diblokir browser. Izinkan popup untuk melanjutkan login Google.");
+      }
+    }
+
     return data;
   }, []);
 
