@@ -10,7 +10,7 @@ import {
   type WordDiscoveryDoc,
   type SavedBoardDoc,
 } from "../models/schemas";
-import { VOCABULARY_SEED } from "./vocabularySeed";
+import { VOCABULARY_SEED } from "../vocabulary";
 import { loggerInfo } from "../../utils/logger";
 
 type Collections = {

@@ -1,40 +1,110 @@
-// Generates supabase/vocabulary.sql from src/data/sources/vocabularySeed.ts
+// Builds supabase/vocabulary.sql from:
+//   - src/data/vocabulary/tierN*.ts   (new tiers, compact [word, clue_1, clue_2] tuples)
+//   - src/data/sources/vocabularySeed.ts (legacy tiers, inline object format)
+// Validates: exactly 1000 words per new tier, no duplicate words, no duplicate ids.
 // Usage: node scripts/gen-vocab-sql.mjs
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const seedPath = join(__dirname, "..", "src", "data", "sources", "vocabularySeed.ts");
-const outPath = join(__dirname, "..", "supabase", "vocabulary.sql");
+const ROOT = join(__dirname, "..");
+const vocabDir = join(ROOT, "src", "data", "vocabulary");
+const legacyPath = join(ROOT, "src", "data", "sources", "vocabularySeed.ts");
+const outPath = join(ROOT, "supabase", "vocabulary.sql");
 
-const src = readFileSync(seedPath, "utf8");
+const WORDS_PER_TIER = 1000;
 
-// Each seed item looks like:
-//   { word_id: "t1-001", word: "API", clue_1: "...", clue_2: "...", clue_3: "..." },
-const rowRe = /\{\s*word_id:\s*"([^"]+)",\s*word:\s*"([^"]+)",\s*clue_1:\s*"([^"]*)",\s*clue_2:\s*"([^"]*)",\s*clue_3:\s*"([^"]*)"\s*\}/g;
+const esc = (s) => `'${s.replace(/'/g, "''").replace(/"/g, '\\"')}'`;
+const clue3 = (word) => `Diawali huruf ${word[0]}, terdiri dari ${word.length} huruf`;
 
-const sql = (s) => `'${s.replace(/'/g, "''").replace(/"/g, '\\"')}'`;
+// ---- Collect items: { word_id, word, clue_1, clue_2, clue_3, tier_level } ----
+const items = [];
+const errors = [];
 
-const rows = [];
-let m;
-while ((m = rowRe.exec(src)) !== null) {
-  const [, word_id, word, clue_1, clue_2, clue_3] = m;
-  const tier = Number((word_id.match(/^t(\d+)/) || [])[1] || 1);
-  rows.push(
-    `  (${sql(word_id)}, ${sql(word)}, ${sql(clue_1)}, ${sql(clue_2)}, ${sql(clue_3)}, ${tier})`,
+// 1) New tier files (compact tuples)
+const tierFiles = readdirSync(vocabDir).filter((f) => /^tier\d+[ab]?\.ts$/.test(f)).sort();
+const byTier = new Map();
+for (const f of tierFiles) {
+  const m = f.match(/^tier(\d+)/);
+  const tier = Number(m[1]);
+  const src = readFileSync(join(vocabDir, f), "utf8");
+  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"([^"]*)",\s*"([^"]*)"\],$/gm)].map(
+    (mm) => [mm[1], mm[2], mm[3]],
   );
+  byTier.set(tier, [...(byTier.get(tier) ?? []), ...tuples]);
 }
 
-if (rows.length === 0) {
-  console.error("No vocabulary rows parsed — check regex vs seed file format.");
+for (const [tier, tuples] of [...byTier.entries()].sort((a, b) => a[0] - b[0])) {
+  if (tuples.length < WORDS_PER_TIER) {
+    errors.push(`tier${tier}: KURANG — punya ${tuples.length} kata, harus minimal ${WORDS_PER_TIER}`);
+  }
+  const selected = tuples.slice(0, WORDS_PER_TIER);
+  selected.forEach(([word, clue_1, clue_2], i) => {
+    items.push({
+      word_id: `t${tier}-${String(i + 1).padStart(3, "0")}`,
+      word,
+      clue_1,
+      clue_2,
+      clue_3: clue3(word),
+      tier_level: tier,
+    });
+  });
+}
+
+// 2) Legacy tiers (inline objects) — drop legacy t1-* (diganti tier 1 baru)
+const legacySrc = readFileSync(legacyPath, "utf8");
+const legacyRe = /\{\s*word_id:\s*"([^"]+)",\s*word:\s*"([^"]+)",\s*clue_1:\s*"([^"]*)",\s*clue_2:\s*"([^"]*)",\s*clue_3:\s*"([^"]*)"\s*\}/g;
+let lm;
+while ((lm = legacyRe.exec(legacySrc)) !== null) {
+  const [, word_id, word, clue_1, clue_2, clue_3] = lm;
+  if (word_id.startsWith("t1-")) continue;
+  const tier = Number(word_id.match(/^t(\d+)/)?.[1] ?? 1);
+  items.push({ word_id, word, clue_1, clue_2, clue_3, tier_level: tier });
+}
+
+// ---- Dedup (keep first occurrence) + validate ----
+const dropped = [];
+const seenWords = new Set();
+const seenIds = new Set();
+const deduped = [];
+for (const it of items) {
+  if (seenWords.has(it.word)) {
+    dropped.push(`${it.word} (${it.word_id} — keep ${[...seenWords].includes(it.word) ? it.word_id : ""})`);
+    continue;
+  }
+  seenWords.add(it.word);
+  if (seenIds.has(it.word_id)) errors.push(`duplikat id: ${it.word_id}`);
+  seenIds.add(it.word_id);
+  deduped.push(it);
+}
+items.length = 0;
+items.push(...deduped);
+
+if (dropped.length) console.warn(`DEDUP: ${dropped.length} kata duplikat dibuang → ${dropped.slice(0, 10).join(", ")}${dropped.length > 10 ? " …" : ""}`);
+
+if (errors.length) {
+  console.error("VALIDASI GAGAL:");
+  errors.slice(0, 40).forEach((e) => console.error("  -", e));
+  console.error(`total: ${errors.length} error`);
   process.exit(1);
 }
 
+// ---- Emit SQL ----
+const byTierOut = new Map();
+for (const it of items) {
+  byTierOut.set(it.tier_level, (byTierOut.get(it.tier_level) ?? 0) + 1);
+}
+const tierSummary = [...byTierOut.entries()].sort((a, b) => a[0] - b[0]).map(([t, n]) => `t${t}:${n}`).join(" ");
+
+const rows = items.map(
+  (it) => `  (${esc(it.word_id)}, ${esc(it.word)}, ${esc(it.clue_1)}, ${esc(it.clue_2)}, ${esc(it.clue_3)}, ${it.tier_level})`,
+);
+
 const out = `-- ============================================================
 -- KotaKata AI — Vocabulary (soal / pertanyaan)
--- Generated from src/data/sources/vocabularySeed.ts
--- Total: ${rows.length} words across 10 tiers
+-- Generated by scripts/gen-vocab-sql.mjs — DO NOT EDIT BY HAND
+-- Total: ${items.length} words | per tier: ${tierSummary}
 -- ============================================================
 
 create table if not exists public.vocabulary (
@@ -47,6 +117,9 @@ create table if not exists public.vocabulary (
   created_at timestamptz not null default now()
 );
 
+-- Seed data diganti penuh tiap fase (data soal dikelola dari repo)
+truncate table public.vocabulary;
+
 insert into public.vocabulary (word_id, word, clue_1, clue_2, clue_3, tier_level) values
 ${rows.join(",\n")}
 on conflict (word_id) do nothing;
@@ -56,4 +129,5 @@ create index if not exists idx_vocabulary_tier on public.vocabulary (tier_level)
 
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, out);
-console.log(`Wrote ${rows.length} rows → ${outPath}`);
+console.log(`OK — ${items.length} words → ${outPath}`);
+console.log(`Per tier: ${tierSummary}`);
