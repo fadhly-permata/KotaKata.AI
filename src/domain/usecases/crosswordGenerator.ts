@@ -7,6 +7,7 @@ const DEFAULT_SIZE = 10;
 export function generateBoard(
   candidates: WordCandidate[],
   size: number = DEFAULT_SIZE,
+  tierLevel: number = 1,
 ): Board {
   const words = [...candidates.filter((c) => c.word.length <= size)];
   if (words.length < 5) {
@@ -23,7 +24,7 @@ export function generateBoard(
     const shuffled = attempt > 0 ? shuffleArray(sorted) : sorted;
 
     if (tryPlaceWords(shuffled, grid, placed, size)) {
-      return buildBoard(grid, placed, size);
+      return buildBoard(grid, placed, size, tierLevel);
     }
   }
 
@@ -31,7 +32,7 @@ export function generateBoard(
   const grid = createEmptyGrid(size);
   const placed: PlacedWord[] = [];
   tryPlaceWords(sorted, grid, placed, size, true);
-  return buildBoard(grid, placed, size);
+  return buildBoard(grid, placed, size, tierLevel);
 }
 
 // ---- Internal Types ----
@@ -388,7 +389,12 @@ function restoreGrid(grid: string[][], placed: PlacedWord[], size: number) {
 
 // ---- Board Builder ----
 
-function buildBoard(grid: string[][], placed: PlacedWord[], size: number): Board {
+function buildBoard(
+  grid: string[][],
+  placed: PlacedWord[],
+  size: number,
+  tierLevel: number = 1,
+): Board {
   // Build cells
   const cells: BoardCell[][] = Array.from({ length: size }, (_, r) =>
     Array.from({ length: size }, (_, c) => ({
@@ -449,7 +455,7 @@ function buildBoard(grid: string[][], placed: PlacedWord[], size: number): Board
     }
   }
 
-  return { grid: cells, words: boardWords, size, tierLevel: 1 };
+  return { grid: cells, words: boardWords, size, tierLevel };
 }
 
 // ---- Utilities ----

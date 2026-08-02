@@ -10,6 +10,7 @@ import {
   type WordDiscoveryDoc,
   type SavedBoardDoc,
 } from "../models/schemas";
+import { VOCABULARY_SEED } from "./vocabularySeed";
 import { loggerInfo } from "../../utils/logger";
 
 type Collections = {
@@ -48,6 +49,32 @@ export async function initDatabase(): Promise<RxDatabase<Collections>> {
 export function getDatabase(): RxDatabase<Collections> {
   if (!db) throw new Error("Database not initialized. Call initDatabase() first.");
   return db;
+}
+
+/**
+ * Initialize the database (if needed) and seed the vocabulary from VOCABULARY_SEED
+ * when the collection is empty. Call once before generating boards.
+ */
+export async function ensureVocabularySeeded(): Promise<void> {
+  await initDatabase();
+
+  const count = await db!.vocabulary.count().exec();
+  if (count > 0) return;
+
+  const now = new Date().toISOString();
+  const docs: VocabularyDoc[] = VOCABULARY_SEED.map((w) => ({
+    // tier is not stored on seed items — derive it from the word_id prefix ("t1-001" → 1)
+    word_id: w.word_id,
+    word: w.word,
+    clue_1: w.clue_1,
+    clue_2: w.clue_2,
+    clue_3: w.clue_3,
+    tier_level: Number(w.word_id.match(/^t(\d+)/)?.[1] ?? 1),
+    created_at: now,
+  }));
+
+  await db!.vocabulary.bulkInsert(docs);
+  loggerInfo(`Vocabulary seeded: ${docs.length} words`);
 }
 
 /** Close and clean up the database */

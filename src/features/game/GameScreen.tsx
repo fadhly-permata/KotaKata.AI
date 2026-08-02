@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -8,12 +8,15 @@ import CompletionOverlay from "../../presentation/components/game/CompletionOver
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
+import { selectWordPool } from "../../domain/usecases/wordPoolFilter";
+import { ensureVocabularySeeded } from "../../data/sources/database";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
 
-const DEMO_WORDS: WordCandidate[] = [
+// Only used as a last-resort fallback if the local DB is unavailable.
+const FALLBACK_WORDS: WordCandidate[] = [
   { word: "REACT", clue_1: "Library JavaScript buat UI", clue_2: "Dibuat oleh Meta", clue_3: "Framework frontend populer", tier_level: 1 },
   { word: "KOTAK", clue_1: "Bentuk segi empat", clue_2: "Benda berbentuk kubus", clue_3: "Kardus berbentuk ini", tier_level: 1 },
   { word: "KATA", clue_1: "Unit bahasa", clue_2: "Gabungan huruf", clue_3: "Elemen dari kalimat", tier_level: 1 },
@@ -197,12 +200,33 @@ export default function GameScreen() {
     pendingNavAction.current = null;
   }, []);
 
+  // Load a fresh board from the vocabulary database (seeded from VOCABULARY_SEED)
   useEffect(() => {
-    if (!board) {
-      const generated = generateBoard(DEMO_WORDS, 10);
-      setBoard(generated);
-    }
-  }, []);
+    if (board) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        // 1) Init local DB + seed vocabulary on first run
+        await ensureVocabularySeeded();
+
+        // 2) Pick a word pool matching the player's current tier
+        const playerTier = calcTier(useGameStore.getState().totalXp);
+        const candidates = await selectWordPool({ playerTier, excludedWordIds: [], gridSize: 10 });
+
+        // 3) Generate a fresh random crossword from the DB words
+        const generated = generateBoard(candidates, 10, playerTier);
+        if (!cancelled) setBoard(generated);
+      } catch (err) {
+        loggerInfo("DB board generation failed — falling back to demo words", err);
+        if (!cancelled) setBoard(generateBoard(FALLBACK_WORDS, 10, 1));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [board, setBoard]);
 
   // Auto-solve check — skip words that were fully revealed (no XP for revealed words)
   const prevFilledRef = useRef(filledLetters);
@@ -258,7 +282,16 @@ export default function GameScreen() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [board, navigateToCell, inputLetter]);
 
-  if (!board) return null;
+  if (!board) {
+    return (
+      <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+          Menyusun papan kata…
+        </Text>
+      </View>
+    );
+  }
   if (boardResult) {
     return <CompletionOverlay result={boardResult} onPlayAgain={reset} />;
   }
@@ -503,6 +536,8 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loadingWrap: { alignItems: "center", justifyContent: "center", gap: 12 },
+  loadingText: { fontSize: 14, fontWeight: "600" },
   scrollContent: {},
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
