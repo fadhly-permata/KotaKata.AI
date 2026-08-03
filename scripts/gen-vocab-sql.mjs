@@ -14,7 +14,6 @@ const outPath = join(ROOT, "supabase", "vocabulary.sql");
 const WORDS_PER_TIER = 1000;
 
 const esc = (s) => `'${s.replace(/'/g, "''").replace(/"/g, '\\"')}'`;
-const clue3 = (word) => `Diawali huruf ${word[0]}, terdiri dari ${word.length} huruf`;
 
 // ---- Collect items: { word_id, word, clue_1, clue_2, clue_3, tier_level } ----
 const items = [];
@@ -26,8 +25,8 @@ for (const f of tierFiles) {
   const m = f.match(/^tier(\d+)/);
   const tier = Number(m[1]);
   const src = readFileSync(join(vocabDir, f), "utf8");
-  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"([^"]*)"\],$/gm)].map(
-    (mm) => [mm[1], mm[2], mm[3]],
+  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"([^"]*)",\s*"([^"]*)"\],$/gm)].map(
+    (mm) => [mm[1], mm[2], mm[3], mm[4]],
   );
   byTier.set(tier, [...(byTier.get(tier) ?? []), ...tuples]);
 }
@@ -37,13 +36,13 @@ for (const [tier, tuples] of [...byTier.entries()].sort((a, b) => a[0] - b[0])) 
     errors.push(`tier${tier}: KURANG — punya ${tuples.length} kata, harus minimal ${WORDS_PER_TIER}`);
   }
   const selected = tuples.slice(0, WORDS_PER_TIER);
-  selected.forEach(([word, clue_1, clue_2], i) => {
+  selected.forEach(([word, clue_1, clue_2, clue_3], i) => {
     items.push({
       word_id: `t${tier}-${String(i + 1).padStart(3, "0")}`,
       word,
       clue_1,
       clue_2,
-      clue_3: clue3(word),
+      clue_3,
       tier_level: tier,
     });
   });

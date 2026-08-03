@@ -1,8 +1,8 @@
 // Aggregator vocabulary — sumber kebenaran untuk app.
 // Semua kata berasal dari KBBI asli (Kamus Besar Bahasa Indonesia), dibuat oleh
 // scripts/build-kbbi-seed.mjs. Format tuple: [kata, clue_1 (definisi KBBI),
-// clue_2 (kelas + huruf akhir)] — clue_3 (hint huruf pertama & panjang) digenerate
-// di sini dengan format konsisten.
+// clue_2 (petunjuk improvisasi), clue_3 (pola huruf)] — semua clue digenerate
+// oleh builder sehingga app & cloud selalu konsisten.
 import { TIER_1_WORDS } from "./tier1";
 import { TIER_2_WORDS } from "./tier2";
 import { TIER_3_WORDS } from "./tier3";
@@ -17,14 +17,16 @@ import type { VocabularyDoc } from "../models/schemas";
 
 const WORDS_PER_TIER = 1000;
 
-/** Expand compact [word, clue_1, clue_2] tuples into full VocabularyDoc items. */
-function expandTier(tier: number, tuples: [string, string, string][]): VocabularyDoc[] {
-  return tuples.slice(0, WORDS_PER_TIER).map(([word, clue_1, clue_2], i) => ({
+type WordTuple = [string, string, string, string];
+
+/** Expand compact [word, clue_1, clue_2, clue_3] tuples into full VocabularyDoc items. */
+function expandTier(tier: number, tuples: WordTuple[]): VocabularyDoc[] {
+  return tuples.slice(0, WORDS_PER_TIER).map(([word, clue_1, clue_2, clue_3], i) => ({
     word_id: `t${tier}-${String(i + 1).padStart(3, "0")}`,
     word,
     clue_1,
     clue_2,
-    clue_3: `Diawali huruf ${word[0]}, terdiri dari ${word.length} huruf`,
+    clue_3,
     tier_level: tier,
     created_at: new Date().toISOString(),
   }));
