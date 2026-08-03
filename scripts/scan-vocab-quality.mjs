@@ -13,17 +13,21 @@ const perTier = new Map();
 
 for (const f of files) {
   const src = readFileSync(join(dir, f), "utf8");
-  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"([^"]*)"\],$/gm)].map(
-    (m) => [m[1], m[2], m[3]],
+  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"([^"]*)",\s*"([^"]*)"\],$/gm)].map(
+    (m) => [m[1], m[2], m[3], m[4]],
   );
   perTier.set(f, tuples.length);
-  for (const [word, def, clue2] of tuples) {
+  for (const [word, def, clue2, clue3] of tuples) {
     if (def.includes("·")) issues.syllabification.push(`${f}:${word} => ${def}`);
     if (/[<>]|&(lt|gt|amp|quot);/.test(def)) issues.html.push(`${f}:${word} => ${def}`);
     if (!def.trim()) issues.empty.push(`${f}:${word}`);
     if (def.trim().toLowerCase() === word.toLowerCase()) issues.equalsWord.push(`${f}:${word}`);
     if (def.length < 5) issues.veryShort.push(`${f}:${word} => "${def}"`);
     if (/^[a-z·]+\s+(n|v|a|adv|num|p|pron)\s/.test(def)) issues.leadingJunk.push(`${f}:${word} => "${def}"`);
+    if (!clue2 || clue2.includes("berakhir huruf") || clue2.includes("dalam KBBI"))
+      issues.empty.push(`${f}:${word} => clue2 lama: "${clue2}"`);
+    if (!clue3 || clue3.includes("Diawali huruf"))
+      issues.empty.push(`${f}:${word} => clue3 lama: "${clue3}"`);
   }
 }
 

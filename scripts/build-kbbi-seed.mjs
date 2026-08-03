@@ -274,22 +274,77 @@ if (errors.length) {
   process.exit(1);
 }
 
-// ---------------------------------------------------------------- emit
-const upper = (s) => s.toUpperCase();
+// ---------------------------------------------------------------- clue generators
+// Clue 2 & 3 di-improvisasi ala AI: bervariasi per kata (deterministik via hash)
+// supaya gak monoton seperti template lama ("berakhir huruf N" / "diawali huruf X").
+const hashOf = (s) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+};
+const VOWEL_SET = new Set(["a", "i", "u", "e", "o"]);
 
+// KBBI sering menulis "definisi; sinonim" — ambil sinonim kata tunggal di belakang titik koma.
+function extractSynonym(def, word) {
+  if (!def) return null;
+  for (const p of def.split(";")) {
+    const seg = p.replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
+    if (!seg || !/^[a-z]{2,14}$/.test(seg)) continue;
+    if (seg === word || /·|\d/.test(seg)) continue;
+    return seg;
+  }
+  return null;
+}
+
+function makeClue2(c) {
+  const { word, klass, def } = c;
+  const n = word.length;
+  const vowels = [...word].filter((ch) => VOWEL_SET.has(ch));
+  const double = word.match(/([a-z])\1/);
+  const mid = n % 2 === 1 ? word[Math.floor(n / 2)].toUpperCase() : null;
+  const label = labelFor(klass).replace(" dalam KBBI", "");
+  const syn = extractSynonym(def, word);
+  const r = hashOf(`${word}#2`) % 6;
+  if (syn && r < 3) return `Sinonim: ${syn}`;
+  if (r === 0) return `${label} berjumlah ${n} huruf`;
+  if (r === 1) return `Terdiri dari ${vowels.length} vokal & ${n - vowels.length} konsonan`;
+  if (r === 2 && double) return `Ada huruf ganda: ${double[1].toUpperCase()}`;
+  if (r === 3 && mid) return `Huruf tengahnya: ${mid}`;
+  if (r === 4) return `Berawalan ${word[0].toUpperCase()} & berakhiran ${word[n - 1].toUpperCase()}`;
+  return syn ? `Sinonim: ${syn}` : `${label} berjumlah ${n} huruf`;
+}
+
+function makeClue3(c) {
+  const { word } = c;
+  const n = word.length;
+  const first = word[0].toUpperCase();
+  const last = word[n - 1].toUpperCase();
+  const f2 = word.slice(0, 2).toUpperCase();
+  const l2 = word.slice(-2).toUpperCase();
+  const vowels = [...new Set([...word].filter((ch) => VOWEL_SET.has(ch)))].join(", ").toUpperCase();
+  const r = hashOf(`${word}#3`) % 3;
+  if (r === 0) {
+    const blanks = n > 2 ? Array.from({ length: n - 2 }, () => "_").join(" ") : "";
+    return `Pola: ${first}${blanks ? " " + blanks : ""} ${last} (${n} huruf)`;
+  }
+  if (r === 1) return `Diawali '${f2}' & diakhiri '${l2}' (${n} huruf)`;
+  return `Huruf vokal: ${vowels} (${n} huruf)`;
+}
+
+// ---------------------------------------------------------------- emit
 mkdirSync(outDir, { recursive: true });
 for (const [tier, words] of tiers) {
   const rows = words
     .map((c) => {
-      const label = c.klass ? `${labelFor(c.klass)} dalam KBBI` : "Kata dalam KBBI";
-      return `  ["${c.word}", "${c.def.replace(/"/g, '\\"')}", "${label}, berakhir huruf ${upper(c.word[c.word.length - 1])}"],`;
+      const esc = (s) => s.replace(/"/g, '\\"');
+      return `  ["${c.word}", "${esc(c.def)}", "${esc(makeClue2(c))}", "${esc(makeClue3(c))}"],`;
     })
     .join("\n");
   const out = `// Tier ${tier} — 1000 kata asli KBBI (Kamus Besar Bahasa Indonesia), urut berdasarkan frekuensi.
 // Sumber definisi : https://github.com/dyazincahya/KBBI-SQL-database (KBBI)
 // Sumber frekuensi : https://github.com/hermitdave/FrequencyWords (id_50k)
-// Format: [kata, clue_1 (definisi KBBI), clue_2 (kelas + huruf akhir)] — clue_3 digenerate otomatis.
-export const TIER_${tier}_WORDS: [string, string, string][] = [
+// Format: [kata, clue_1 (definisi KBBI), clue_2 (petunjuk improvisasi), clue_3 (pola huruf)].
+export const TIER_${tier}_WORDS: [string, string, string, string][] = [
 ${rows}
 ];
 `;
