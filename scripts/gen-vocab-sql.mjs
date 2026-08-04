@@ -11,6 +11,7 @@ const ROOT = join(__dirname, "..");
 const vocabDir = join(ROOT, "src", "data", "vocabulary");
 const outPath = join(ROOT, "supabase", "vocabulary.sql");
 
+// Setiap tier: 1000 kata
 const WORDS_PER_TIER = 1000;
 
 const esc = (s) => `'${s.replace(/'/g, "''").replace(/"/g, '\\"')}'`;
