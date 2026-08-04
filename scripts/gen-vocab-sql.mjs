@@ -25,7 +25,7 @@ for (const f of tierFiles) {
   const m = f.match(/^tier(\d+)/);
   const tier = Number(m[1]);
   const src = readFileSync(join(vocabDir, f), "utf8");
-  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"([^"]*)",\s*"([^"]*)"\],$/gm)].map(
+  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm)].map(
     (mm) => [mm[1], mm[2], mm[3], mm[4]],
   );
   byTier.set(tier, [...(byTier.get(tier) ?? []), ...tuples]);

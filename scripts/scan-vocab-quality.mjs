@@ -13,7 +13,7 @@ const perTier = new Map();
 
 for (const f of files) {
   const src = readFileSync(join(dir, f), "utf8");
-  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"([^"]*)",\s*"([^"]*)"\],$/gm)].map(
+  const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm)].map(
     (m) => [m[1], m[2], m[3], m[4]],
   );
   perTier.set(f, tuples.length);

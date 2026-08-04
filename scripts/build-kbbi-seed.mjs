@@ -178,7 +178,7 @@ function parseEntry(e) {
     const defMatch = rest.match(/^(.*?)(?=<b>|<br>|$)/s);
     const def = cleanDef(defMatch ? defMatch[1] : rest);
     if (!def || def.toLowerCase() === word) return "no-def";
-    return { word, klass, def, fmt: "html" };
+    return { word, klass, def, fmt: "html", arti };
   }
 
   // ---- plain format (preferred): "kata.dengan.titik" + meaning, or single-line meaning
@@ -193,7 +193,7 @@ function parseEntry(e) {
     const r = parsePlainMeaning(meaning);
     if (typeof r === "string") return r;
     if (r.def.toLowerCase() === word) return "no-def";
-    return { word, ...r, fmt: "plain" };
+    return { word, ...r, fmt: "plain", arti };
   }
 
   return null;
@@ -222,6 +222,7 @@ const candidates = [...byWord.values()].map((c) => ({
   word: c.word,
   klass: c.klass,
   def: c.def,
+  arti: c.arti,
   freq: freq.get(c.word) ?? 0,
 }));
 
@@ -275,14 +276,13 @@ if (errors.length) {
 }
 
 // ---------------------------------------------------------------- clue generators
-// Clue 2 & 3 di-improvisasi ala AI: bervariasi per kata (deterministik via hash)
-// supaya gak monoton seperti template lama ("berakhir huruf N" / "diawali huruf X").
+// Clue 2 & 3 di-improvisasi ala AI: pakai materi SEMANTIS asli KBBI
+// (contoh kalimat asli, sinonim) — bukan statistik huruf yang kaku & absurd.
 const hashOf = (s) => {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return h;
 };
-const VOWEL_SET = new Set(["a", "i", "u", "e", "o"]);
 
 // KBBI sering menulis "definisi; sinonim" — ambil sinonim kata tunggal di belakang titik koma.
 function extractSynonym(def, word) {
@@ -296,39 +296,106 @@ function extractSynonym(def, word) {
   return null;
 }
 
+// Ambil CONTOH kalimat asli KBBI dari arti mentah (format "definisi: contoh kalimat").
+// Contoh → format isian klasik TTS: "ia ___ membaca, tetapi tidak bisa menulis".
+function extractExample(arti, word) {
+  if (!arti) return null;
+  const lowWord = word.toLowerCase();
+  const trySeg = (s) => {
+    if (!s) return null;
+    let t = s
+      .replace(/\s*\(\d+\s*\)\s*/g, " ")
+      .replace(
+        /\b(Nomina|Verba|Adjektiva|Adverbia|Numeralia|Pronomina|Partikel|Interjeksi|Konjungsi|Preposisi)\s*\([^)]*\)\s*.*$/i,
+        "",
+      )
+      .replace(/^(?:contoh|peribahasa|~\s*)\s*/i, "")
+      .replace(/^\(\d+\s*\)\s*/, "")
+      .trim();
+    // potong di titik koma yang menandai arti berikutnya / bentuk turunan
+    const cut = t.search(/;\s*(?=\d|[a-z·]+[·-])/);
+    if (cut >= 0) t = t.slice(0, cut);
+    // bersihkan sisa penomoran & tanda baca di ujung
+    t = t.replace(/\s*\d+\s*\)?\s*$/s, "").replace(/[;,.…]+\s*$/g, "").trim();
+    if (t.length < 5) return null;
+    const marker = t.match(/~|--/);
+    if (marker) t = t.replace(marker[0], "___");
+    else t = t.replace(new RegExp(`\\b${lowWord}\\b`, "i"), "___");
+    if (!t.includes("___")) return null;
+    if (t.length > 80) t = `${t.slice(0, 77).trimEnd()}…`;
+    // ejaan lama → modern biar enak dibaca
+    t = t
+      .replace(/\byg\b/g, "yang")
+      .replace(/\bdgn\b/g, "dengan")
+      .replace(/\bkpd\b/g, "kepada")
+      .replace(/\bsbg\b/g, "sebagai")
+      .replace(/\bdr\b/g, "dari")
+      .replace(/\btsb\b/g, "tersebut")
+      .replace(/\bspt\b/g, "seperti")
+      .replace(/\bud\b/g, "untuk")
+      .trim();
+    if (t.length < 5 || !t.includes("___")) return null;
+    return t;
+  };
+
+  const decoded = decode(arti);
+  const lines = decoded
+    .split(/\r?\n/)
+    .map((l) => l.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  // 1) per baris: prefer "definisi: contoh" dalam satu sense
+  for (const line of lines) {
+    const ci = line.toLowerCase();
+    const idx = line.indexOf(":");
+    if (idx < 0 || !ci.includes(lowWord)) continue;
+    const r = trySeg(line.slice(idx + 1));
+    if (r) return r;
+  }
+  // 2) fallback: seluruh teks setelah titik dua pertama yang memuat kata
+  const flat = lines.join(" ");
+  const ci = flat.toLowerCase();
+  if (ci.includes(lowWord) && flat.includes(":")) {
+    for (const seg of flat.split(":").slice(1)) {
+      if (!seg.toLowerCase().includes(lowWord)) continue;
+      const r = trySeg(seg);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
 function makeClue2(c) {
-  const { word, klass, def } = c;
-  const n = word.length;
-  const vowels = [...word].filter((ch) => VOWEL_SET.has(ch));
-  const double = word.match(/([a-z])\1/);
-  const mid = n % 2 === 1 ? word[Math.floor(n / 2)].toUpperCase() : null;
+  const { word, klass, def, arti } = c;
   const label = labelFor(klass).replace(" dalam KBBI", "");
   const syn = extractSynonym(def, word);
-  const r = hashOf(`${word}#2`) % 6;
-  if (syn && r < 3) return `Sinonim: ${syn}`;
-  if (r === 0) return `${label} berjumlah ${n} huruf`;
-  if (r === 1) return `Terdiri dari ${vowels.length} vokal & ${n - vowels.length} konsonan`;
-  if (r === 2 && double) return `Ada huruf ganda: ${double[1].toUpperCase()}`;
-  if (r === 3 && mid) return `Huruf tengahnya: ${mid}`;
-  if (r === 4) return `Berawalan ${word[0].toUpperCase()} & berakhiran ${word[n - 1].toUpperCase()}`;
-  return syn ? `Sinonim: ${syn}` : `${label} berjumlah ${n} huruf`;
+  const ex = extractExample(arti, word);
+  const r = hashOf(`${word}#c2`) % 2;
+  if (syn && ex) return r === 0 ? `Sinonim: ${syn}` : `Contoh: \"${ex}\"`;
+  if (syn) return `Sinonim: ${syn}`;
+  if (ex) return `Contoh: \"${ex}\"`;
+  const first = word[0].toUpperCase();
+  return /Kata/.test(label) ? `${label} berawalan huruf ${first}` : `Dimulai huruf ${first}`;
 }
 
 function makeClue3(c) {
-  const { word } = c;
+  const { word, klass, def, arti } = c;
   const n = word.length;
+  const syn = extractSynonym(def, word);
+  const ex = extractExample(arti, word);
   const first = word[0].toUpperCase();
   const last = word[n - 1].toUpperCase();
-  const f2 = word.slice(0, 2).toUpperCase();
-  const l2 = word.slice(-2).toUpperCase();
-  const vowels = [...new Set([...word].filter((ch) => VOWEL_SET.has(ch)))].join(", ").toUpperCase();
-  const r = hashOf(`${word}#3`) % 3;
-  if (r === 0) {
-    const blanks = n > 2 ? Array.from({ length: n - 2 }, () => "_").join(" ") : "";
-    return `Pola: ${first}${blanks ? " " + blanks : ""} ${last} (${n} huruf)`;
-  }
-  if (r === 1) return `Diawali '${f2}' & diakhiri '${l2}' (${n} huruf)`;
-  return `Huruf vokal: ${vowels} (${n} huruf)`;
+  const label = labelFor(klass).replace(" dalam KBBI", "");
+  const c2 = makeClue2(c);
+  const usedContoh = c2.includes("Contoh");
+  const usedSinonim = c2.includes("Sinonim");
+  if (ex && !usedContoh) return `Contoh: \"${ex}\"`;
+  if (syn && !usedSinonim) return `Sinonim: ${syn}`;
+  // c2 sudah pakai contoh → kasih sinonim (kalau ada)
+  if (usedContoh && syn) return `Sinonim: ${syn}`;
+  // c2 sudah pakai sinonim → kasih contoh (kalau ada)
+  if (usedSinonim && ex) return `Contoh: \"${ex}\"`;
+  // c2 sudah pakai satu-satunya materi → fallback huruf biar gak dobel/null
+  return `Huruf pertama ${first}, huruf terakhir ${last} (${n} huruf)`;
 }
 
 // ---------------------------------------------------------------- emit
@@ -364,3 +431,20 @@ console.log("Contoh t8:", tiers[7][1].slice(0, 15).map((c) => c.word).join(", ")
 console.log("Sample t1[0]:", JSON.stringify(tiers[0][1][0]));
 console.log("Sample t5[0]:", JSON.stringify(tiers[4][1][0]));
 console.log("Sample t10[0]:", JSON.stringify(tiers[9][1][0]));
+
+// ---- statistik kualitas clue ----
+let nEx = 0;
+let nSyn = 0;
+let nFallback = 0;
+for (const [, words] of tiers) {
+  for (const c of words) {
+    const syn = extractSynonym(c.def, c.word);
+    const ex = extractExample(c.arti, c.word);
+    if (ex) nEx++;
+    if (syn) nSyn++;
+    if (!ex && !syn) nFallback++;
+  }
+}
+console.log(
+  `Kualitas clue — contoh kalimat: ${nEx}, sinonim: ${nSyn}, fallback huruf: ${nFallback}`,
+);
