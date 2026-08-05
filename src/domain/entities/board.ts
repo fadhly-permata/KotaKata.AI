@@ -14,6 +14,8 @@ export interface BoardCell {
 
 export interface BoardWord {
   word: string;
+  /** ID dari tabel vocabulary (mis. "t1-001") — dipakai untuk riwayat penemuan kata */
+  word_id?: string;
   clue_1: string;
   clue_2?: string;
   clue_3?: string;
@@ -33,6 +35,7 @@ export interface Board {
 
 export interface WordCandidate {
   word: string;
+  word_id?: string;
   clue_1: string;
   clue_2?: string;
   clue_3?: string;

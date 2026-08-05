@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../data/sources/supabase";
+import { displayNameFromMetadata, avatarUrlFromMetadata } from "../../utils/userMetadata";
 import type { Session, AuthError } from "@supabase/supabase-js";
 
 export type AuthUser = {
   id: string;
   email?: string;
   displayName?: string;
+  avatarUrl?: string;
   isAnonymous: boolean;
 };
 
@@ -149,7 +151,12 @@ function mapSession(session: Session | null): AuthUser | null {
   return {
     id: session.user.id,
     email: session.user.email ?? undefined,
-    displayName: session.user.user_metadata?.display_name ?? undefined,
+    displayName: displayNameFromMetadata(session.user.user_metadata),
+    avatarUrl: avatarUrlFromMetadata(session.user.user_metadata),
     isAnonymous: session.user.is_anonymous ?? false,
   };
 }
+
+
+
+

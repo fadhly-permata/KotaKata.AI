@@ -3,6 +3,12 @@ import { loggerWarn } from "../../utils/logger";
 
 const DEFAULT_SIZE = 10;
 
+/**
+ * Maks kata yang dicoba per papan. Pool tier 1000 kata — diambil sampel acak
+ * supaya tiap papan beda-beda, bukan selalu kata-kata terpanjang yang sama.
+ */
+const MAX_POOL_SIZE = 80;
+
 /** Generate a crossword board from a pool of word candidates */
 export function generateBoard(
   candidates: WordCandidate[],
@@ -14,8 +20,12 @@ export function generateBoard(
     loggerWarn("Too few candidates for board generation", words.length);
   }
 
-  // Sort by length descending — longer words placed first for density
-  const sorted = sortByLength(words);
+  // 1) Ambil sampel acak dari pool kalau terlalu besar — soal jadi selalu fresh.
+  const pool = words.length > MAX_POOL_SIZE ? sampleWords(words, MAX_POOL_SIZE) : words;
+
+  // 2) Acak dulu, lalu urutkan panjang (stabil) — kata terpanjang dalam sampel
+  //    tetap diprioritaskan untuk kepadatan papan, tapi komposisinya beda tiap game.
+  const sorted = sortByLength(shuffleArray(pool));
 
   // Try multiple times with different starting positions
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -39,6 +49,7 @@ export function generateBoard(
 
 interface PlacedWord {
   word: string;
+  word_id?: string;
   clue_1: string;
   clue_2?: string;
   clue_3?: string;
@@ -83,6 +94,7 @@ function tryPlaceWords(
       placeHorizontal(first.word, grid, mid, startCol);
       placed.push({
         word: first.word,
+        word_id: first.word_id,
         clue_1: first.clue_1,
         clue_2: first.clue_2,
         clue_3: first.clue_3,
@@ -100,6 +112,7 @@ function tryPlaceWords(
       placeVertical(first.word, grid, mid, startCol);
       placed.push({
         word: first.word,
+        word_id: first.word_id,
         clue_1: first.clue_1,
         clue_2: first.clue_2,
         clue_3: first.clue_3,
@@ -149,9 +162,13 @@ function tryPlaceWords(
     placed.pop();
   }
 
-  // Greedy: skip this word if can't place
-  if (greedy && placed.length >= 3) {
-    return tryPlaceWords(rest, grid, placed, size, true);
+  // Word can't be placed at any intersection → skip it and keep trying the
+  // rest instead of failing the whole board. This keeps generation robust
+  // even when the pool only contains short words that rarely share letters
+  // (e.g. tier data of 3–7 letter words). Once at least one word is placed,
+  // unplaceable words are simply ignored.
+  if (greedy || placed.length >= 1) {
+    return tryPlaceWords(rest, grid, placed, size, greedy);
   }
 
   return false;
@@ -423,6 +440,7 @@ function buildBoard(
     }
     return {
       word: pw.word,
+      word_id: pw.word_id,
       clue_1: pw.clue_1,
       clue_2: pw.clue_2,
       clue_3: pw.clue_3,
@@ -462,6 +480,16 @@ function buildBoard(
 
 function sortByLength(candidates: WordCandidate[]): WordCandidate[] {
   return [...candidates].sort((a, b) => b.word.length - a.word.length);
+}
+
+/** Ambil n elemen acak dari array (tanpa mengubah array asli). */
+function sampleWords<T>(arr: T[], n: number): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
 }
 
 function shuffleArray<T>(arr: T[]): T[] {

@@ -49,7 +49,7 @@ function cleanDef(raw) {
   d = d.replace(/;\s*\S*·.*$/i, "").replace(/;\s*\(\d+|;\s*\d+\)/i, "");
   d = d.replace(/--\s*$/, "").replace(/:$/, "").replace(/[;,:,.…]+\s*$/g, "").trim();
   if (!d || d.length < 2) return "";
-  if (d.length > 90) d = d.slice(0, 87).trimEnd() + "…";
+  // Clue 1 dikirim LENGKAP (tanpa potong 90 karakter + …) — panel clue sudah auto-size.
   return modernize(d);
 }
 
@@ -130,7 +130,6 @@ function parseEntry(e) {
   let example = null;
   if (colIdx > -1) {
     example = modernize(meaning.slice(colIdx + 1).replace(/\s+/g, " ").trim());
-    if (example.length > 70) example = example.slice(0, 67).trimEnd() + "…";
     if (example.length < 5) example = null;
   }
   return { word, def, senses, example, arti, klass };
@@ -287,7 +286,49 @@ function guardClues(word, clue1, clue2, clue3) {
 const curatedPath = join(ROOT, "src", "data", "vocabulary", "tier1.ts");
 const curatedSrc = readFileSync(curatedPath, "utf8");
 // Bootstrap: tier1.ts di-regenerate tiap run — hanya 100 baris PERTAMA adalah blok kurasi.
-const curatedTuples = [...curatedSrc.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm)].slice(0, 100).map(m => [m[1], m[2], m[3], m[4]]);
+let curatedTuples = [...curatedSrc.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm)].slice(0, 100).map(m => [m[1], m[2], m[3], m[4]]);
+// Lookup definisi MENTAH (tanpa filter kelas kata — byWord menolak kata tugas
+// seperti "dan"/kelas p, padahal clue kurasi butuh definisi utamanya).
+const rawDefs = new Map();
+for (const e of entries) {
+  const w = (e.word ?? "").trim().toLowerCase();
+  if (!/^[a-z]+$/.test(w) || w.length < 3) continue;
+  const arti = decode(e.arti ?? "");
+  if (!arti) continue;
+  let d;
+  if (arti.includes("<b>")) {
+    // HTML: buang header <b>kata</b>, ambil SENSE PERTAMA saja (split di <b>N</b>)
+    // supaya definisi utama tidak kebawa sense lain & daftar idiom (mis. "air").
+    const senseParts = arti.replace(/^<b>(?:<sup>\d+<\/sup>)?[^<]*<\/b>/, "").split(/<b>\d+<\/b>/);
+    d = cleanDef(senseParts[1] ?? senseParts[0] ?? "");
+  } else {
+    // Plain: baris pertama = kata itu sendiri.
+    const lines = arti.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    d = cleanDef(lines.slice(lines.length >= 2 && /^[a-z·.]+$/.test(lines[0]) ? 1 : 0).join(" "));
+  }
+  // Safety cap: kalau masih kebawa daftar sense/idiom (format tanpa tag), potong
+  // di penanda "; 2" / "; --". Batas ini bukan ellipsis UI — sense kedua dst bukan clue.
+  if (d.length > 500) {
+    const cut = d.split(/;\s*\d+\s*\)?\s/)[0].split(/;\s*--\s/)[0];
+    if (cut.length > 10) d = cut;
+  }
+  if (d && d.toLowerCase() !== w) {
+    if (!rawDefs.has(w)) rawDefs.set(w, []);
+    if (rawDefs.get(w).length < 4) rawDefs.get(w).push(d);
+  }
+}
+// Kurasi lama punya clue_1/clue_2 yang terpotong 90 karakter + "…". Selama
+// masih ada sisa potongan, regenerate dari KBBI (teks penuh) tapi jaga clue_3
+// (antonim/sinonim kurasi) tetap seperti adanya.
+curatedTuples = curatedTuples.map(([word, c1, c2, c3]) => {
+  const defs = rawDefs.get(word) ?? [];
+  // Selalu re-derive clue_1 dari definisi utama (teks penuh, sense pertama) —
+  // versi lama ada yang terpotong 90 karakter + "…" atau salah homograf.
+  const newC1 = defs[0] ?? c1;
+  let newC2 = c2;
+  if (newC2 === newC1) newC2 = defs[1] ?? c2;
+  return [word, newC1, newC2, c3];
+});
 const curatedWords = new Set(curatedTuples.map(t => t[0]));
 
 // ---------------------------------------------------------------- tier buckets (skip curated words)

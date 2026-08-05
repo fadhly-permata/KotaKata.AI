@@ -3,6 +3,7 @@ import type { Board, BoardWord, Orientation } from "../../domain/entities/board"
 import { calcXpGain, calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import { validateWord } from "../../domain/usecases/wordValidator";
 import { loggerInfo } from "../../utils/logger";
+import type { BoardProgressState } from "../../utils/boardProgress";
 
 interface HintUsage {
   clue2Used: boolean;
@@ -48,6 +49,7 @@ interface GameState {
   revealWord: (wordIndex: number) => void;
   markWordSolved: (wordIndex: number) => void;
   setTotalXp: (totalXp: number) => void;
+  resumeProgress: (progress: BoardProgressState) => void;
   reset: () => void;
   resetBoard: () => void;
 }
@@ -67,22 +69,26 @@ export const useGameStore = create<GameState>((set, get) => ({
   boardResult: null,
 
   setBoard: (board: Board) => {
-    set({ board, loading: false, sessionStartTime: Date.now() });
-    // Auto-focus on first unsolved word (smallest clue number)
-    const sortedIndices = getSortedWordIndices(board);
-    for (const idx of sortedIndices) {
-      const word = board.words[idx];
-      if (word.solved) continue;
-      const firstUnlocked = word.cells.find((c) => !c.isLocked);
-      if (firstUnlocked) {
-        set({
-          selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
-          selectedWordIndex: idx,
-          inputOrientation: word.orientation,
-        });
-        return;
-      }
-    }
+    set({ board, loading: false, sessionStartTime: Date.now(), ...(getInitialFocus(board) ?? {}) });
+  },
+
+  resumeProgress: (progress: BoardProgressState) => {
+    set({
+      board: progress.board,
+      loading: false,
+      selectedCell: null,
+      selectedWordIndex: null,
+      inputOrientation: null,
+      filledLetters: progress.filledLetters,
+      hints: progress.hints,
+      currentXp: progress.currentXp,
+      wordsSolved: progress.wordsSolved,
+      totalXp: progress.totalXp,
+      sessionStartTime: Date.now(),
+      boardResult: null,
+      ...(getInitialFocus(progress.board) ?? {}),
+    });
+    loggerInfo("Board di-resume dari progres tersimpan");
   },
 
   selectCell: (row: number, col: number) => {
@@ -301,21 +307,23 @@ export const useGameStore = create<GameState>((set, get) => ({
     const xpGain = calcXpGain(word.word.length, board.tierLevel);
     const newWordsSolved = get().wordsSolved + 1;
     const newCurrentXp = get().currentXp + xpGain;
-    const newTotalXp = get().totalXp + xpGain;
 
+    // Catatan: totalXp TIDAK ikut ditambah di sini. totalXp adalah XP kumulatif
+    // lintas papan — di-update sekali saja saat board selesai (GameScreen) atau
+    // saat session login (RootNavigator). Kalau ikut ditambah tiap kata, XP saat
+    // reset/quit menjadi membengkak (tidak pernah balik ke nilai awal).
     loggerInfo(`Word solved: ${word.word} (+${xpGain} XP)`);
 
     set({
       wordsSolved: newWordsSolved,
       currentXp: newCurrentXp,
-      totalXp: newTotalXp,
     });
 
     // Check if board is now complete
     const completed = board.words.every((w) => w.solved);
     if (completed) {
       const previousTier = board.tierLevel;
-      const newTier = calcTier(newTotalXp);
+      const newTier = calcTier(get().totalXp + newCurrentXp);
       const timeElapsed = Date.now() - get().sessionStartTime;
 
       loggerInfo(`Board completed! Tier: ${previousTier} → ${newTier}`);
@@ -416,7 +424,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setTotalXp: (totalXp: number) => set({ totalXp }),
 
   reset: () =>
-    set({
+    set((state) => ({
       board: null,
       loading: false,
       selectedCell: null,
@@ -428,7 +436,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       wordsSolved: 0,
       sessionStartTime: 0,
       boardResult: null,
-    }),
+      // totalXp sengaja dipertahankan — itu XP kumulatif pemain lintas papan.
+      totalXp: state.totalXp,
+    })),
 
   resetBoard: () => {
     const { board } = get();
@@ -448,6 +458,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 }));
+
+/** Auto-focus ke kata pertama yang belum selesai (urutan nomor clue). */
+function getInitialFocus(board: Board): Partial<GameState> | null {
+  const sortedIndices = getSortedWordIndices(board);
+  for (const idx of sortedIndices) {
+    const word = board.words[idx];
+    if (word.solved) continue;
+    const firstUnlocked = word.cells.find((c) => !c.isLocked);
+    if (firstUnlocked) {
+      return {
+        selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
+        selectedWordIndex: idx,
+        inputOrientation: word.orientation,
+      };
+    }
+  }
+  return null;
+}
 
 function getSortedWordIndices(board: Board): number[] {
   const wordNumbers = board.words.map((w) => w.cells[0]?.number ?? 999);
