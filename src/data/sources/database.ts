@@ -21,28 +21,44 @@ type Collections = {
 };
 
 let db: RxDatabase<Collections> | null = null;
+let dbInit: Promise<RxDatabase<Collections>> | null = null;
 
 /**
  * Initialize local RxDB database (singleton).
- * Call once at app startup.
+ * Call once at app startup. Safe to call concurrently — concurrent calls
+ * share the same initialization promise, so RxDB never sees a duplicate
+ * database name (error DB8).
  */
 export async function initDatabase(): Promise<RxDatabase<Collections>> {
   if (db) return db;
+  if (dbInit) return dbInit;
 
-  db = await createRxDatabase<Collections>({
-    name: "kotakata",
-    storage: getRxStorageMemory(),
-  });
+  dbInit = (async () => {
+    try {
+      const instance = await createRxDatabase<Collections>({
+        name: "kotakata",
+        storage: getRxStorageMemory(),
+      });
 
-  await db.addCollections({
-    users: { schema: USER_SCHEMA },
-    vocabulary: { schema: VOCABULARY_SCHEMA },
-    word_discoveries: { schema: WORD_DISCOVERY_SCHEMA },
-    saved_boards: { schema: SAVED_BOARD_SCHEMA },
-  });
+      await instance.addCollections({
+        users: { schema: USER_SCHEMA },
+        vocabulary: { schema: VOCABULARY_SCHEMA },
+        word_discoveries: { schema: WORD_DISCOVERY_SCHEMA },
+        saved_boards: { schema: SAVED_BOARD_SCHEMA },
+      });
 
-  loggerInfo("Local database initialized");
-  return db;
+      db = instance;
+      loggerInfo("Local database initialized");
+      return instance;
+    } catch (err) {
+      // Reset supaya kegagalan sementara tidak mengunci initDatabase pada
+      // promise rejected selamanya — pemanggilan berikutnya mencoba lagi.
+      dbInit = null;
+      throw err;
+    }
+  })();
+
+  return dbInit;
 }
 
 /** Get the database instance (throws if not initialized) */
@@ -82,4 +98,5 @@ export async function closeDatabase() {
   if (db) {
     db = null;
   }
+  dbInit = null;
 }

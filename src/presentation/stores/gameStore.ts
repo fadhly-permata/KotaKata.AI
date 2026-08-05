@@ -96,29 +96,77 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!board) return;
 
     const cell = board.grid[row]?.[col];
-    if (!cell || cell.isBlocked || cell.isLocked) return;
+    if (!cell || cell.isBlocked) return;
 
     const state = get();
+    const wordsAtCell = getWordsAtCell(board, row, col);
+    if (wordsAtCell.length === 0) return;
+
+    // Pilih kata idx di cell ini. Kalau cell-nya terkunci (hurufnya sudah
+    // terkunci dari kata lain yang solved), langsung fokus ke cell pertama
+    // yang masih bisa diketik di kata itu — seleksi tetap berpindah, tapi
+    // input langsung jalan.
+    const focusWord = (idx: number) => {
+      const word = board.words[idx];
+      if (cell.isLocked) {
+        const firstUnlocked = word.cells.find((c) => !c.isLocked);
+        if (firstUnlocked) {
+          set({
+            selectedCell: { row: firstUnlocked.row, col: firstUnlocked.col },
+            selectedWordIndex: idx,
+            inputOrientation: word.orientation,
+          });
+          return;
+        }
+      }
+      set({
+        selectedCell: { row, col },
+        selectedWordIndex: idx,
+        inputOrientation: word.orientation,
+      });
+    };
+
     if (state.selectedCell?.row === row && state.selectedCell?.col === col) {
-      get().toggleOrientation();
+      // Cell yang sama di-tap lagi — kalau ini cell persimpangan (dilewati 2
+      // kata), pindah ke kata lain yang masih bisa dimainkan (mendatar ↔ menurun).
+      const otherIdx = wordsAtCell.find(
+        (idx) => idx !== state.selectedWordIndex && isWordPlayable(board.words[idx]),
+      );
+      if (otherIdx !== undefined) focusWord(otherIdx);
       return;
     }
 
-    const hasVertical = row > 0 && !board.grid[row - 1][col].isBlocked;
-    let orientation: Orientation = "horizontal";
-    if (hasVertical) orientation = "vertical";
+    // Cell baru — pilih kata yang melewati cell ini. Lanjutkan kata yang
+    // sedang aktif kalau masih melewati cell ini; kalau tidak, prioritaskan
+    // mendatar, lalu kata playable pertama.
+    const activeIdx = state.selectedWordIndex;
+    let targetIdx: number | undefined;
+    if (activeIdx != null && wordsAtCell.includes(activeIdx) && isWordPlayable(board.words[activeIdx])) {
+      targetIdx = activeIdx;
+    } else {
+      targetIdx =
+        wordsAtCell.find(
+          (idx) => board.words[idx].orientation === "horizontal" && isWordPlayable(board.words[idx]),
+        ) ??
+        wordsAtCell.find((idx) => isWordPlayable(board.words[idx]));
+    }
+    if (targetIdx === undefined) return; // semua kata di cell ini sudah selesai
 
-    set({
-      selectedCell: { row, col },
-      inputOrientation: orientation,
-      selectedWordIndex: cell.wordIndex,
-    });
+    focusWord(targetIdx);
   },
 
   toggleOrientation: () => {
-    const { inputOrientation } = get();
+    const { board, selectedCell, selectedWordIndex } = get();
+    if (!board || !selectedCell) return;
+
+    const wordsAtCell = getWordsAtCell(board, selectedCell.row, selectedCell.col);
+    const otherIdx = wordsAtCell.find((idx) => idx !== selectedWordIndex);
+    if (otherIdx === undefined) return;
+
+    const otherWord = board.words[otherIdx];
     set({
-      inputOrientation: inputOrientation === "horizontal" ? "vertical" : "horizontal",
+      selectedWordIndex: otherIdx,
+      inputOrientation: otherWord.orientation,
     });
   },
 
@@ -285,10 +333,24 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const cell = board.grid[row]?.[col];
     if (cell && !cell.isBlocked && !cell.isLocked) {
+      // Kalau kata yang sedang aktif masih melewati cell tujuan, tetap di kata
+      // itu; kalau tidak, pilih kata dengan orientasi yang sama dengan input
+      // saat ini, lalu fallback ke kata pertama yang tersedia di cell itu.
+      const wordsAtCell = getWordsAtCell(board, row, col);
+      const activeIdx = get().selectedWordIndex;
+      let targetIdx = wordsAtCell[0];
+      if (activeIdx != null && wordsAtCell.includes(activeIdx)) {
+        targetIdx = activeIdx;
+      } else {
+        const orientation = get().inputOrientation;
+        const sameOrientation = wordsAtCell.find((idx) => board.words[idx].orientation === orientation);
+        if (sameOrientation !== undefined) targetIdx = sameOrientation;
+      }
+      const targetWord = board.words[targetIdx];
       set({
         selectedCell: { row, col },
-        selectedWordIndex: cell.wordIndex,
-        inputOrientation: cell.orientation,
+        selectedWordIndex: targetIdx,
+        inputOrientation: targetWord.orientation,
       });
     }
   },
@@ -343,18 +405,26 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   useClue2: (wordIndex: number) => {
-    const { hints } = get();
+    const { hints, currentXp } = get();
+    const alreadyUsed = hints[wordIndex]?.clue2Used ?? false;
     set({
-      hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue2Used: true, revealedCells: [] } },
-      currentXp: get().currentXp - XP_PENALTY_CLUE_2,
+      // Catatan: revealedCells TIDAK di-reset — kalau di-reset, aturan
+      // "kata yang full-revealed tidak dapat XP" (cek di GameScreen) bisa
+      // ter-bypass hanya dengan membuka clue.
+      hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue2Used: true } },
+      // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
+      currentXp: alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_2,
     });
   },
 
   useClue3: (wordIndex: number) => {
-    const { hints } = get();
+    const { hints, currentXp } = get();
+    const alreadyUsed = hints[wordIndex]?.clue3Used ?? false;
     set({
-      hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue3Used: true, revealedCells: [] } },
-      currentXp: get().currentXp - XP_PENALTY_CLUE_3,
+      // revealedCells tidak di-reset (lihat komentar di useClue2).
+      hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue3Used: true } },
+      // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
+      currentXp: alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_3,
     });
   },
 
@@ -458,6 +528,32 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 }));
+
+/** Kata yang masih bisa dimainkan (belum solved dan masih ada cell kosong). */
+function isWordPlayable(word: BoardWord): boolean {
+  return !word.solved && word.cells.some((c) => !c.isLocked);
+}
+
+/**
+ * Semua index kata (di board.words) yang melewati sebuah cell. Cell biasa
+ * dilewati 1 kata; cell persimpangan dilewati 2 (satu mendatar, satu menurun).
+ */
+function getWordsAtCell(board: Board, row: number, col: number): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < board.words.length; i++) {
+    const w = board.words[i];
+    if (w.orientation === "horizontal") {
+      if (w.startRow === row && col >= w.startCol && col < w.startCol + w.word.length) {
+        indices.push(i);
+      }
+    } else {
+      if (w.startCol === col && row >= w.startRow && row < w.startRow + w.word.length) {
+        indices.push(i);
+      }
+    }
+  }
+  return indices;
+}
 
 /** Auto-focus ke kata pertama yang belum selesai (urutan nomor clue). */
 function getInitialFocus(board: Board): Partial<GameState> | null {
