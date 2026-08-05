@@ -486,38 +486,55 @@ export default function GameScreen() {
   const nextClueToReveal: 2 | 3 = clue2Opened ? 3 : 2;
   const revealClueDisabled = clueActionsDisabled || allCluesOpened;
 
+  // Level clue yang benar-benar ditampilkan di pill: kalau clueLevel menunjuk
+  // ke clue yang belum dibuka untuk kata saat ini (mis. baru pindah kata),
+  // turunkan ke level tertinggi yang tersedia — mencegah satu-frame flicker
+  // menampilkan clue yang belum dibuka sebelum effect reset jalan.
+  const shownClueLevel: 1 | 2 | 3 =
+    clueLevel === 2 && !clue2Opened
+      ? 1
+      : clueLevel === 3 && !clue3Opened
+        ? clue2Opened
+          ? 2
+          : 1
+        : clueLevel;
+
   // Isi pill clue mengikuti level yang sedang aktif (1/2/3).
   const clueLevelLabel =
-    clueLevel === 1
+    shownClueLevel === 1
       ? selectedWord
         ? `${selectedWord.orientation === "horizontal" ? "Mendatar" : "Menurun"} (${selectedWord.word.length} Huruf)`
         : "Pilih kata di papan"
-      : clueLevel === 2
+      : shownClueLevel === 2
         ? "Penjelasan Lain"
         : "Sinonim / Antonim";
   const clueLevelText =
-    clueLevel === 1
+    shownClueLevel === 1
       ? selectedWord?.clue_1 ?? "Ketuk sel untuk memulai"
-      : clueLevel === 2
+      : shownClueLevel === 2
         ? selectedWord?.clue_2 ?? selectedWord?.clue_1 ?? ""
         : selectedWord?.clue_3 ?? selectedWord?.clue_1 ?? "";
 
-  // Switcher clue (‹ › di sisi kanan pill) hanya muncul setelah clue 2 & 3
-  // keduanya sudah dibuka untuk kata yang dipilih (clue yang dibuka permanen,
-  // jadi switcher tetap tampil meski kata sudah selesai).
-  const showClueSwitcher = allCluesOpened && selectedWord !== null;
+  // Tombol rotate clue SELALU tampil di pill. Kemampuan rotate mengikuti
+  // jumlah clue yang sudah dibuka untuk kata itu:
+  //   - belum ada clue lain dibuka / tidak ada kata → tombol nonaktif
+  //   - clue 2 dibuka → rotate 1 ↔ 2
+  //   - clue 3 dibuka → rotate 1 → 2 → 3 → 1 (loop)
+  const canRotateClue = selectedWord !== null && (clue2Opened || clue3Opened);
 
-  // Kembali ke clue utama setiap pindah kata — dan juga saat kata selesai
-  // (supaya pill tidak nyangkut di clue 2/3 saat switcher disembunyikan).
+  // Kembali ke clue utama setiap pindah kata (clue yang dibuka bersifat
+  // permanen per kata, jadi pill selalu mulai dari clue utama di kata baru).
   useEffect(() => {
     setClueLevel(1);
-  }, [selectedWordIndex, selectedWord?.solved]);
+  }, [selectedWordIndex]);
 
-  // Satu tombol switch: 1 → 2 → 3 → 1 (loop maju).
-  const switchClue = useCallback(
-    () => setClueLevel((l) => (l >= 3 ? 1 : ((l + 1) as 1 | 2 | 3))),
-    [],
-  );
+  const switchClue = useCallback(() => {
+    setClueLevel((l) => {
+      if (clue3Opened) return l >= 3 ? 1 : ((l + 1) as 1 | 2 | 3);
+      if (clue2Opened) return l === 1 ? 2 : 1;
+      return l;
+    });
+  }, [clue2Opened, clue3Opened]);
 
   // Konfirmasi reveal clue berikutnya (2 lalu 3). XP potong sekali lalu gratis.
   const confirmRevealClue = useCallback(() => {
@@ -669,38 +686,31 @@ export default function GameScreen() {
           {/* Separator */}
           <View style={[styles.clueDivider, { backgroundColor: "rgba(255,255,255,0.35)" }]} />
 
-          {/* Switch clue — satu tombol (hanya jika clue 2 & 3 sudah dibuka) */}
-          {showClueSwitcher ? (
-            <>
-              <View style={styles.clueContent}>
-                <View style={styles.clueTextWrap}>
-                  <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
-                  <Text style={styles.clueMain} numberOfLines={2}>
-                    {clueLevelText}
-                  </Text>
-                </View>
-              </View>
-              <TooltipButton
-                tooltip="Ganti tampilan clue (utama → penjelasan → sinonim)"
-                icon="🔁"
-                accessibilityLabel="Ganti tampilan clue"
-                activeOpacity={0.7}
-                onPress={switchClue}
-                style={styles.clueSwitchBtn}
-              >
-                <NumberSquareIcon number={clueLevel} size={20} color="#FFF" />
-              </TooltipButton>
-            </>
-          ) : (
-            <View style={styles.clueContent}>
-              <View style={styles.clueTextWrap}>
-                <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
-                <Text style={styles.clueMain} numberOfLines={2}>
-                  {clueLevelText}
-                </Text>
-              </View>
+          {/* Isi clue — tombol switch selalu tampil (nonaktif kalau belum ada clue lain) */}
+          <View style={styles.clueContent}>
+            <View style={styles.clueTextWrap}>
+              <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
+              <Text style={styles.clueMain} numberOfLines={2}>
+                {clueLevelText}
+              </Text>
             </View>
-          )}
+          </View>
+          <TooltipButton
+            tooltip={
+              !canRotateClue
+                ? "Buka petunjuk lain dulu untuk bisa mengganti tampilan clue"
+                : clue3Opened
+                  ? "Ganti tampilan clue (utama → penjelasan → sinonim)"
+                  : "Ganti tampilan clue (utama ↔ penjelasan)"
+            }
+            icon="🔁"
+            accessibilityLabel="Ganti tampilan clue"
+            activeOpacity={0.7}
+            onPress={() => canRotateClue && switchClue()}
+            style={[styles.clueSwitchBtn, { opacity: canRotateClue ? 1 : 0.4 }]}
+          >
+            <NumberSquareIcon number={shownClueLevel} size={20} color="#FFF" />
+          </TooltipButton>
         </View>
 
         {/* Action Bar + Zoom */}
@@ -739,9 +749,11 @@ export default function GameScreen() {
           {/* Divider */}
           <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
 
-          {/* Reveal Actions (Center) */}
+          {/* Reveal Actions (Center) — label statis + 3 tombol icon */}
           <View style={styles.revealGroup}>
-            {/* Reveal clue — satu tombol: buka clue 2 dulu, lalu 3 (XP potong sekali) */}
+            <Text style={[styles.clueLabelText, { color: theme.colors.textSecondary }]}>Petunjuk</Text>
+
+            {/* Reveal petunjuk — buka clue 2 dulu, lalu 3 (XP potong sekali) */}
             <TooltipButton
               tooltip={
                 allCluesOpened
@@ -751,9 +763,13 @@ export default function GameScreen() {
                     : `Petunjuk ke-3 — −${XP_PENALTY_CLUE_3} XP (sekali, lalu gratis)`
               }
               icon="📖"
+              accessibilityLabel={
+                allCluesOpened
+                  ? "Semua petunjuk sudah terbuka"
+                  : `Buka petunjuk ke-${nextClueToReveal}`
+              }
               style={[
                 styles.actionItem,
-                styles.clueActionItem,
                 {
                   backgroundColor: allCluesOpened ? theme.colors.surface : theme.colors.primary,
                   opacity: revealClueDisabled ? 0.4 : 1,
@@ -762,10 +778,7 @@ export default function GameScreen() {
               activeOpacity={0.7}
               onPress={() => !revealClueDisabled && setShowRevealClueConfirm(true)}
             >
-              <View style={styles.clueLabelWrap}>
-                <Text style={[styles.clueLabelText, { color: allCluesOpened ? theme.colors.textSecondary : "#FFF" }]}>Petunjuk</Text>
-                <ListNumbersIcon size={15} color={allCluesOpened ? theme.colors.textSecondary : "#FFF"} />
-              </View>
+              <ListNumbersIcon size={18} color={allCluesOpened ? theme.colors.textSecondary : "#FFF"} />
               <View style={[styles.clueBadge, { backgroundColor: allCluesOpened ? theme.colors.border : "#FFF" }]}>
                 <Text style={[styles.clueBadgeText, { color: allCluesOpened ? theme.colors.textSecondary : theme.colors.primary }]}>
                   {allCluesOpened ? "✓" : nextClueToReveal}
@@ -950,9 +963,7 @@ const styles = StyleSheet.create({
   actionBar: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   actionItem: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   actionIcon: { fontSize: 18 },
-  clueActionItem: { marginRight: 2, minWidth: 72, paddingHorizontal: 10, flexDirection: "row" },
-  clueLabelWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
-  clueLabelText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.3 },
+  clueLabelText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.3, marginRight: 4 },
   clueBadge: {
     position: "absolute",
     top: -3,
