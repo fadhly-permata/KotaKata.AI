@@ -24,11 +24,8 @@ export interface VocabularyDoc {
 export interface WordDiscoveryDoc {
   discovery_id: string;
   user_id: string;
+  /** Referensi ke vocabulary.word_id — kata & clue dibaca lewat join, tidak diduplikasi. */
   word_id: string;
-  word: string;
-  clue_1?: string;
-  clue_2?: string;
-  clue_3?: string;
   discovered_at: string;
 }
 
@@ -86,13 +83,9 @@ export const WORD_DISCOVERY_SCHEMA: RxJsonSchema<WordDiscoveryDoc> = {
     discovery_id: { type: "string", maxLength: 100 },
     user_id: { type: "string", maxLength: 100 },
     word_id: { type: "string", maxLength: 100 },
-    word: { type: "string", maxLength: 100 },
-    clue_1: { type: "string" },
-    clue_2: { type: "string" },
-    clue_3: { type: "string" },
     discovered_at: { type: "string", format: "date-time" },
   },
-  required: ["discovery_id", "user_id", "word_id", "word", "discovered_at"],
+  required: ["discovery_id", "user_id", "word_id", "discovered_at"],
 };
 
 export const SAVED_BOARD_SCHEMA: RxJsonSchema<SavedBoardDoc> = {

@@ -1,15 +1,15 @@
 /** XP thresholds for each tier (cumulative) */
 export const TIER_THRESHOLDS = [
   0,        // Tier 1 — Eja Awal
-  200,      // Tier 2 — Desau Saujana
-  500,      // Tier 3 — Rima Gerimis
-  1000,     // Tier 4 — Untai Aksara
-  1800,     // Tier 5 — Gema Diksi
-  3000,     // Tier 6 — Raut Metafora
-  5000,     // Tier 7 — Bait Hening
-  8000,     // Tier 8 — Madah Sanubari
-  12000,    // Tier 9 — Risalah Langit
-  20000,    // Tier 10 — Keabadian Seloka
+  6500,     // Tier 2 — Desau Saujana
+  16500,    // Tier 3 — Rima Gerimis
+  31500,    // Tier 4 — Untai Aksara
+  54000,    // Tier 5 — Gema Diksi
+  88000,    // Tier 6 — Raut Metafora
+  139000,   // Tier 7 — Bait Hening
+  215000,   // Tier 8 — Madah Sanubari
+  329000,   // Tier 9 — Risalah Langit
+  500000,   // Tier 10 — Keabadian Seloka
 ];
 
 export const TIER_NAMES = [

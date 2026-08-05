@@ -2,6 +2,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import { useGameStore } from "../../stores/gameStore";
+import { useAuth } from "../../../features/auth/useAuth";
+import UserAvatar from "./UserAvatar";
 
 interface TopBarProps {
   showBack?: boolean;
@@ -13,6 +15,7 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
   const C = theme.colors;
   const navigation = useNavigation();
   const totalXp = useGameStore((s) => s.totalXp);
+  const { user } = useAuth();
 
   const handleBack = () => {
     if (onBack) {
@@ -35,14 +38,7 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
               <Text style={[styles.backBtnText, { color: C.text }]}>‹</Text>
             </TouchableOpacity>
           )}
-          <View
-            style={[
-              styles.avatar,
-              { backgroundColor: C.secondaryContainer, borderColor: C.primary },
-            ]}
-          >
-            <Text style={[styles.avatarText, { color: C.text }]}>K</Text>
-          </View>
+          <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={32} />
           <Text style={[styles.appTitle, { color: C.primary }]}>KotaKata AI</Text>
         </View>
 
@@ -78,16 +74,6 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     textAlign: "center",
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    overflow: "hidden",
-  },
-  avatarText: { fontSize: 13, fontWeight: "800" },
   appTitle: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5 },
   xpPill: {
     flexDirection: "row",

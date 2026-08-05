@@ -58,6 +58,7 @@ async function syncBoard(board: SavedBoardDoc): Promise<void> {
 }
 
 async function syncDiscovery(discovery: WordDiscoveryDoc): Promise<void> {
+  // Kata & clue tidak disalin — dibaca via join ke vocabulary.word_id.
   const { error } = await supabase
     .from("word_discoveries")
     .upsert(
@@ -65,10 +66,6 @@ async function syncDiscovery(discovery: WordDiscoveryDoc): Promise<void> {
         discovery_id: discovery.discovery_id,
         user_id: discovery.user_id,
         word_id: discovery.word_id,
-        word: discovery.word,
-        clue_1: discovery.clue_1 ?? null,
-        clue_2: discovery.clue_2 ?? null,
-        clue_3: discovery.clue_3 ?? null,
         discovered_at: discovery.discovered_at,
       },
       { onConflict: "discovery_id" },

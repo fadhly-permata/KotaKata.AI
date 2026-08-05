@@ -33,13 +33,24 @@ export async function selectWordPool(
   return candidates.map(toCandidate);
 }
 
+/**
+ * Load words straight from Supabase (bukan seed RxDB) biar soal selalu fresh.
+ * Kalau cloud gagal (offline / error), fallback ke database lokal supaya
+ * permainan tetap bisa jalan.
+ */
 async function loadWordsByTier(tier: number): Promise<VocabularyDoc[]> {
-  return vocabularyRepository.getByTier(tier);
+  try {
+    return await vocabularyRepository.getByTierFromCloud(tier);
+  } catch (err) {
+    console.warn("Supabase vocab fetch gagal, pakai seed lokal:", err);
+    return vocabularyRepository.getByTier(tier);
+  }
 }
 
 function toCandidate(doc: VocabularyDoc): WordCandidate {
   return {
     word: doc.word,
+    word_id: doc.word_id,
     clue_1: doc.clue_1,
     clue_2: doc.clue_2,
     clue_3: doc.clue_3,

@@ -3,6 +3,8 @@ import { useTheme } from "../../presentation/components/providers/ThemeProvider"
 import TopBar from "../../presentation/components/common/TopBar";
 import TierBadge from "../../presentation/components/common/TierBadge";
 import { useGameStore } from "../../presentation/stores/gameStore";
+import UserAvatar from "../../presentation/components/common/UserAvatar";
+import { useAuth } from "../auth/useAuth";
 import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
 
 export default function ProfileScreen() {
@@ -10,9 +12,11 @@ export default function ProfileScreen() {
   const totalXp = useGameStore((s) => s.totalXp);
   const wordsSolved = useGameStore((s) => s.wordsSolved);
   const reset = useGameStore((s) => s.reset);
+  const { user } = useAuth();
 
   const tier = calcTier(totalXp);
   const tierName = TIER_NAMES[Math.max(0, tier - 1)];
+  const displayName = user?.displayName ?? "Pemain";
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -20,10 +24,13 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Profile header */}
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.surface }]}>
-          <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
-            <Text style={styles.avatarText}>{tierName.charAt(0)}</Text>
-          </View>
-          <Text style={[styles.name, { color: theme.colors.text }]}>Pemain</Text>
+          <UserAvatar name={displayName} avatarUrl={user?.avatarUrl} size={64} />
+          <Text style={[styles.name, { color: theme.colors.text }]}>{displayName}</Text>
+          {!!user?.email && (
+            <Text style={[styles.email, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              {user.email}
+            </Text>
+          )}
           <Text style={[styles.tierSubtitle, { color: theme.colors.textSecondary }]}>
             Tier {tier} — {tierName}
           </Text>
@@ -66,9 +73,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, gap: 12 },
   avatarContainer: { alignItems: "center", padding: 24, borderRadius: 16, gap: 8 },
-  avatar: { width: 64, height: 64, borderRadius: 32, justifyContent: "center", alignItems: "center" },
-  avatarText: { color: "#FFF", fontSize: 28, fontWeight: "700" },
   name: { fontSize: 20, fontWeight: "700" },
+  email: { fontSize: 13, fontWeight: "500", maxWidth: "90%" },
   tierSubtitle: { fontSize: 13, fontWeight: "500" },
   statsGrid: {
     flexDirection: "row",

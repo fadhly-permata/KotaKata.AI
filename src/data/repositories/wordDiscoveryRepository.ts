@@ -1,4 +1,5 @@
 import { getDatabase } from "../sources/database";
+import { supabase } from "../sources/supabase";
 import type { WordDiscoveryDoc } from "../models/schemas";
 
 export const wordDiscoveryRepository = {
@@ -9,6 +10,23 @@ export const wordDiscoveryRepository = {
         sort: [{ discovered_at: "desc" }],
       })
       .exec();
+  },
+
+  /**
+   * Baca riwayat langsung dari Supabase — sumber kebenaran lintas sesi.
+   * RxDB lokal itu in-memory (hilang tiap reload), jadi Sejarah tidak boleh
+   * cuma bergantung padanya.
+   */
+  async getByUserFromCloud(userId: string): Promise<WordDiscoveryDoc[]> {
+    const { data, error } = await supabase
+      .from("word_discoveries")
+      .select("discovery_id, user_id, word_id, discovered_at")
+      .eq("user_id", userId)
+      .order("discovered_at", { ascending: false });
+    if (error) {
+      throw new Error(`Gagal ambil riwayat dari Supabase: ${error.message}`);
+    }
+    return (data ?? []) as WordDiscoveryDoc[];
   },
 
   async getByUserAndWord(

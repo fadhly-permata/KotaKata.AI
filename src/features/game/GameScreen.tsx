@@ -9,11 +9,24 @@ import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { selectWordPool } from "../../domain/usecases/wordPoolFilter";
-import { ensureVocabularySeeded } from "../../data/sources/database";
+import { ensureVocabularySeeded, initDatabase } from "../../data/sources/database";
+import { supabase } from "../../data/sources/supabase";
+import { triggerBoardCompletionSync } from "../../data/sources/syncEngine";
+import { useAuth } from "../auth/useAuth";
+import { displayNameFromMetadata } from "../../utils/userMetadata";
+import UserAvatar from "../../presentation/components/common/UserAvatar";
+import { boardRepository } from "../../data/repositories/boardRepository";
+import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
+import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
+import {
+  serializeBoardProgress,
+  deserializeBoardProgress,
+  IN_PROGRESS_BOARD_ID,
+} from "../../utils/boardProgress";
 
 // Only used as a last-resort fallback if the local DB is unavailable.
 const FALLBACK_WORDS: WordCandidate[] = [
@@ -41,6 +54,7 @@ const GRID_PADDING = 3;
 export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
@@ -52,7 +66,13 @@ export default function GameScreen() {
   const prevZoomLevel = useRef(1);
   const zoomAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef<ScrollView>(null);
+  const outerScrollRef = useRef<ScrollView>(null);
   const prevSelectedCell = useRef<{ row: number; col: number } | null>(null);
+  const quittingRef = useRef(false);
+  // Position of the grid inside the outer scroll content + outer viewport size,
+  // used to keep the focused cell visible at zoom level 1.
+  const [gridOffsetY, setGridOffsetY] = useState(0);
+  const [outerViewportH, setOuterViewportH] = useState(0);
 
   const board = useGameStore((s) => s.board);
   const setBoard = useGameStore((s) => s.setBoard);
@@ -77,6 +97,7 @@ export default function GameScreen() {
   const revealWord = useGameStore((s) => s.revealWord);
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
+  const resumeProgress = useGameStore((s) => s.resumeProgress);
 
   // Show keyboard on first tap to a cell
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -103,13 +124,14 @@ export default function GameScreen() {
     return totalActive > 0 ? filled / totalActive : 0;
   }, [board, filledLetters]);
 
-  // Auto-center focused cell when zoomed in
+  // Keep the focused cell visible: scroll the inner (zoomed) grid at zoom > 1,
+  // and the outer page ScrollView at zoom 1 so auto-focus never hides the cell.
   const scrollToFocusedCell = useCallback(() => {
-    if (!selectedCell || !scrollViewRef.current || !board) return;
+    if (!selectedCell || !board) return;
     if (prevSelectedCell.current?.row === selectedCell.row && prevSelectedCell.current?.col === selectedCell.col) return;
     prevSelectedCell.current = selectedCell;
 
-    const { width: screenWidth } = Dimensions.get("window");
+    const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
     const outerMargin = 8;
     const availableWidth = screenWidth - outerMargin;
     const gapsTotal = CELL_GAP * (board.size - 1);
@@ -122,20 +144,32 @@ export default function GameScreen() {
     const cellCenterX = GRID_PADDING + selectedCell.col * (cellSize + CELL_GAP) + cellSize / 2;
     const cellCenterY = GRID_PADDING + selectedCell.row * (cellSize + CELL_GAP) + cellSize / 2;
 
-    const gridSize = cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2;
-    const viewportWidth = screenWidth;
+    if (zoomLevel > 1 && scrollViewRef.current) {
+      const gridSize = cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2;
+      const scrollX = Math.max(0, Math.min(cellCenterX - screenWidth / 2, gridSize - screenWidth));
+      const scrollY = Math.max(0, cellCenterY - 150);
+      scrollViewRef.current.scrollTo({ x: scrollX, y: scrollY, animated: true });
+      return;
+    }
 
-    const scrollX = Math.max(0, Math.min(cellCenterX - viewportWidth / 2, gridSize - viewportWidth));
-    const scrollY = Math.max(0, cellCenterY - 150);
-
-    scrollViewRef.current.scrollTo({ x: scrollX, y: scrollY, animated: true });
-  }, [selectedCell, zoomLevel, board]);
+    // Zoom level 1: the outer vertical ScrollView owns scrolling. Bring the
+    // focused cell into the middle of the visible area.
+    if (!outerScrollRef.current) return;
+    const cellYInContent = gridOffsetY + cellCenterY;
+    const viewport = outerViewportH > 0 ? outerViewportH : screenHeight;
+    const targetY = Math.max(0, cellYInContent - viewport / 2);
+    const maxScroll = Math.max(0, gridOffsetY + cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2 - viewport);
+    outerScrollRef.current.scrollTo({ y: Math.min(targetY, maxScroll), animated: true });
+  }, [selectedCell, zoomLevel, board, gridOffsetY, outerViewportH]);
 
   useEffect(() => {
     if (zoomLevel > 1) {
+      // Wait for the zoom spring to settle before scrolling.
       const timeout = setTimeout(scrollToFocusedCell, 150);
       return () => clearTimeout(timeout);
     }
+    // Zoom 1: scroll immediately so auto-focused cells stay visible while typing.
+    scrollToFocusedCell();
   }, [selectedCell, zoomLevel, scrollToFocusedCell]);
 
   const animateZoom = useCallback((newZoom: number) => {
@@ -178,6 +212,7 @@ export default function GameScreen() {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
+      if (quittingRef.current) return;
       if (!board || boardResult) return;
       e.preventDefault();
       pendingNavAction.current = e.data.action;
@@ -186,21 +221,79 @@ export default function GameScreen() {
     return unsubscribe;
   }, [navigation, board, boardResult]);
 
+  // Simpan snapshot progres board yang sedang berjalan (belum selesai) ke
+  // RxDB + Supabase, supaya bisa di-resume dari "Mulai Bermain".
+  const saveInProgress = useCallback(async () => {
+    const store = useGameStore.getState();
+    if (!store.board) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await initDatabase();
+    await boardRepository.save({
+      board_id: IN_PROGRESS_BOARD_ID(user.id),
+      user_id: user.id,
+      tier_at_generation: store.board.tierLevel,
+      grid_size: store.board.size,
+      layout_data: serializeBoardProgress({
+        board: store.board,
+        filledLetters: store.filledLetters,
+        hints: store.hints,
+        currentXp: store.currentXp,
+        wordsSolved: store.wordsSolved,
+        totalXp: store.totalXp,
+      }),
+      is_finished: false,
+      updated_at: new Date().toISOString(),
+    });
+
+    // Rekam kata-kata yang sudah terjawab di board ini ke riwayat penemuan
+    // (dedup), supaya "Sejarah Saya" menampilkan semua kata yang sudah
+    // dijawab — bukan cuma yang board-nya sampai selesai.
+    const now = new Date().toISOString();
+    for (const word of store.board.words) {
+      if (!word.solved || !word.word_id) continue;
+      const existing = await wordDiscoveryRepository.getByUserAndWord(user.id, word.word_id);
+      if (existing) continue;
+      await wordDiscoveryRepository.add({
+        discovery_id: `disc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${word.word_id}`,
+        user_id: user.id,
+        word_id: word.word_id,
+        discovered_at: now,
+      });
+    }
+
+    await triggerBoardCompletionSync();
+  }, []);
+
   const handleConfirmQuit = useCallback(() => {
     setShowQuitConfirm(false);
-    reset();
-    if (pendingNavAction.current) {
-      navigation.dispatch(pendingNavAction.current);
-      pendingNavAction.current = null;
-    }
-  }, [navigation, reset]);
+    quittingRef.current = true;
+    const navAction = pendingNavAction.current;
+    pendingNavAction.current = null;
+
+    const finishQuit = () => {
+      reset();
+      if (navAction) navigation.dispatch(navAction);
+    };
+
+    saveInProgress()
+      .then(finishQuit)
+      .catch((err) => {
+        loggerInfo("Gagal menyimpan progres saat keluar", err);
+        finishQuit();
+      });
+  }, [navigation, reset, saveInProgress]);
 
   const handleCancelQuit = useCallback(() => {
     setShowQuitConfirm(false);
     pendingNavAction.current = null;
   }, []);
 
-  // Load a fresh board from the vocabulary database (seeded from VOCABULARY_SEED)
+  // Load a fresh board from the vocabulary database (seeded from VOCABULARY_SEED).
+  // Kalau ada board in-progress yang tersimpan, resume dulu dari sana.
   useEffect(() => {
     if (board) return;
     let cancelled = false;
@@ -210,11 +303,32 @@ export default function GameScreen() {
         // 1) Init local DB + seed vocabulary on first run
         await ensureVocabularySeeded();
 
-        // 2) Pick a word pool matching the player's current tier
-        const playerTier = calcTier(useGameStore.getState().totalXp);
-        const candidates = await selectWordPool({ playerTier, excludedWordIds: [], gridSize: 10 });
+        // 2) Coba resume board in-progress milik user ini
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const saved = await boardRepository.getInProgress(user.id);
+          if (saved.length > 0) {
+            const resumed = deserializeBoardProgress(saved[0].layout_data);
+            if (resumed && !cancelled) {
+              resumeProgress(resumed);
+              return;
+            }
+          }
+        }
 
-        // 3) Generate a fresh random crossword from the DB words
+        // 3) Tidak ada progres tersimpan — generate papan baru sesuai tier.
+        //    Kata yang sudah pernah ditemukan dikecualikan biar soal selalu fresh.
+        const playerTier = calcTier(useGameStore.getState().totalXp);
+        const discoveredWordIds = user
+          ? await wordDiscoveryRepository.getDiscoveredWordIds(user.id)
+          : [];
+        const candidates = await selectWordPool({
+          playerTier,
+          excludedWordIds: discoveredWordIds,
+          gridSize: 10,
+        });
         const generated = generateBoard(candidates, 10, playerTier);
         if (!cancelled) setBoard(generated);
       } catch (err) {
@@ -226,7 +340,7 @@ export default function GameScreen() {
     return () => {
       cancelled = true;
     };
-  }, [board, setBoard]);
+  }, [board, setBoard, resumeProgress]);
 
   // Auto-solve check — skip words that were fully revealed (no XP for revealed words)
   const prevFilledRef = useRef(filledLetters);
@@ -258,6 +372,88 @@ export default function GameScreen() {
       }
     }
   }, [filledLetters, board, boardResult, markWordSolved, hints]);
+
+  // Persist hasil board: simpan board selesai + kata yang ditemukan + XP user,
+  // lalu push semua ke Supabase (syncToCloud).
+  useEffect(() => {
+    if (!boardResult || !board) return;
+    (async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const now = new Date().toISOString();
+        const rand = Math.random().toString(36).slice(2, 8);
+        await initDatabase();
+
+        // 0) Papan sudah selesai — hapus snapshot in-progress (kalau ada),
+        //    supaya "Mulai Bermain" berikutnya bikin papan baru, bukan me-resume yang tamat.
+        await boardRepository.delete(IN_PROGRESS_BOARD_ID(user.id));
+
+        // 1) Board yang selesai (is_finished = true)
+        await boardRepository.save({
+          board_id: `board-${Date.now()}-${rand}`,
+          user_id: user.id,
+          tier_at_generation: board.tierLevel,
+          grid_size: board.size,
+          layout_data: JSON.stringify({
+            words: board.words.map((w) => ({
+              word: w.word,
+              word_id: w.word_id ?? null,
+              clue_1: w.clue_1,
+              clue_2: w.clue_2 ?? null,
+              clue_3: w.clue_3 ?? null,
+              orientation: w.orientation,
+              startRow: w.startRow,
+              startCol: w.startCol,
+            })),
+            size: board.size,
+            tierLevel: board.tierLevel,
+          }),
+          is_finished: true,
+          updated_at: now,
+        });
+
+        // 2) Kata-kata yang terpecahkan → riwayat penemuan (word discoveries).
+        //    Hanya kata dari vocabulary asli (punya word_id) — kata fallback demo
+        //    tidak ada di tabel vocabulary, jadi tidak dicatat.
+        for (const word of board.words) {
+          if (!word.solved) continue;
+          if (!word.word_id) continue;
+          const existing = await wordDiscoveryRepository.getByUserAndWord(user.id, word.word_id);
+          if (existing) continue;
+          await wordDiscoveryRepository.add({
+            discovery_id: `disc-${Date.now()}-${rand}-${word.word_id}`,
+            user_id: user.id,
+            word_id: word.word_id,
+            discovered_at: now,
+          });
+        }
+
+        // 3) XP kumulatif user + tier terbaru
+        const prevUser = await userRepository.getById(user.id);
+        const newTotalXp = (prevUser?.total_xp ?? 0) + boardResult.xpGained;
+        const sessionName = displayNameFromMetadata(user.user_metadata);
+        await userRepository.upsert({
+          user_id: user.id,
+          display_name: prevUser?.display_name ?? sessionName ?? "Pemain",
+          email: prevUser?.email,
+          total_xp: newTotalXp,
+          current_tier: calcTier(newTotalXp),
+          coins: prevUser?.coins ?? 0,
+          updated_at: now,
+        });
+        useGameStore.getState().setTotalXp(newTotalXp);
+
+        // 4) Push ke Supabase
+        await triggerBoardCompletionSync();
+      } catch (err) {
+        loggerInfo("Gagal menyimpan hasil board", err);
+      }
+    })();
+  }, [board, boardResult]);
 
   const currentTier = useMemo(() => calcTier(totalXp + currentXp), [totalXp, currentXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
@@ -300,9 +496,11 @@ export default function GameScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Scrollable area */}
       <ScrollView
+        ref={outerScrollRef}
         contentContainerStyle={styles.scrollContent}
         bounces={false}
         keyboardShouldPersistTaps="handled"
+        onLayout={(e) => setOuterViewportH(e.nativeEvent.layout.height)}
       >
         {/* Top Bar */}
         <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
@@ -314,9 +512,7 @@ export default function GameScreen() {
             >
               <Text style={[styles.backBtnText, { color: theme.colors.text }]}>‹</Text>
             </TouchableOpacity>
-            <View style={[styles.avatar, { backgroundColor: theme.colors.secondaryContainer }]}>
-              <Text style={[styles.avatarText, { color: theme.colors.primary }]}>K</Text>
-            </View>
+            <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={36} />
             <Text style={[styles.appTitle, { color: theme.colors.primary }]}>KotaKata AI</Text>
           </View>
           <View style={[styles.xpPill, { backgroundColor: "#ffd6ee" }]}>
@@ -350,7 +546,10 @@ export default function GameScreen() {
         </View>
 
         {/* Crossword Grid (Scrollable + Zoomable) */}
-        <View style={zoomLevel <= 1 ? [styles.gridOuterWrapper, styles.gridOuterCentered] : styles.gridOuterWrapper}>
+        <View
+          style={zoomLevel <= 1 ? [styles.gridOuterWrapper, styles.gridOuterCentered] : styles.gridOuterWrapper}
+          onLayout={(e) => setGridOffsetY(e.nativeEvent.layout.y)}
+        >
           <Animated.View style={{ transform: [{ scale: zoomAnim }] }}>
             <ScrollView
               ref={scrollViewRef}
@@ -397,7 +596,7 @@ export default function GameScreen() {
                   ? `${selectedWord.orientation === "horizontal" ? "Mendatar" : "Menurun"} (${selectedWord.word.length} Huruf)`
                   : "Pilih kata di papan"}
               </Text>
-              <Text style={styles.clueMain} numberOfLines={1}>
+              <Text style={styles.clueMain}>
                 {selectedWord?.clue_1 ?? "Ketuk sel untuk memulai"}
               </Text>
             </View>
@@ -477,8 +676,8 @@ export default function GameScreen() {
       <ConfirmDialog
         visible={showQuitConfirm}
         title="Keluar Permainan?"
-        message="Progres permainan saat ini akan hilang jika kamu keluar. Apa kamu yakin?"
-        confirmText="Ya, Keluar"
+        message="Progres permainan akan disimpan — kamu bisa melanjutkannya kapan saja dari Mulai Bermain."
+        confirmText="Ya, Simpan & Keluar"
         cancelText="Lanjut Main"
         onConfirm={handleConfirmQuit}
         onCancel={handleCancelQuit}
@@ -543,8 +742,6 @@ const styles = StyleSheet.create({
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   backBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", overflow: "hidden" },
   backBtnText: { fontSize: 18, fontWeight: "600", lineHeight: 32, textAlign: "center" },
-  avatar: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
-  avatarText: { fontSize: 16, fontWeight: "800" },
   appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
   xpPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   xpPillText: { fontSize: 12, fontWeight: "700" },
@@ -570,7 +767,7 @@ const styles = StyleSheet.create({
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
   bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 8 },
+  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 8 },
   clueArrow: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   clueArrowText: { fontSize: 24, color: "#FFF", fontWeight: "300" },
   clueContent: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4 },
@@ -578,7 +775,7 @@ const styles = StyleSheet.create({
   clueNumberText: { fontSize: 14, fontWeight: "800", color: "#0096cc" },
   clueTextWrap: { flex: 1 },
   clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
-  clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600" },
+  clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600", lineHeight: 19 },
   actionBar: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   actionItem: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   actionIcon: { fontSize: 18 },

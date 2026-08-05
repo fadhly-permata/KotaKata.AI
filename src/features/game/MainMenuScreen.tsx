@@ -12,7 +12,15 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
-import { calcTier, calcTierProgress, TIER_NAMES } from "../../domain/usecases/xpEngine";
+import UserAvatar from "../../presentation/components/common/UserAvatar";
+import { useAuth } from "../auth/useAuth";
+import {
+  calcTier,
+  calcTierProgress,
+  calcXpGain,
+  TIER_THRESHOLDS,
+  TIER_NAMES,
+} from "../../domain/usecases/xpEngine";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
@@ -23,16 +31,19 @@ export default function MainMenuScreen() {
   const navigation = useNavigation<Nav>();
   const totalXp = useGameStore((s) => s.totalXp);
   const reset = useGameStore((s) => s.reset);
+  const { user } = useAuth();
 
   const currentTier = useMemo(() => calcTier(totalXp), [totalXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
   const tierProgress = useMemo(() => calcTierProgress(totalXp), [totalXp]);
   const xpToNext = useMemo(() => {
-    const nextThresholds = [200, 500, 1000, 1800, 3000, 5000, 8000, 12000, 20000];
-    const nextXp = nextThresholds[Math.min(currentTier - 1, nextThresholds.length - 1)] || 200;
-    const remaining = Math.max(1, Math.round((1 - tierProgress) * nextXp / 25));
-    return remaining;
-  }, [currentTier, tierProgress]);
+    const nextThreshold = TIER_THRESHOLDS[Math.min(currentTier, TIER_THRESHOLDS.length - 1)];
+    const remainingXp = Math.max(0, nextThreshold - totalXp);
+    if (remainingXp === 0) return 0;
+    // Estimasi kata: XP rata-rata per kata di tier sekarang (asumsi kata ~6 huruf)
+    const xpPerWord = Math.max(1, calcXpGain(6, currentTier));
+    return Math.ceil(remainingXp / xpPerWord);
+  }, [currentTier, totalXp]);
 
   // ─── Bounce animation for play button icon ───
   const bounceAnim = useRef(new Animated.Value(0)).current;
@@ -149,15 +160,13 @@ export default function MainMenuScreen() {
         {/* ═══ Top AppBar ═══ */}
         <View style={[styles.topBar, { backgroundColor: C.surface }]}>
           <View style={styles.topBarLeft}>
-            <View
-              style={[
-                styles.avatar,
-                { backgroundColor: C.secondaryContainer, borderColor: C.primary },
-              ]}
-            >
-              <Text style={[styles.avatarText, { color: C.text }]}>K</Text>
+            <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={36} />
+            <View style={styles.topBarTitleCol}>
+              <Text style={[styles.appTitle, { color: C.primary }]}>KotaKata AI</Text>
+              <Text style={[styles.userName, { color: C.textSecondary }]} numberOfLines={1}>
+                {user?.displayName ?? "Pemain"}
+              </Text>
             </View>
-            <Text style={[styles.appTitle, { color: C.primary }]}>KotaKata AI</Text>
           </View>
           <View style={[styles.xpPill, { backgroundColor: C.secondaryContainer }]}>
             <Text style={[styles.xpPillText, { color: C.secondary }]}>⭐ {totalXp} XP</Text>
@@ -309,17 +318,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    overflow: "hidden",
-  },
-  avatarText: { fontSize: 14, fontWeight: "800" },
-  appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
+  topBarTitleCol: { justifyContent: "center" },
+  userName: { fontSize: 12, fontWeight: "600", marginTop: 1 },
+  appTitle: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5, lineHeight: 20 },
   xpPill: {
     flexDirection: "row",
     alignItems: "center",
