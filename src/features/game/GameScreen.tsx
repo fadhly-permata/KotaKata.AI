@@ -6,6 +6,12 @@ import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
 import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
 import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
+import TooltipButton from "../../presentation/components/common/TooltipButton";
+import ZoomIcon from "../../presentation/components/common/ZoomIcon";
+import NextIcon from "../../presentation/components/common/NextIcon";
+import KeyboardIcon from "../../presentation/components/common/KeyboardIcon";
+import ListNumbersIcon from "../../presentation/components/common/ListNumbersIcon";
+import NumberSquareIcon from "../../presentation/components/common/NumberSquareIcon";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { selectWordPool } from "../../domain/usecases/wordPoolFilter";
@@ -19,7 +25,7 @@ import { boardRepository } from "../../data/repositories/boardRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
-import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
+import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
 import type { WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
 import {
@@ -59,6 +65,9 @@ export default function GameScreen() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
   const [showRevealWordConfirm, setShowRevealWordConfirm] = useState(false);
+  const [showRevealClueConfirm, setShowRevealClueConfirm] = useState(false);
+  // Level clue yang sedang ditampilkan di pill (1 = utama, 2 = penjelasan, 3 = sinonim/antonim).
+  const [clueLevel, setClueLevel] = useState<1 | 2 | 3>(1);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const keyboardAutoShown = useRef(false);
   const pendingNavAction = useRef<any>(null);
@@ -98,6 +107,8 @@ export default function GameScreen() {
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
   const resumeProgress = useGameStore((s) => s.resumeProgress);
+
+
 
   // Show keyboard on first tap to a cell
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -464,6 +475,63 @@ export default function GameScreen() {
     return board.words[selectedWordIndex] ?? null;
   }, [selectedWordIndex, board]);
 
+  const selectedHintUsage = selectedWordIndex !== null ? hints[String(selectedWordIndex)] : undefined;
+  // Tombol clue nonaktif saat tidak ada kata terpilih / kata sudah selesai.
+  const clueActionsDisabled = selectedWordIndex === null || selectedWord?.solved === true;
+
+  const clue2Opened = !!selectedHintUsage?.clue2Used;
+  const clue3Opened = !!selectedHintUsage?.clue3Used;
+  const allCluesOpened = clue2Opened && clue3Opened;
+  // Level clue berikutnya yang akan dibuka lewat tombol reveal clue (2 dulu, lalu 3).
+  const nextClueToReveal: 2 | 3 = clue2Opened ? 3 : 2;
+  const revealClueDisabled = clueActionsDisabled || allCluesOpened;
+
+  // Isi pill clue mengikuti level yang sedang aktif (1/2/3).
+  const clueLevelLabel =
+    clueLevel === 1
+      ? selectedWord
+        ? `${selectedWord.orientation === "horizontal" ? "Mendatar" : "Menurun"} (${selectedWord.word.length} Huruf)`
+        : "Pilih kata di papan"
+      : clueLevel === 2
+        ? "Penjelasan Lain"
+        : "Sinonim / Antonim";
+  const clueLevelText =
+    clueLevel === 1
+      ? selectedWord?.clue_1 ?? "Ketuk sel untuk memulai"
+      : clueLevel === 2
+        ? selectedWord?.clue_2 ?? selectedWord?.clue_1 ?? ""
+        : selectedWord?.clue_3 ?? selectedWord?.clue_1 ?? "";
+
+  // Switcher clue (‹ › di sisi kanan pill) hanya muncul setelah clue 2 & 3
+  // keduanya sudah dibuka untuk kata yang dipilih (clue yang dibuka permanen,
+  // jadi switcher tetap tampil meski kata sudah selesai).
+  const showClueSwitcher = allCluesOpened && selectedWord !== null;
+
+  // Kembali ke clue utama setiap pindah kata — dan juga saat kata selesai
+  // (supaya pill tidak nyangkut di clue 2/3 saat switcher disembunyikan).
+  useEffect(() => {
+    setClueLevel(1);
+  }, [selectedWordIndex, selectedWord?.solved]);
+
+  // Satu tombol switch: 1 → 2 → 3 → 1 (loop maju).
+  const switchClue = useCallback(
+    () => setClueLevel((l) => (l >= 3 ? 1 : ((l + 1) as 1 | 2 | 3))),
+    [],
+  );
+
+  // Konfirmasi reveal clue berikutnya (2 lalu 3). XP potong sekali lalu gratis.
+  const confirmRevealClue = useCallback(() => {
+    if (selectedWordIndex === null) return;
+    if (nextClueToReveal === 2) {
+      useClue2(selectedWordIndex);
+      setClueLevel(2);
+    } else {
+      useClue3(selectedWordIndex);
+      setClueLevel(3);
+    }
+    setShowRevealClueConfirm(false);
+  }, [selectedWordIndex, nextClueToReveal, useClue2, useClue3]);
+
   useEffect(() => {
     if (Platform.OS !== "web" || !board) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -505,13 +573,15 @@ export default function GameScreen() {
         {/* Top Bar */}
         <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.topBarLeft}>
-            <TouchableOpacity
+            <TooltipButton
+              tooltip="Kembali ke menu utama"
+              icon="🏠"
               style={[styles.backBtn, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
               onPress={() => navigation.goBack()}
             >
               <Text style={[styles.backBtnText, { color: theme.colors.text }]}>‹</Text>
-            </TouchableOpacity>
+            </TooltipButton>
             <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={36} />
             <Text style={[styles.appTitle, { color: theme.colors.primary }]}>KotaKata AI</Text>
           </View>
@@ -528,13 +598,15 @@ export default function GameScreen() {
           </View>
           <View style={styles.levelActions}>
             {/* Reset button — circular refresh icon */}
-            <TouchableOpacity
+            <TooltipButton
+              tooltip="Reset papan — kosongkan jawaban & XP"
+              icon="🔄"
               style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
               onPress={() => setShowResetConfirm(true)}
             >
               <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
-            </TouchableOpacity>
+            </TooltipButton>
             {/* Progress ring — shows fill progress */}
             <View style={[styles.progressRing, { borderColor: theme.colors.border }]}>
               <View style={[styles.progressRingFill, { borderColor: theme.colors.primary }]} />
@@ -579,56 +651,89 @@ export default function GameScreen() {
 
       {/* === Fixed Bottom Panels (always visible) === */}
       <View style={[styles.bottomPanels, { backgroundColor: theme.colors.background }]}>
-        {/* Clue Pill */}
+        {/* Clue Pill: [<] [nomor] [>] | clue [switch] */}
         <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]}>
-          <TouchableOpacity activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
-            <Text style={styles.clueArrowText}>‹</Text>
-          </TouchableOpacity>
-          <View style={styles.clueContent}>
-            <View style={styles.clueNumberBadge}>
-              <Text style={styles.clueNumberText}>
-                {selectedWord?.cells[0]?.number ?? "?"}
-              </Text>
-            </View>
-            <View style={styles.clueTextWrap}>
-              <Text style={styles.clueOrientation}>
-                {selectedWord
-                  ? `${selectedWord.orientation === "horizontal" ? "Mendatar" : "Menurun"} (${selectedWord.word.length} Huruf)`
-                  : "Pilih kata di papan"}
-              </Text>
-              <Text style={styles.clueMain}>
-                {selectedWord?.clue_1 ?? "Ketuk sel untuk memulai"}
-              </Text>
-            </View>
+          {/* Nav kata */}
+          <TooltipButton tooltip="Kata sebelumnya" icon="◀️" activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
+            <NextIcon flipped size={17} color="#FFF" />
+          </TooltipButton>
+          <View style={styles.clueNumberBadge}>
+            <Text style={styles.clueNumberText}>
+              {selectedWord?.cells[0]?.number ?? "?"}
+            </Text>
           </View>
-          <TouchableOpacity activeOpacity={0.7} onPress={goToNextWord} style={styles.clueArrow}>
-            <Text style={styles.clueArrowText}>›</Text>
-          </TouchableOpacity>
+          <TooltipButton tooltip="Kata berikutnya" icon="▶️" activeOpacity={0.7} onPress={goToNextWord} style={styles.clueArrow}>
+            <NextIcon size={17} color="#FFF" />
+          </TooltipButton>
+
+          {/* Separator */}
+          <View style={[styles.clueDivider, { backgroundColor: "rgba(255,255,255,0.35)" }]} />
+
+          {/* Switch clue — satu tombol (hanya jika clue 2 & 3 sudah dibuka) */}
+          {showClueSwitcher ? (
+            <>
+              <View style={styles.clueContent}>
+                <View style={styles.clueTextWrap}>
+                  <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
+                  <Text style={styles.clueMain} numberOfLines={2}>
+                    {clueLevelText}
+                  </Text>
+                </View>
+              </View>
+              <TooltipButton
+                tooltip="Ganti tampilan clue (utama → penjelasan → sinonim)"
+                icon="🔁"
+                accessibilityLabel="Ganti tampilan clue"
+                activeOpacity={0.7}
+                onPress={switchClue}
+                style={styles.clueSwitchBtn}
+              >
+                <NumberSquareIcon number={clueLevel} size={20} color="#FFF" />
+              </TooltipButton>
+            </>
+          ) : (
+            <View style={styles.clueContent}>
+              <View style={styles.clueTextWrap}>
+                <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
+                <Text style={styles.clueMain} numberOfLines={2}>
+                  {clueLevelText}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Action Bar + Zoom */}
         <View style={[styles.actionBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          {/* Zoom Controls (Left) */}
+          {/* Zoom Controls (Left) — kaca pembesar + / − */}
           <View style={styles.zoomGroup}>
-            <TouchableOpacity
+            <TooltipButton
+              tooltip="Perkecil tampilan papan (zoom out)"
+              icon="🔍"
               style={[styles.zoomBtnSmall, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 }]}
               activeOpacity={0.7}
               onPress={zoomOut}
-              disabled={zoomLevel <= ZOOM_MIN}
             >
-              <Text style={[styles.zoomBtnSmallText, { color: theme.colors.text }]}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} onPress={resetZoom}>
+              <ZoomIcon variant="out" size={18} color={theme.colors.text} />
+            </TooltipButton>
+            <TooltipButton
+              tooltip="Atur ulang zoom ke 100%"
+              icon="🔍"
+              style={[styles.zoomResetBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              activeOpacity={0.7}
+              onPress={resetZoom}
+            >
               <Text style={[styles.zoomLabel, { color: theme.colors.textSecondary }]}>{Math.round(zoomLevel * 100)}%</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </TooltipButton>
+            <TooltipButton
+              tooltip="Perbesar tampilan papan (zoom in)"
+              icon="🔍"
               style={[styles.zoomBtnSmall, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 }]}
               activeOpacity={0.7}
               onPress={zoomIn}
-              disabled={zoomLevel >= ZOOM_MAX}
             >
-              <Text style={[styles.zoomBtnSmallText, { color: theme.colors.text }]}>+</Text>
-            </TouchableOpacity>
+              <ZoomIcon variant="in" size={18} color={theme.colors.text} />
+            </TooltipButton>
           </View>
 
           {/* Divider */}
@@ -636,33 +741,75 @@ export default function GameScreen() {
 
           {/* Reveal Actions (Center) */}
           <View style={styles.revealGroup}>
-            <TouchableOpacity
-              style={[styles.actionItem, { backgroundColor: theme.colors.primary }]}
+            {/* Reveal clue — satu tombol: buka clue 2 dulu, lalu 3 (XP potong sekali) */}
+            <TooltipButton
+              tooltip={
+                allCluesOpened
+                  ? "Semua petunjuk sudah terbuka"
+                  : nextClueToReveal === 2
+                    ? `Petunjuk ke-2 — −${XP_PENALTY_CLUE_2} XP (sekali, lalu gratis)`
+                    : `Petunjuk ke-3 — −${XP_PENALTY_CLUE_3} XP (sekali, lalu gratis)`
+              }
+              icon="📖"
+              style={[
+                styles.actionItem,
+                styles.clueActionItem,
+                {
+                  backgroundColor: allCluesOpened ? theme.colors.surface : theme.colors.primary,
+                  opacity: revealClueDisabled ? 0.4 : 1,
+                },
+              ]}
+              activeOpacity={0.7}
+              onPress={() => !revealClueDisabled && setShowRevealClueConfirm(true)}
+            >
+              <View style={styles.clueLabelWrap}>
+                <Text style={[styles.clueLabelText, { color: allCluesOpened ? theme.colors.textSecondary : "#FFF" }]}>Petunjuk</Text>
+                <ListNumbersIcon size={15} color={allCluesOpened ? theme.colors.textSecondary : "#FFF"} />
+              </View>
+              <View style={[styles.clueBadge, { backgroundColor: allCluesOpened ? theme.colors.border : "#FFF" }]}>
+                <Text style={[styles.clueBadgeText, { color: allCluesOpened ? theme.colors.textSecondary : theme.colors.primary }]}>
+                  {allCluesOpened ? "✓" : nextClueToReveal}
+                </Text>
+              </View>
+            </TooltipButton>
+            {/* Reveal letter */}
+            <TooltipButton
+              tooltip={`Buka satu huruf dari kata terpilih (−${XP_PENALTY_REVEAL} XP)`}
+              icon="🔍"
+              style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
               onPress={() => selectedWordIndex !== null && setShowRevealLetterConfirm(true)}
             >
-              <Text style={styles.actionIcon}>🔍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>🔍</Text>
+            </TooltipButton>
+            {/* Reveal word */}
+            <TooltipButton
+              tooltip={`Buka semua huruf kata — −${XP_PENALTY_REVEAL} XP (tanpa XP kata)`}
+              icon="💡"
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
               onPress={() => selectedWordIndex !== null && setShowRevealWordConfirm(true)}
             >
               <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
-            </TouchableOpacity>
+            </TooltipButton>
           </View>
 
           {/* Spacer */}
           <View style={{ flex: 1 }} />
 
           {/* Keyboard Toggle (Right) */}
-          <TouchableOpacity
+          <TooltipButton
+            tooltip={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
+            icon="⌨️"
+            accessibilityLabel={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
             style={[styles.actionItem, { backgroundColor: theme.colors.surface }]}
             activeOpacity={0.7}
             onPress={() => setKeyboardVisible((v) => !v)}
           >
-            <Text style={[styles.actionIcon, { opacity: keyboardVisible ? 1 : 0.4 }]}>⌨️</Text>
-          </TouchableOpacity>
+            <View style={{ opacity: keyboardVisible ? 1 : 0.4 }}>
+              <KeyboardIcon size={24} />
+            </View>
+          </TooltipButton>
         </View>
       </View>
 
@@ -696,6 +843,21 @@ export default function GameScreen() {
         onCancel={() => setShowResetConfirm(false)}
         variant="danger"
         emoji="🔄"
+      />
+
+      {/* Reveal clue confirmation — buka clue 2 lalu 3, potong XP sekali */}
+      <ConfirmDialog
+        visible={showRevealClueConfirm}
+        title={`Buka Petunjuk Ke-${nextClueToReveal}?`}
+        message={`Membuka petunjuk ke-${nextClueToReveal} akan mengurangi XP sebesar ${
+          nextClueToReveal === 2 ? XP_PENALTY_CLUE_2 : XP_PENALTY_CLUE_3
+        }. Lanjutkan?`}
+        confirmText="Ya, Buka"
+        cancelText="Batal"
+        onConfirm={confirmRevealClue}
+        onCancel={() => setShowRevealClueConfirm(false)}
+        variant="danger"
+        emoji={nextClueToReveal === 2 ? "📖" : "🔤"}
       />
 
       {/* Reveal letter confirmation */}
@@ -756,8 +918,8 @@ const styles = StyleSheet.create({
   progressRingFill: { position: "absolute", width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderLeftColor: "transparent", borderBottomColor: "transparent", transform: [{ rotate: "-90deg" }] },
   progressText: { fontSize: 10, fontWeight: "800" },
   zoomGroup: { flexDirection: "row", alignItems: "center", gap: 6 },
-  zoomBtnSmall: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
-  zoomBtnSmallText: { fontSize: 18, fontWeight: "700", lineHeight: 32, textAlign: "center" },
+  zoomBtnSmall: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
+  zoomResetBtn: { height: 32, borderRadius: 16, borderWidth: 1, paddingHorizontal: 10, justifyContent: "center", alignItems: "center" },
   zoomLabel: { fontSize: 12, fontWeight: "700", minWidth: 36, textAlign: "center" },
   actionDivider: { width: 1, height: 24, marginHorizontal: 8 },
   revealGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -767,17 +929,41 @@ const styles = StyleSheet.create({
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
   bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 8 },
-  clueArrow: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
-  clueArrowText: { fontSize: 24, color: "#FFF", fontWeight: "300" },
-  clueContent: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4 },
-  clueNumberBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center" },
-  clueNumberText: { fontSize: 14, fontWeight: "800", color: "#0096cc" },
+  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 8, paddingHorizontal: 4, marginBottom: 8 },
+  clueArrow: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  clueSwitchBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 4,
+  },
+  clueDivider: { width: 1, height: 24, marginHorizontal: 6, borderRadius: 1 },
+  clueContent: { flex: 1, paddingHorizontal: 2, minWidth: 0 },
+  clueNumberBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", marginHorizontal: 2 },
+  clueNumberText: { fontSize: 13, fontWeight: "800", color: "#0096cc" },
   clueTextWrap: { flex: 1 },
   clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
   clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600", lineHeight: 19 },
   actionBar: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   actionItem: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   actionIcon: { fontSize: 18 },
+  clueActionItem: { marginRight: 2, minWidth: 72, paddingHorizontal: 10, flexDirection: "row" },
+  clueLabelWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
+  clueLabelText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.3 },
+  clueBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 3,
+  },
+  clueBadgeText: { fontSize: 9, fontWeight: "800" },
   keyboardWrapper: {},
 });
