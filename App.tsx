@@ -3,6 +3,12 @@ import { ThemeProvider } from "./src/presentation/components/providers/ThemeProv
 import ErrorBoundary from "./src/presentation/components/common/ErrorBoundary";
 import RootNavigator from "./src/presentation/navigation/RootNavigator";
 import { loggerInfo } from "./src/utils/logger";
+import { initLogDb, setupGlobalLogging } from "./src/utils/logDb";
+
+// Database log SQLite lokal: inisialisasi sejak awal + tangkap error global
+// supaya setiap issue otomatis tercatat (bisa dicek di halaman Pengaturan).
+setupGlobalLogging();
+void initLogDb();
 
 loggerInfo("App mounted");
 
