@@ -1,13 +1,37 @@
-import { getDatabase } from "../sources/database";
+import { supabase } from "../sources/supabase";
 import type { UserDoc } from "../models/schemas";
+
+const USER_COLUMNS = "user_id, display_name, email, total_xp, current_tier, coins, updated_at";
 
 export const userRepository = {
   async getById(userId: string): Promise<UserDoc | null> {
-    return (await getDatabase().users.findOne(userId).exec()) ?? null;
+    const { data, error } = await supabase
+      .from("users")
+      .select(USER_COLUMNS)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Gagal ambil profil dari Supabase: ${error.message}`);
+    }
+    return (data ?? null) as UserDoc | null;
   },
 
   async upsert(user: UserDoc): Promise<void> {
-    await getDatabase().users.upsert(user);
+    const { error } = await supabase.from("users").upsert(
+      {
+        user_id: user.user_id,
+        display_name: user.display_name,
+        email: user.email ?? null,
+        total_xp: user.total_xp,
+        current_tier: user.current_tier,
+        coins: user.coins,
+        updated_at: user.updated_at,
+      },
+      { onConflict: "user_id" },
+    );
+    if (error) {
+      throw new Error(`Gagal simpan profil ke Supabase: ${error.message}`);
+    }
   },
 
   async updateXp(userId: string, delta: number): Promise<void> {
@@ -19,6 +43,10 @@ export const userRepository = {
   },
 
   async getAll(): Promise<UserDoc[]> {
-    return getDatabase().users.find().exec();
+    const { data, error } = await supabase.from("users").select(USER_COLUMNS);
+    if (error) {
+      throw new Error(`Gagal ambil profil dari Supabase: ${error.message}`);
+    }
+    return (data ?? []) as UserDoc[];
   },
 };

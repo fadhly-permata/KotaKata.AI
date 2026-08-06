@@ -4,10 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "../components/providers/ThemeProvider";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
-import { initDatabase } from "../../data/sources/database";
-import { startSyncScheduler, syncToCloud } from "../../data/sources/syncEngine";
 import { userRepository } from "../../data/repositories/userRepository";
-import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { useGameStore } from "../stores/gameStore";
 import AuthScreen from "../../features/auth/AuthScreen";
 import MainMenuScreen from "../../features/game/MainMenuScreen";
@@ -30,20 +27,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator() {
   const { theme } = useTheme();
 
-  // Bootstrap data layer: init local DB, start periodic cloud sync, and on
-  // every session (login / restore) pull the player's cloud profile so XP
-  // survives across devices — then push it back up if it doesn't exist yet.
+  // Bootstrap data layer: on every session (login / restore) pull the player's
+  // cloud profile so XP survives across devices — then push it back up if it
+  // doesn't exist yet. Semua data disimpan langsung di Supabase, tidak ada
+  // database lokal / scheduler sync.
   useEffect(() => {
     let disposed = false;
-
-    (async () => {
-      try {
-        await initDatabase();
-        startSyncScheduler();
-      } catch (err) {
-        console.warn("Init local DB gagal", err);
-      }
-    })();
 
     const {
       data: { subscription },
@@ -55,7 +44,6 @@ export default function RootNavigator() {
       const uid = session.user.id;
       (async () => {
         try {
-          await initDatabase();
           const { data: profile, error } = await supabase
             .from("users")
             .select("user_id, display_name, email, total_xp, current_tier, coins, updated_at")
@@ -105,15 +93,6 @@ export default function RootNavigator() {
             });
             if (!disposed) useGameStore.getState().setTotalXp(0);
           }
-          // Bawa riwayat penemuan dari cloud ke DB lokal — RxDB lokal hanya
-          // in-memory, jadi tanpa ini daftar "kata sudah ditemukan" (untuk
-          // eksklusi soal & dedup) hilang tiap reload.
-          try {
-            await wordDiscoveryRepository.pullFromCloud(uid);
-          } catch (err) {
-            console.warn("Gagal memuat riwayat penemuan", err);
-          }
-          await syncToCloud();
         } catch (err) {
           console.warn("Gagal memuat profil pemain", err);
         }
