@@ -61,7 +61,13 @@ export default function CrosswordGrid({
     return set;
   }, [selectedWordIndex, board.words]);
 
-  const solvedCellKey = useMemo(() => board.words.map((w) => w.solved).join(","), [board.words]);
+  // Catatan: solvedCellKey dihitung FRESH tiap render (bukan useMemo).
+  // markWordSolved mengubah word.solved langsung di objek board (mutasi, bukan
+  // objek baru) — kalau key-nya dimemo pada [board.words], referensi tidak
+  // pernah berubah dan memo basi: sel yang baru terjawab tidak akan berubah
+  // hijau saat bermain. String hasil join berubah tiap ada kata yang baru
+  // solved, jadi solvedCells di bawah ikut recompute dengan benar.
+  const solvedCellKey = board.words.map((w) => w.solved).join(",");
   const solvedCells = useMemo(() => {
     const set = new Set<string>();
     for (const w of board.words) {
@@ -114,15 +120,17 @@ export default function CrosswordGrid({
         borderColor = theme.colors.cellBorder;
       }
 
+      // Cell solved TETAP bisa di-tap — tujuannya untuk memilih kata & melihat
+      // clue-nya lagi (input huruf tetap diblokir karena cell-nya terkunci).
       const handlePress = () => {
-        if (!isSolved) onCellPress(cell.row, cell.col);
+        onCellPress(cell.row, cell.col);
       };
 
       return (
         <TouchableOpacity
           key={key}
           testID={`cell-${cell.row}-${cell.col}`}
-          activeOpacity={isSolved ? 1 : 0.7}
+          activeOpacity={0.7}
           onPress={handlePress}
           {...(Platform.OS === "web" ? { onClick: handlePress } : {})}
           style={[

@@ -29,9 +29,15 @@ export function serializeBoardProgress(state: BoardProgressState): string {
 
 /**
  * Baca kembali snapshot progres dari layout_data. Mengembalikan null kalau
- * format tidak valid. Sel-sel grid di-relink ulang ke objek yang sama dengan
- * word.cells supaya mutasi in-place (solved / isLocked) tetap terlihat di
- * rendering grid.
+ * format tidak valid.
+ *
+ * Penting: JSON.stringify membuat SALINAN objek terpisah untuk board.grid dan
+ * untuk tiap word.cells — termasuk di sel persimpangan yang sama. Re-link di
+ * sini mengarahkan SEMUA word.cells[i] ke objek grid[row][col] yang sama,
+ * sehingga identitas objek konsisten persis seperti papan fresh. Tanpa ini,
+ * mutasi in-place (solved / isLocked) di word.cells tidak terlihat oleh
+ * board.grid → sel kata yang sudah solved bisa diedit lagi lewat inputLetter
+ * (yang membaca board.grid).
  */
 export function deserializeBoardProgress(json: string): BoardProgressState | null {
   try {
@@ -39,10 +45,12 @@ export function deserializeBoardProgress(json: string): BoardProgressState | nul
     if (!parsed?.board?.grid || !Array.isArray(parsed.board.words)) return null;
 
     for (const word of parsed.board.words) {
-      for (const cell of word.cells) {
+      for (let i = 0; i < word.cells.length; i++) {
+        const cell = word.cells[i];
         const gridCell = parsed.board.grid[cell.row]?.[cell.col];
         if (!gridCell) return null;
-        parsed.board.grid[cell.row][cell.col] = cell;
+        // Pakai objek grid sebagai kanonik → identitas sama untuk semua kata.
+        word.cells[i] = gridCell;
       }
     }
 

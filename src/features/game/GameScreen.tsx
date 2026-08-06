@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator, Modal } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -26,7 +26,7 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
-import type { WordCandidate } from "../../domain/entities/board";
+import type { Board, WordCandidate } from "../../domain/entities/board";
 import { loggerInfo } from "../../utils/logger";
 import {
   serializeBoardProgress,
@@ -97,6 +97,7 @@ export default function GameScreen() {
   const currentXp = useGameStore((s) => s.currentXp);
   const totalXp = useGameStore((s) => s.totalXp);
   const boardResult = useGameStore((s) => s.boardResult);
+  const dismissResult = useGameStore((s) => s.dismissResult);
   const markWordSolved = useGameStore((s) => s.markWordSolved);
   const reset = useGameStore((s) => s.reset);
   const resetBoard = useGameStore((s) => s.resetBoard);
@@ -134,6 +135,14 @@ export default function GameScreen() {
     }
     return totalActive > 0 ? filled / totalActive : 0;
   }, [board, filledLetters]);
+
+  // Semua sel sudah terisi tapi masih ada kata yang belum benar — tampilkan
+  // peringatan biar user tidak mengira halaman stuck (progress 100% tapi
+  // papan belum selesai).
+  const allFilledNotComplete = useMemo(() => {
+    if (!board || boardResult) return false;
+    return fillProgress >= 1 && !board.words.every((w) => w.solved);
+  }, [board, boardResult, fillProgress]);
 
   // Keep the focused cell visible: scroll the inner (zoomed) grid at zoom > 1,
   // and the outer page ScrollView at zoom 1 so auto-focus never hides the cell.
@@ -225,6 +234,9 @@ export default function GameScreen() {
     const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
       if (quittingRef.current) return;
       if (!board || boardResult) return;
+      // Papan sudah selesai (semua kata solved) — hasilnya sudah tersimpan,
+      // izinkan keluar tanpa dialog simpan progres.
+      if (board.words.every((w) => w.solved)) return;
       e.preventDefault();
       pendingNavAction.current = e.data.action;
       setShowQuitConfirm(true);
@@ -263,18 +275,8 @@ export default function GameScreen() {
     // Rekam kata-kata yang sudah terjawab di board ini ke riwayat penemuan
     // (dedup), supaya "Sejarah Saya" menampilkan semua kata yang sudah
     // dijawab — bukan cuma yang board-nya sampai selesai.
-    const now = new Date().toISOString();
-    for (const word of store.board.words) {
-      if (!word.solved || !word.word_id) continue;
-      const existing = await wordDiscoveryRepository.getByUserAndWord(user.id, word.word_id);
-      if (existing) continue;
-      await wordDiscoveryRepository.add({
-        discovery_id: `disc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${word.word_id}`,
-        user_id: user.id,
-        word_id: word.word_id,
-        discovered_at: now,
-      });
-    }
+    await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, store.board.words);
+    await wordDiscoveryRepository.flushDiscoveries();
 
     await triggerBoardCompletionSync();
   }, []);
@@ -363,26 +365,63 @@ export default function GameScreen() {
       if (word.solved) continue;
       if (!isWordComplete(word, filledLetters)) continue;
 
-      // Skip words that were fully revealed — user used hints, no XP gain
-      const hint = hints[String(i)];
-      if (hint?.revealedCells?.length) {
-        const allNonLocked = word.cells.filter((c) => !c.isLocked);
-        const allRevealed = allNonLocked.every(
-          (c) => hint.revealedCells.includes(`${c.row},${c.col}`)
-        );
-        if (allRevealed) {
-          loggerInfo(`Word ${i} fully revealed — skipping auto-solve`);
-          continue;
-        }
-      }
-
+      // Catatan: tidak ada lagi skip untuk kata full-reveal — kata itu tetap
+      // di-solve (biar papan bisa selesai, tidak stuck di 100%), dan soal XP
+      // ditangani di markWordSolved (full-reveal = 0 XP).
       const result = validateWord(word, i, filledLetters);
       if (result.isCorrect) {
         markWordSolved(i);
         loggerInfo(`Word ${i} CORRECT: ${word.word}`);
       }
     }
-  }, [filledLetters, board, boardResult, markWordSolved, hints]);
+  }, [filledLetters, board, boardResult, markWordSolved]);
+
+  // Rekam kata yang baru terjawab ke riwayat penemuan SEGERA — tidak menunggu
+  // board selesai atau keluar. Tanpa ini, kalau user menutup tab / refresh di
+  // tengah permainan, kata yang sudah dijawab tidak pernah masuk "Sejarah Saya".
+  // Dedup lokal + cloud ada di recordDiscoveriesForWords, jadi aman dipanggil
+  // berulang (perubahan filledLetters bisa memicu lebih dari sekali).
+  const lastBoardRef = useRef<Board | null>(null);
+  const prevSolvedIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!board) return;
+    const solvedIds = board.words
+      .filter((w) => w.solved && w.word_id)
+      .map((w) => w.word_id as string);
+
+    // Papan baru (termasuk resume): seed daftar solved — kata yang sudah solved
+    // sejak awal tidak di-rekam di sini (di-backfill saat board selesai).
+    if (lastBoardRef.current !== board) {
+      lastBoardRef.current = board;
+      prevSolvedIdsRef.current = solvedIds;
+      return;
+    }
+
+    const newlySolved = solvedIds.filter((id) => !prevSolvedIdsRef.current.includes(id));
+    if (newlySolved.length === 0) return;
+    prevSolvedIdsRef.current = solvedIds;
+
+    const newlySolvedSet = new Set(newlySolved);
+    const newlySolvedWords = board.words.filter(
+      (w) => w.solved && w.word_id && newlySolvedSet.has(w.word_id),
+    );
+    (async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        await initDatabase();
+        await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, newlySolvedWords);
+        // Tunggu push ke Supabase selesai — kalau user langsung pindah ke
+        // halaman Sejarah, riwayat terbaru sudah tersimpan sebelum halaman
+        // itu membaca cloud.
+        await wordDiscoveryRepository.flushDiscoveries();
+      } catch (err) {
+        loggerInfo("Gagal merekam kata yang baru terjawab", err);
+      }
+    })();
+  }, [board, filledLetters]);
 
   // Persist hasil board: simpan board selesai + kata yang ditemukan + XP user,
   // lalu push semua ke Supabase (syncToCloud).
@@ -428,20 +467,11 @@ export default function GameScreen() {
         });
 
         // 2) Kata-kata yang terpecahkan → riwayat penemuan (word discoveries).
-        //    Hanya kata dari vocabulary asli (punya word_id) — kata fallback demo
-        //    tidak ada di tabel vocabulary, jadi tidak dicatat.
-        for (const word of board.words) {
-          if (!word.solved) continue;
-          if (!word.word_id) continue;
-          const existing = await wordDiscoveryRepository.getByUserAndWord(user.id, word.word_id);
-          if (existing) continue;
-          await wordDiscoveryRepository.add({
-            discovery_id: `disc-${Date.now()}-${rand}-${word.word_id}`,
-            user_id: user.id,
-            word_id: word.word_id,
-            discovered_at: now,
-          });
-        }
+        //    Dedup lokal + cloud, lalu push langsung ke Supabase — jadi Sejarah
+        //    bertambah walau sync periodik belum jalan. (Hanya kata vocabulary
+        //    asli yang punya word_id; kata fallback demo tidak dicatat.)
+        await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, board.words);
+        await wordDiscoveryRepository.flushDiscoveries();
 
         // 3) XP kumulatif user + tier terbaru
         const prevUser = await userRepository.getById(user.id);
@@ -573,10 +603,6 @@ export default function GameScreen() {
       </View>
     );
   }
-  if (boardResult) {
-    return <CompletionOverlay result={boardResult} onPlayAgain={reset} />;
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Scrollable area */}
@@ -606,6 +632,20 @@ export default function GameScreen() {
             <Text style={[styles.xpPillText, { color: "#a02070" }]}>⭐ {totalXp + currentXp} XP</Text>
           </View>
         </View>
+
+        {/* Peringatan: semua sel terisi tapi masih ada kata yang belum benar */}
+        {allFilledNotComplete && (
+          <View
+            style={[
+              styles.wrongHint,
+              { backgroundColor: theme.colors.error + "1A", borderColor: theme.colors.error },
+            ]}
+          >
+            <Text style={[styles.wrongHintText, { color: theme.colors.error }]}>
+              ⚠️ Semua sel sudah terisi — masih ada kata yang belum benar. Periksa kembali jawabanmu.
+            </Text>
+          </View>
+        )}
 
         {/* Level Info Card */}
         <View style={[styles.levelCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -686,15 +726,7 @@ export default function GameScreen() {
           {/* Separator */}
           <View style={[styles.clueDivider, { backgroundColor: "rgba(255,255,255,0.35)" }]} />
 
-          {/* Isi clue — tombol switch selalu tampil (nonaktif kalau belum ada clue lain) */}
-          <View style={styles.clueContent}>
-            <View style={styles.clueTextWrap}>
-              <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
-              <Text style={styles.clueMain} numberOfLines={2}>
-                {clueLevelText}
-              </Text>
-            </View>
-          </View>
+          {/* Tombol ganti tampilan clue — ditaruh di DEPAN teks clue biar konteksnya jelas */}
           <TooltipButton
             tooltip={
               !canRotateClue
@@ -711,6 +743,16 @@ export default function GameScreen() {
           >
             <NumberSquareIcon number={shownClueLevel} size={20} color="#FFF" />
           </TooltipButton>
+
+          {/* Isi clue */}
+          <View style={styles.clueContent}>
+            <View style={styles.clueTextWrap}>
+              <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
+              <Text style={styles.clueMain} numberOfLines={2}>
+                {clueLevelText}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Action Bar + Zoom */}
@@ -810,12 +852,15 @@ export default function GameScreen() {
           {/* Spacer */}
           <View style={{ flex: 1 }} />
 
-          {/* Keyboard Toggle (Right) */}
+          {/* Keyboard Toggle (Right) — border bulat biar konsisten dengan tombol lain */}
           <TooltipButton
             tooltip={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
             icon="⌨️"
             accessibilityLabel={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
-            style={[styles.actionItem, { backgroundColor: theme.colors.surface }]}
+            style={[
+              styles.actionItem,
+              { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+            ]}
             activeOpacity={0.7}
             onPress={() => setKeyboardVisible((v) => !v)}
           >
@@ -904,6 +949,28 @@ export default function GameScreen() {
         variant="danger"
         emoji="💡"
       />
+
+      {/* Popup selesai — dialog di ATAS papan (papan yang sudah selesai tetap
+          terlihat di belakang, seperti sebelumnya). Tombol: Lihat Papan /
+          Beranda / Main Lagi. */}
+      <Modal
+        transparent
+        visible={!!boardResult}
+        animationType="fade"
+        onRequestClose={dismissResult}
+      >
+        {boardResult && (
+          <CompletionOverlay
+            result={boardResult}
+            onPlayAgain={reset}
+            onViewBoard={dismissResult}
+            onHome={() => {
+              reset();
+              navigation.goBack();
+            }}
+          />
+        )}
+      </Modal>
     </View>
   );
 }
@@ -930,6 +997,16 @@ const styles = StyleSheet.create({
   progressRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, justifyContent: "center", alignItems: "center" },
   progressRingFill: { position: "absolute", width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderLeftColor: "transparent", borderBottomColor: "transparent", transform: [{ rotate: "-90deg" }] },
   progressText: { fontSize: 10, fontWeight: "800" },
+  wrongHint: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  wrongHintText: { fontSize: 12, fontWeight: "600", flexShrink: 1, lineHeight: 17 },
   zoomGroup: { flexDirection: "row", alignItems: "center", gap: 6 },
   zoomBtnSmall: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   zoomResetBtn: { height: 32, borderRadius: 16, borderWidth: 1, paddingHorizontal: 10, justifyContent: "center", alignItems: "center" },
@@ -952,6 +1029,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 4,
+    marginRight: 6,
   },
   clueDivider: { width: 1, height: 24, marginHorizontal: 6, borderRadius: 1 },
   clueContent: { flex: 1, paddingHorizontal: 2, minWidth: 0 },

@@ -49,6 +49,7 @@ interface GameState {
   revealWord: (wordIndex: number) => void;
   markWordSolved: (wordIndex: number) => void;
   setTotalXp: (totalXp: number) => void;
+  dismissResult: () => void;
   resumeProgress: (progress: BoardProgressState) => void;
   reset: () => void;
   resetBoard: () => void;
@@ -103,12 +104,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (wordsAtCell.length === 0) return;
 
     // Pilih kata idx di cell ini. Kalau cell-nya terkunci (hurufnya sudah
-    // terkunci dari kata lain yang solved), langsung fokus ke cell pertama
-    // yang masih bisa diketik di kata itu — seleksi tetap berpindah, tapi
-    // input langsung jalan.
+    // terkunci dari kata lain yang solved) DAN kata itu BELUM solved, langsung
+    // fokus ke cell pertama yang masih bisa diketik di kata itu. Kalau kata
+    // sudah solved, fokus tetap di sel yang di-tap — kata solved hanya bisa
+    // di-select/dilihat clue-nya, tidak bisa diedit.
     const focusWord = (idx: number) => {
       const word = board.words[idx];
-      if (cell.isLocked) {
+      if (cell.isLocked && !word.solved) {
         const firstUnlocked = word.cells.find((c) => !c.isLocked);
         if (firstUnlocked) {
           set({
@@ -127,13 +129,32 @@ export const useGameStore = create<GameState>((set, get) => ({
     };
 
     if (state.selectedCell?.row === row && state.selectedCell?.col === col) {
-      // Cell yang sama di-tap lagi — kalau ini cell persimpangan (dilewati 2
-      // kata), pindah ke kata lain yang masih bisa dimainkan (mendatar ↔ menurun).
-      const otherIdx = wordsAtCell.find(
-        (idx) => idx !== state.selectedWordIndex && isWordPlayable(board.words[idx]),
-      );
+      // Cell yang sama di-tap lagi — pindah ke kata lain di cell ini. Prioritas
+      // kata yang masih bisa dimainkan; kalau semuanya sudah selesai tetap bisa
+      // pindah, supaya kata yang sudah terjawab bisa dipilih untuk dilihat.
+      const otherIdx =
+        wordsAtCell.find(
+          (idx) => idx !== state.selectedWordIndex && isWordPlayable(board.words[idx]),
+        ) ?? wordsAtCell.find((idx) => idx !== state.selectedWordIndex);
       if (otherIdx !== undefined) focusWord(otherIdx);
       return;
+    }
+
+    // Cell persimpangan (dilewati 2 kata yang masih bisa dimainkan): tap
+    // SEKALI langsung mengganti orientasi. Kalau kata yang sedang aktif juga
+    // melewati cell ini, pindah ke kata satunya (mendatar ↔ menurun) — jadi
+    // user tidak perlu mengetuk dua kali untuk berpindah arah.
+    const playableAtCell = wordsAtCell.filter((idx) => isWordPlayable(board.words[idx]));
+    if (
+      playableAtCell.length > 1 &&
+      state.selectedWordIndex != null &&
+      playableAtCell.includes(state.selectedWordIndex)
+    ) {
+      const otherIdx = playableAtCell.find((idx) => idx !== state.selectedWordIndex);
+      if (otherIdx !== undefined) {
+        focusWord(otherIdx);
+        return;
+      }
     }
 
     // Cell baru — pilih kata yang melewati cell ini. Lanjutkan kata yang
@@ -141,19 +162,30 @@ export const useGameStore = create<GameState>((set, get) => ({
     // mendatar, lalu kata playable pertama.
     const activeIdx = state.selectedWordIndex;
     let targetIdx: number | undefined;
-    if (activeIdx != null && wordsAtCell.includes(activeIdx) && isWordPlayable(board.words[activeIdx])) {
+    // Sel yang terkunci milik kata yang SUDAH SOLVED → pilih kata solved itu
+    // (biar clue-nya bisa dilihat) dan fokus tetap di sel yang di-tap. Tidak
+    // melompat ke kata persilangan yang masih bisa diketik — kata solved hanya
+    // bisa di-select/fokus, bukan diedit.
+    const solvedAtCell = wordsAtCell.filter((idx) => board.words[idx].solved);
+    if (cell.isLocked && solvedAtCell.length > 0) {
+      targetIdx = solvedAtCell[0];
+    } else if (activeIdx != null && wordsAtCell.includes(activeIdx) && isWordPlayable(board.words[activeIdx])) {
       targetIdx = activeIdx;
     } else {
       targetIdx =
         wordsAtCell.find(
           (idx) => board.words[idx].orientation === "horizontal" && isWordPlayable(board.words[idx]),
         ) ??
-        wordsAtCell.find((idx) => isWordPlayable(board.words[idx]));
+        wordsAtCell.find((idx) => isWordPlayable(board.words[idx])) ??
+        // Semua kata di cell ini sudah selesai — tetap bisa dipilih untuk melihat clue-nya.
+        wordsAtCell[0];
     }
     if (targetIdx === undefined) return; // semua kata di cell ini sudah selesai
 
     focusWord(targetIdx);
   },
+
+  dismissResult: () => set({ boardResult: null }),
 
   toggleOrientation: () => {
     const { board, selectedCell, selectedWordIndex } = get();
@@ -366,7 +398,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     for (const cell of word.cells) {
       cell.isLocked = true;
     }
-    const xpGain = calcXpGain(word.word.length, board.tierLevel);
+    // Kata yang SEMUA hurufnya dibuka lewat reveal (hint) tetap dianggap solved
+    // (supaya papan bisa selesai — tidak stuck di 100%) tapi tidak dapat XP.
+    const hint = get().hints[String(wordIndex)];
+    const fullyRevealed =
+      !!hint?.revealedCells?.length &&
+      word.cells.every((c) => hint.revealedCells.includes(`${c.row},${c.col}`));
+    const xpGain = fullyRevealed ? 0 : calcXpGain(word.word.length, board.tierLevel);
     const newWordsSolved = get().wordsSolved + 1;
     const newCurrentXp = get().currentXp + xpGain;
 

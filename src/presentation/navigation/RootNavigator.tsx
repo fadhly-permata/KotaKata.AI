@@ -7,6 +7,7 @@ import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { initDatabase } from "../../data/sources/database";
 import { startSyncScheduler, syncToCloud } from "../../data/sources/syncEngine";
 import { userRepository } from "../../data/repositories/userRepository";
+import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { useGameStore } from "../stores/gameStore";
 import AuthScreen from "../../features/auth/AuthScreen";
 import MainMenuScreen from "../../features/game/MainMenuScreen";
@@ -103,6 +104,14 @@ export default function RootNavigator() {
               updated_at: now,
             });
             if (!disposed) useGameStore.getState().setTotalXp(0);
+          }
+          // Bawa riwayat penemuan dari cloud ke DB lokal — RxDB lokal hanya
+          // in-memory, jadi tanpa ini daftar "kata sudah ditemukan" (untuk
+          // eksklusi soal & dedup) hilang tiap reload.
+          try {
+            await wordDiscoveryRepository.pullFromCloud(uid);
+          } catch (err) {
+            console.warn("Gagal memuat riwayat penemuan", err);
           }
           await syncToCloud();
         } catch (err) {
