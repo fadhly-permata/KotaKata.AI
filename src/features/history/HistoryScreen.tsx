@@ -14,9 +14,10 @@ import {
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
 import { useAuth } from "../auth/useAuth";
-import { initDatabase } from "../../data/sources/database";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
+import { timeAgo } from "../../utils/timeAgo";
+import type { WordDiscoveryDoc, VocabularyDoc } from "../../data/models/schemas";
 
 interface DiscoveryItem {
   id: string;
@@ -27,22 +28,6 @@ interface DiscoveryItem {
   discoveredAt: string; // ISO timestamp
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "baru saja";
-  if (mins < 60) return `${mins} menit lalu`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} jam lalu`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} hari lalu`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks} minggu lalu`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} bulan lalu`;
-  return `${Math.floor(months / 12)} tahun lalu`;
-}
-
 export default function HistoryScreen() {
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -50,6 +35,7 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState<DiscoveryItem | null>(null);
   const [items, setItems] = useState<DiscoveryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -60,8 +46,6 @@ export default function HistoryScreen() {
 
     (async () => {
       try {
-        await initDatabase();
-
         // Tunggu semua pencatatan discovery yang masih berjalan (termasuk push
         // langsung ke Supabase) selesai dulu. Kalau user membuka Sejarah tepat
         // setelah menjawab sebuah kata, riwayat terbaru sudah sampai cloud
@@ -69,49 +53,20 @@ export default function HistoryScreen() {
         // karena baca cloud duluan daripada push-nya.
         await wordDiscoveryRepository.flushDiscoveries();
 
-        // Sumber kebenaran: Supabase (bertahan lintas sesi/reload). Kalau
-        // offline, fallback ke RxDB lokal (isi = data yang tersinkron sesi ini).
-        let discoveries;
-        let vocabMap;
+        // Sumber kebenaran: Supabase (bertahan lintas sesi/reload). Tidak ada
+        // database lokal — kalau cloud gagal, tampilkan pesan error.
+        let discoveries: WordDiscoveryDoc[] = [];
+        let vocabMap = new Map<string, VocabularyDoc>();
         try {
           discoveries = await wordDiscoveryRepository.getByUserFromCloud(user.id);
           const words = await vocabularyRepository.getByIdsFromCloud(
             discoveries.map((d) => d.word_id),
           );
-          // Gabungkan vocab cloud dengan seed lokal — kata yang belum ada di
-          // tabel vocabulary cloud tidak boleh membuat item riwayat hilang
-          // diam-diam dari halaman.
-          const localWords = await vocabularyRepository.getByIds(
-            discoveries.map((d) => d.word_id),
-          );
           vocabMap = new Map(words.map((v) => [v.word_id, v]));
-          for (const lw of localWords) {
-            if (!vocabMap.has(lw.word_id)) vocabMap.set(lw.word_id, lw);
-          }
-          // Hydrate riwayat ke DB lokal supaya dedup & eksklusi soal di sesi
-          // ini ikut memakai kata-kata yang sudah ditemukan.
-          wordDiscoveryRepository.pullFromCloud(user.id).catch(() => {});
         } catch (cloudErr) {
-          console.warn("Riwayat dari cloud gagal — pakai lokal", cloudErr);
-          discoveries = await wordDiscoveryRepository.getByUser(user.id);
-          const words = await vocabularyRepository.getByIds(
-            discoveries.map((d) => d.word_id),
-          );
-          vocabMap = new Map(words.map((v) => [v.word_id, v]));
-        }
-
-        // Cloud sukses tapi kosong padahal lokal punya data (push masih dalam
-        // perjalanan / sempat gagal) — tampilkan data lokal dulu; sync periodik
-        // akan menyusul menaikkan sisanya ke cloud.
-        if (discoveries.length === 0) {
-          const localFallback = await wordDiscoveryRepository.getByUser(user.id);
-          if (localFallback.length > 0) {
-            discoveries = localFallback;
-            const words = await vocabularyRepository.getByIds(
-              localFallback.map((d) => d.word_id),
-            );
-            vocabMap = new Map(words.map((v) => [v.word_id, v]));
-          }
+          console.warn("Gagal memuat riwayat dari cloud", cloudErr);
+          if (!cancelled) setLoadError(true);
+          return;
         }
 
         const mapped: DiscoveryItem[] = [];
@@ -219,11 +174,13 @@ export default function HistoryScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🎓</Text>
+              <Text style={styles.emptyEmoji}>{loadError ? "📡" : "🎓"}</Text>
               <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                {search
-                  ? "Kata tidak ditemukan"
-                  : "Belum ada kata yang ditemukan. Selesaikan papan pertama untuk mulai mengoleksi kata!"}
+                {loadError
+                  ? "Gagal memuat riwayat — periksa koneksi internetmu."
+                  : search
+                    ? "Kata tidak ditemukan"
+                    : "Belum ada kata yang ditemukan. Selesaikan papan pertama untuk mulai mengoleksi kata!"}
               </Text>
             </View>
           }
