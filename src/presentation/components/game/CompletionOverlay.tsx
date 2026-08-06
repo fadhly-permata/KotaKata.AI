@@ -16,9 +16,11 @@ interface BoardResult {
 interface Props {
   result: BoardResult;
   onPlayAgain: () => void;
+  onViewBoard: () => void;
+  onHome: () => void;
 }
 
-export default function CompletionOverlay({ result, onPlayAgain }: Props) {
+export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, onHome }: Props) {
   const { theme } = useTheme();
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -89,13 +91,32 @@ export default function CompletionOverlay({ result, onPlayAgain }: Props) {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.playBtn, { backgroundColor: theme.colors.primary }]}
-          activeOpacity={0.7}
-          onPress={onPlayAgain}
-        >
-          <Text style={styles.playBtnText}>Main Lagi</Text>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={onViewBoard}
+          >
+            <Text style={styles.iconBtnEmoji}>🧩</Text>
+            <Text style={[styles.iconBtnLabel, { color: theme.colors.textSecondary }]}>Lihat Papan</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={onHome}
+          >
+            <Text style={styles.iconBtnEmoji}>🏠</Text>
+            <Text style={[styles.iconBtnLabel, { color: theme.colors.textSecondary }]}>Beranda</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: theme.colors.primary }]}
+            activeOpacity={0.7}
+            onPress={onPlayAgain}
+          >
+            <Text style={styles.iconBtnEmoji}>🔄</Text>
+            <Text style={[styles.iconBtnLabel, { color: "#FFF" }]}>Main Lagi</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </View>
   );
@@ -136,11 +157,19 @@ const styles = StyleSheet.create({
   statItem: { alignItems: "center", gap: 4 },
   statValue: { fontSize: 20, fontWeight: "800" },
   statLabel: { fontSize: 11, fontWeight: "500" },
-  playBtn: {
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
     width: "100%",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
   },
-  playBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+  iconBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  iconBtnEmoji: { fontSize: 22 },
+  iconBtnLabel: { fontSize: 11, fontWeight: "700" },
 });

@@ -60,8 +60,8 @@ const lightTheme: Theme = {
     cellText: "#2e1a28",
     cellBlocked: "#2e1a28",
     cellLocked: "#dcc8e0",
-    cellSolved: "#f0f0ff",
-    cellSolvedText: "#e040a0",
+    cellSolved: "#ffd6ee", // pink muda — sama dengan warna pill XP
+    cellSolvedText: "#a02070",
   },
 };
 
@@ -87,7 +87,7 @@ const darkTheme: Theme = {
     cellText: "#fef7ff",
     cellBlocked: "#1a1020",
     cellLocked: "#4a3850",
-    cellSolved: "#2a2040",
+    cellSolved: "#47203f", // pink gelap — konsisten dengan identitas brand
     cellSolvedText: "#f0a0cc",
   },
 };

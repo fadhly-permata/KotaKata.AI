@@ -88,6 +88,7 @@ export async function syncToCloud(): Promise<void> {
 
   isSyncing = true;
   loggerInfo("Starting cloud sync...");
+  let failedRows = 0;
 
   try {
     const db = getDatabase();
@@ -95,22 +96,45 @@ export async function syncToCloud(): Promise<void> {
     // Sync users
     const users = await db.users.find().exec();
     for (const user of users) {
-      await syncUser(user.toJSON());
+      try {
+        await syncUser(user.toJSON());
+      } catch (err) {
+        failedRows++;
+        loggerWarn("Sync user gagal (dilewati)", err);
+      }
     }
 
     // Sync boards
     const boards = await db.saved_boards.find().exec();
     for (const board of boards) {
-      await syncBoard(board.toJSON());
+      try {
+        await syncBoard(board.toJSON());
+      } catch (err) {
+        failedRows++;
+        loggerWarn("Sync board gagal (dilewati)", err);
+      }
     }
 
-    // Sync discoveries
+    // Sync discoveries — SANGAT PENTING: tiap baris di-isolasi sendiri. Kalau
+    // satu baris gagal (mis. sisa baris lama yang word_id-nya tidak ada di
+    // vocabulary, atau policy RLS belum ada), baris lain TETAP ikut ter-push.
+    // Sebelumnya satu baris yang gagal membatalkan seluruh sync → XP & board
+    // tersimpan tapi riwayat "Sejarah Saya" tidak pernah bertambah.
     const discoveries = await db.word_discoveries.find().exec();
     for (const discovery of discoveries) {
-      await syncDiscovery(discovery.toJSON());
+      try {
+        await syncDiscovery(discovery.toJSON());
+      } catch (err) {
+        failedRows++;
+        loggerWarn(`Sync discovery gagal (${discovery.word_id} — dilewati)`, err);
+      }
     }
 
-    loggerInfo("Cloud sync completed");
+    loggerInfo(
+      failedRows === 0
+        ? "Cloud sync completed"
+        : `Cloud sync selesai — ${failedRows} baris gagal (dilewati)`,
+    );
   } catch (err) {
     loggerError("Cloud sync failed", err);
   } finally {

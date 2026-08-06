@@ -62,6 +62,13 @@ export default function HistoryScreen() {
       try {
         await initDatabase();
 
+        // Tunggu semua pencatatan discovery yang masih berjalan (termasuk push
+        // langsung ke Supabase) selesai dulu. Kalau user membuka Sejarah tepat
+        // setelah menjawab sebuah kata, riwayat terbaru sudah sampai cloud
+        // sebelum di-baca — tanpa ini halaman sering tampak "tidak bertambah"
+        // karena baca cloud duluan daripada push-nya.
+        await wordDiscoveryRepository.flushDiscoveries();
+
         // Sumber kebenaran: Supabase (bertahan lintas sesi/reload). Kalau
         // offline, fallback ke RxDB lokal (isi = data yang tersinkron sesi ini).
         let discoveries;
@@ -71,7 +78,19 @@ export default function HistoryScreen() {
           const words = await vocabularyRepository.getByIdsFromCloud(
             discoveries.map((d) => d.word_id),
           );
+          // Gabungkan vocab cloud dengan seed lokal — kata yang belum ada di
+          // tabel vocabulary cloud tidak boleh membuat item riwayat hilang
+          // diam-diam dari halaman.
+          const localWords = await vocabularyRepository.getByIds(
+            discoveries.map((d) => d.word_id),
+          );
           vocabMap = new Map(words.map((v) => [v.word_id, v]));
+          for (const lw of localWords) {
+            if (!vocabMap.has(lw.word_id)) vocabMap.set(lw.word_id, lw);
+          }
+          // Hydrate riwayat ke DB lokal supaya dedup & eksklusi soal di sesi
+          // ini ikut memakai kata-kata yang sudah ditemukan.
+          wordDiscoveryRepository.pullFromCloud(user.id).catch(() => {});
         } catch (cloudErr) {
           console.warn("Riwayat dari cloud gagal — pakai lokal", cloudErr);
           discoveries = await wordDiscoveryRepository.getByUser(user.id);
@@ -79,6 +98,20 @@ export default function HistoryScreen() {
             discoveries.map((d) => d.word_id),
           );
           vocabMap = new Map(words.map((v) => [v.word_id, v]));
+        }
+
+        // Cloud sukses tapi kosong padahal lokal punya data (push masih dalam
+        // perjalanan / sempat gagal) — tampilkan data lokal dulu; sync periodik
+        // akan menyusul menaikkan sisanya ke cloud.
+        if (discoveries.length === 0) {
+          const localFallback = await wordDiscoveryRepository.getByUser(user.id);
+          if (localFallback.length > 0) {
+            discoveries = localFallback;
+            const words = await vocabularyRepository.getByIds(
+              localFallback.map((d) => d.word_id),
+            );
+            vocabMap = new Map(words.map((v) => [v.word_id, v]));
+          }
         }
 
         const mapped: DiscoveryItem[] = [];
