@@ -15,9 +15,7 @@ import NumberSquareIcon from "../../presentation/components/common/NumberSquareI
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { selectWordPool } from "../../domain/usecases/wordPoolFilter";
-import { ensureVocabularySeeded, initDatabase } from "../../data/sources/database";
 import { supabase } from "../../data/sources/supabase";
-import { triggerBoardCompletionSync } from "../../data/sources/syncEngine";
 import { useAuth } from "../auth/useAuth";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
 import UserAvatar from "../../presentation/components/common/UserAvatar";
@@ -245,7 +243,7 @@ export default function GameScreen() {
   }, [navigation, board, boardResult]);
 
   // Simpan snapshot progres board yang sedang berjalan (belum selesai) ke
-  // RxDB + Supabase, supaya bisa di-resume dari "Mulai Bermain".
+  // Supabase, supaya bisa di-resume dari "Mulai Bermain".
   const saveInProgress = useCallback(async () => {
     const store = useGameStore.getState();
     if (!store.board) return;
@@ -254,7 +252,6 @@ export default function GameScreen() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    await initDatabase();
     await boardRepository.save({
       board_id: IN_PROGRESS_BOARD_ID(user.id),
       user_id: user.id,
@@ -277,8 +274,6 @@ export default function GameScreen() {
     // dijawab — bukan cuma yang board-nya sampai selesai.
     await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, store.board.words);
     await wordDiscoveryRepository.flushDiscoveries();
-
-    await triggerBoardCompletionSync();
   }, []);
 
   const handleConfirmQuit = useCallback(() => {
@@ -313,10 +308,7 @@ export default function GameScreen() {
 
     (async () => {
       try {
-        // 1) Init local DB + seed vocabulary on first run
-        await ensureVocabularySeeded();
-
-        // 2) Coba resume board in-progress milik user ini
+        // 1) Coba resume board in-progress milik user ini (dari Supabase)
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -331,7 +323,7 @@ export default function GameScreen() {
           }
         }
 
-        // 3) Tidak ada progres tersimpan — generate papan baru sesuai tier.
+        // 2) Tidak ada progres tersimpan — generate papan baru sesuai tier.
         //    Kata yang sudah pernah ditemukan dikecualikan biar soal selalu fresh.
         const playerTier = calcTier(useGameStore.getState().totalXp);
         const discoveredWordIds = user
@@ -411,7 +403,6 @@ export default function GameScreen() {
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) return;
-        await initDatabase();
         await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, newlySolvedWords);
         // Tunggu push ke Supabase selesai — kalau user langsung pindah ke
         // halaman Sejarah, riwayat terbaru sudah tersimpan sebelum halaman
@@ -436,7 +427,6 @@ export default function GameScreen() {
 
         const now = new Date().toISOString();
         const rand = Math.random().toString(36).slice(2, 8);
-        await initDatabase();
 
         // 0) Papan sudah selesai — hapus snapshot in-progress (kalau ada),
         //    supaya "Mulai Bermain" berikutnya bikin papan baru, bukan me-resume yang tamat.
@@ -487,9 +477,6 @@ export default function GameScreen() {
           updated_at: now,
         });
         useGameStore.getState().setTotalXp(newTotalXp);
-
-        // 4) Push ke Supabase
-        await triggerBoardCompletionSync();
       } catch (err) {
         loggerInfo("Gagal menyimpan hasil board", err);
       }

@@ -24,7 +24,10 @@ alter table public.word_discoveries drop column if exists clue_1;
 alter table public.word_discoveries drop column if exists clue_2;
 alter table public.word_discoveries drop column if exists clue_3;
 
--- 4) FK ke vocabulary (kaskade: vocabulary dihapus → discovery ikut terhapus)
+-- 4) FK ke vocabulary (kaskade: vocabulary dihapus → discovery ikut terhapus).
+--    Idempotent: drop dulu biar file ini aman dijalankan ulang.
+alter table public.word_discoveries
+  drop constraint if exists word_discoveries_word_id_fkey;
 alter table public.word_discoveries
   add constraint word_discoveries_word_id_fkey
   foreign key (word_id) references public.vocabulary(word_id) on delete cascade;
