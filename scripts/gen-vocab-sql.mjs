@@ -1,7 +1,9 @@
 // Builds supabase/vocabulary.sql from src/data/vocabulary/tierN*.ts
-// (1000 kata/tier, 10 tier, semua kata asli KBBI — lihat scripts/build-kbbi-seed.mjs).
+// (1000 kata/tier, semua kata asli KBBI — lihat scripts/build-kbbi-seed.mjs).
 // Validates: exactly 1000 words per tier, no duplicate words, no duplicate ids.
-// Usage: node scripts/gen-vocab-sql.mjs
+// Usage:
+//   node scripts/gen-vocab-sql.mjs          # semua tier (1..10)
+//   node scripts/gen-vocab-sql.mjs 4        # hanya tier 1..4
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,18 +15,26 @@ const outPath = join(ROOT, "supabase", "vocabulary.sql");
 
 // Setiap tier: 1000 kata
 const WORDS_PER_TIER = 1000;
+// Argumen opsional: batas tier tertinggi yang disertakan (mis. "4" => tier 1..4)
+const maxTier = process.argv[2] ? Number(process.argv[2]) : Infinity;
 
-const esc = (s) => `'${s.replace(/'/g, "''").replace(/"/g, '\\"')}'`;
+const esc = (s) => `'${s.replace(/'/g, "''").replace(/\"/g, '\\"')}'`;
 
 // ---- Collect items: { word_id, word, clue_1, clue_2, clue_3, tier_level } ----
 const items = [];
 const errors = [];
 
-const tierFiles = readdirSync(vocabDir).filter((f) => /^tier\d+[ab]?\.ts$/.test(f)).sort();
+// Cocokkan file tier: tier1.ts..tier10.ts, tierNa.ts/tierNb.ts, dan part
+// (mis. tier4-part1.ts) — part file ikut dibaca agar aggregator tier4.ts
+// (yang hanya import + spread) tetap menghasilkan 1000 kata utuh.
+const tierFiles = readdirSync(vocabDir)
+  .filter((f) => /^tier(\d+)(?:[ab]|-part\d+)?\.ts$/.test(f))
+  .sort();
 const byTier = new Map();
 for (const f of tierFiles) {
   const m = f.match(/^tier(\d+)/);
   const tier = Number(m[1]);
+  if (tier > maxTier) continue;
   const src = readFileSync(join(vocabDir, f), "utf8");
   const tuples = [...src.matchAll(/^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm)].map(
     (mm) => [mm[1], mm[2], mm[3], mm[4]],

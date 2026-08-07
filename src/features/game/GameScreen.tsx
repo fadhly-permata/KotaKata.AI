@@ -25,7 +25,7 @@ import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
 import type { Board, WordCandidate } from "../../domain/entities/board";
-import { loggerInfo } from "../../utils/logger";
+import { loggerInfo, loggerWarn } from "../../utils/logger";
 import {
   serializeBoardProgress,
   deserializeBoardProgress,
@@ -242,6 +242,26 @@ export default function GameScreen() {
     return unsubscribe;
   }, [navigation, board, boardResult]);
 
+  /**
+   * Rekam SEMUA kata yang sudah terjawab benar (solved + punya word_id) di
+   * board ini ke riwayat penemuan, lalu tunggu sampai tersimpan di Supabase.
+   * Dedup ada di repository, jadi aman dipanggil berulang / saat kata sudah
+   * tercatat. Ini backfill andal — dipakai saat board selesai, keluar game,
+   * atau kembali ke menu, supaya "Sejarah Saya" tidak pernah kehilangan kata.
+   */
+  const recordSolvedDiscoveries = useCallback(async () => {
+    const store = useGameStore.getState();
+    if (!store.board) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const solvedWords = store.board.words.filter((w) => w.solved && w.word_id);
+    if (solvedWords.length === 0) return;
+    await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, solvedWords);
+    await wordDiscoveryRepository.flushDiscoveries();
+  }, []);
+
   // Simpan snapshot progres board yang sedang berjalan (belum selesai) ke
   // Supabase, supaya bisa di-resume dari "Mulai Bermain".
   const saveInProgress = useCallback(async () => {
@@ -269,12 +289,11 @@ export default function GameScreen() {
       updated_at: new Date().toISOString(),
     });
 
-    // Rekam kata-kata yang sudah terjawab di board ini ke riwayat penemuan
-    // (dedup), supaya "Sejarah Saya" menampilkan semua kata yang sudah
-    // dijawab — bukan cuma yang board-nya sampai selesai.
-    await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, store.board.words);
-    await wordDiscoveryRepository.flushDiscoveries();
-  }, []);
+    // Rekam kata-kata yang sudah terjawab benar di board ini ke riwayat
+    // penemuan (dedup), supaya "Sejarah Saya" menampilkan semua kata yang
+    // sudah dijawab — bukan cuma yang board-nya sampai selesai.
+    await recordSolvedDiscoveries();
+  }, [recordSolvedDiscoveries]);
 
   const handleConfirmQuit = useCallback(() => {
     setShowQuitConfirm(false);
@@ -409,7 +428,7 @@ export default function GameScreen() {
         // itu membaca cloud.
         await wordDiscoveryRepository.flushDiscoveries();
       } catch (err) {
-        loggerInfo("Gagal merekam kata yang baru terjawab", err);
+        loggerWarn("Gagal merekam kata yang baru terjawab", err);
       }
     })();
   }, [board, filledLetters]);
@@ -457,11 +476,14 @@ export default function GameScreen() {
         });
 
         // 2) Kata-kata yang terpecahkan → riwayat penemuan (word discoveries).
-        //    Dedup lokal + cloud, lalu push langsung ke Supabase — jadi Sejarah
-        //    bertambah walau sync periodik belum jalan. (Hanya kata vocabulary
-        //    asli yang punya word_id; kata fallback demo tidak dicatat.)
-        await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, board.words);
-        await wordDiscoveryRepository.flushDiscoveries();
+        //    Blok try TERPISAH: kalau penyimpanan board / XP gagal, pencatatan
+        //    Sejarah tetap jalan — jangan sampai error di atas menggagalkan
+        //    recordDiscoveriesForWords (ini penyebab Sejarah tidak bertambah).
+        try {
+          await recordSolvedDiscoveries();
+        } catch (discoveryErr) {
+          loggerWarn("Gagal merekam discovery saat board selesai", discoveryErr);
+        }
 
         // 3) XP kumulatif user + tier terbaru
         const prevUser = await userRepository.getById(user.id);
@@ -481,7 +503,7 @@ export default function GameScreen() {
         loggerInfo("Gagal menyimpan hasil board", err);
       }
     })();
-  }, [board, boardResult]);
+  }, [board, boardResult, recordSolvedDiscoveries]);
 
   const currentTier = useMemo(() => calcTier(totalXp + currentXp), [totalXp, currentXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
@@ -952,8 +974,18 @@ export default function GameScreen() {
             onPlayAgain={reset}
             onViewBoard={dismissResult}
             onHome={() => {
-              reset();
-              navigation.goBack();
+              // Flush semua jawaban yang sudah benar ke Sejarah DULU, baru
+              // reset & kembali — supaya tidak ada kata yang hilang saat user
+              // langsung pindah ke menu utama. Error tetap dicatat ke log
+              // aplikasi, bukan ditelan diam-diam.
+              recordSolvedDiscoveries()
+                .catch((err) => {
+                  loggerWarn("Gagal menyimpan jawaban saat ke Beranda", err);
+                })
+                .finally(() => {
+                  reset();
+                  navigation.goBack();
+                });
             }}
           />
         )}

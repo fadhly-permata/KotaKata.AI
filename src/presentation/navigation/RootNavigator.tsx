@@ -5,6 +5,7 @@ import { useTheme } from "../components/providers/ThemeProvider";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { userRepository } from "../../data/repositories/userRepository";
+import { loggerWarn } from "../../utils/logger";
 import { useGameStore } from "../stores/gameStore";
 import AuthScreen from "../../features/auth/AuthScreen";
 import MainMenuScreen from "../../features/game/MainMenuScreen";
@@ -94,7 +95,7 @@ export default function RootNavigator() {
             if (!disposed) useGameStore.getState().setTotalXp(0);
           }
         } catch (err) {
-          console.warn("Gagal memuat profil pemain", err);
+          loggerWarn("Gagal memuat profil pemain", err);
         }
       })();
     });

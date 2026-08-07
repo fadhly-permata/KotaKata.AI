@@ -73,46 +73,58 @@ export const wordDiscoveryRepository = {
 
   /**
    * Catat kata-kata yang baru terjawab ke riwayat penemuan:
-   * dedup langsung di cloud (sumber kebenaran), lalu insert. Push langsung ke
-   * Supabase — tanpa database lokal, tidak ada antrean/sync terpisah.
-   * Aman dipanggil berulang: write diantre serial biar tidak ada duplikat.
+   * dedup batch (baca daftar word_id yang sudah ada SEKALI, lalu upsert
+   * sekaligus) — jauh lebih andal daripada cek per kata dengan maybeSingle
+   * yang diam-diam error kalau ada duplikat baris lama di cloud.
+   * Push langsung ke Supabase; write diantre serial biar tidak ada duplikat.
+   * Aman dipanggil berulang / untuk kata yang sudah tercatat (di-skip).
    */
   async recordDiscoveriesForWords(
     userId: string,
     words: { word_id?: string }[],
   ): Promise<void> {
     const task = (async () => {
-      const now = new Date().toISOString();
-      const seen = new Set<string>();
-      for (const w of words) {
-        if (!w.word_id || seen.has(w.word_id)) continue;
-        seen.add(w.word_id);
-        try {
-          const existing =
-            await wordDiscoveryRepository.getByUserAndWordFromCloud(userId, w.word_id);
-          if (existing) continue;
+      try {
+        const candidates = words
+          .map((w) => w.word_id)
+          .filter((id): id is string => !!id);
+        if (candidates.length === 0) return;
 
-          const discovery: WordDiscoveryDoc = {
-            discovery_id: `disc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${w.word_id}`,
-            user_id: userId,
-            word_id: w.word_id,
-            discovered_at: now,
-          };
-          const { error } = await supabase
-            .from("word_discoveries")
-            .upsert(
-              {
-                discovery_id: discovery.discovery_id,
-                user_id: discovery.user_id,
-                word_id: discovery.word_id,
-                discovered_at: discovery.discovered_at,
-              },
-              { onConflict: "discovery_id" },
-            );
-          if (error) throw error;
+        // Dedup batch: ambil semua word_id yang sudah tercatat user ini sekali,
+        // filter di klien — bukan N+1 query maybeSingle.
+        let existingIds: Set<string>;
+        try {
+          existingIds = new Set(await wordDiscoveryRepository.getDiscoveredWordIds(userId));
         } catch (err) {
-          loggerWarn(`Gagal merekam discovery (${w.word_id})`, err);
+          loggerWarn("Gagal membaca daftar discovery yang sudah ada — batal rekam", err);
+          return;
         }
+
+        const now = new Date().toISOString();
+        const seen = new Set<string>();
+        const fresh: { discovery_id: string; user_id: string; word_id: string; discovered_at: string }[] = [];
+        for (const wordId of candidates) {
+          if (seen.has(wordId) || existingIds.has(wordId)) continue;
+          seen.add(wordId);
+          fresh.push({
+            discovery_id: `disc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${wordId}`,
+            user_id: userId,
+            word_id: wordId,
+            discovered_at: now,
+          });
+        }
+        if (fresh.length === 0) return;
+
+        const { error } = await supabase.from("word_discoveries").upsert(fresh, {
+          onConflict: "discovery_id",
+        });
+        if (error) {
+          loggerWarn(`Gagal merekam discovery (${fresh.length} kata)`, error);
+        }
+      } catch (err) {
+        // Exception tak terduga (bukan error object Supabase) — tetap dicatat,
+        // jangan sampai gagal diam-diam di antrean serial.
+        loggerWarn("Exception saat merekam discovery", err);
       }
     })();
     pendingDiscoveryWrites = pendingDiscoveryWrites.then(() => task, () => task);
