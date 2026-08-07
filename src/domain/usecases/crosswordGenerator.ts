@@ -147,6 +147,7 @@ function tryPlaceWords(
     applyGrid(grid, testGrid);
     placed.push({
       word: first.word,
+      word_id: first.word_id, // JANGAN dihapus: tanpa ini hanya kata pertama yang punya word_id → discovery cuma 1 kata per board
       clue_1: first.clue_1,
       clue_2: first.clue_2,
       clue_3: first.clue_3,

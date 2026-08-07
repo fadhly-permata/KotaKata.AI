@@ -27,9 +27,27 @@ const errors = [];
 // Cocokkan file tier: tier1.ts..tier10.ts, tierNa.ts/tierNb.ts, dan part
 // (mis. tier4-part1.ts) — part file ikut dibaca agar aggregator tier4.ts
 // (yang hanya import + spread) tetap menghasilkan 1000 kata utuh.
+// Urutan baca per tier: file utama (tierN.ts) DULUAN, lalu part file
+// (tierN-partX.ts / tierNa.ts / tierNb.ts) sesuai nomornya. File utama bisa
+// berisi entri inline (tier5.ts: 1-500) atau aggregator kosong (tier4.ts) —
+// dua-duanya aman karena part file dibaca setelahnya sesuai urutan part.
 const tierFiles = readdirSync(vocabDir)
   .filter((f) => /^tier(\d+)(?:[ab]|-part\d+)?\.ts$/.test(f))
-  .sort();
+  .sort((a, b) => {
+    const key = (f) => {
+      const m = f.match(/^tier(\d+)(?:([ab])|-part(\d+))?\.ts$/);
+      const tier = Number(m[1]);
+      const kind = m[2] ? 1 : m[3] ? 2 : 0; // 0=file utama, 1=tierNa/b, 2=tierN-partX
+      const num = m[2] ? (m[2] === "a" ? 1 : 2) : m[3] ? Number(m[3]) : 0;
+      return [tier, kind, num];
+    };
+    const ka = key(a);
+    const kb = key(b);
+    for (let i = 0; i < ka.length; i++) {
+      if (ka[i] !== kb[i]) return ka[i] - kb[i];
+    }
+    return 0;
+  });
 const byTier = new Map();
 for (const f of tierFiles) {
   const m = f.match(/^tier(\d+)/);
