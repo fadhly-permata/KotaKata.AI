@@ -15,8 +15,11 @@ create table if not exists public.vocabulary (
   created_at timestamptz not null default now()
 );
 
--- Isi tabel DIBERSIHKAN tiap generate (data soal dikelola dari repo)
-truncate table public.vocabulary;
+-- Isi tabel DIBERSIHKAN tiap generate (data soal dikelola dari repo).
+-- CASCADE: word_discoveries punya FK ON DELETE CASCADE ke vocabulary, jadi
+-- TRUNCATE biasa ditolak Postgres. Catatan: cascade ikut menghapus riwayat
+-- penemuan — untuk seed ulang non-destruktif nanti gunakan upsert (on conflict).
+truncate table public.vocabulary cascade;
 
 insert into public.vocabulary (word_id, word, clue_1, clue_2, clue_3, tier_level) values
   ('t1-001', 'dan', 'penghubung dua satuan bahasa yang setara, seperti kata, frasa, atau klausa', 'kata perangkai untuk menggabungkan dua hal yang sejajar', 'Antonim: atau', 1),
