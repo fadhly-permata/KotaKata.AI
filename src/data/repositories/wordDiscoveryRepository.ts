@@ -1,5 +1,6 @@
 import { supabase } from "../sources/supabase";
 import { loggerWarn } from "../../utils/logger";
+import { vocabularyRepository } from "./vocabularyRepository";
 import type { WordDiscoveryDoc } from "../models/schemas";
 
 const DISCOVERY_COLUMNS = "discovery_id, user_id, word_id, discovered_at";
@@ -78,16 +79,39 @@ export const wordDiscoveryRepository = {
    * yang diam-diam error kalau ada duplikat baris lama di cloud.
    * Push langsung ke Supabase; write diantre serial biar tidak ada duplikat.
    * Aman dipanggil berulang / untuk kata yang sudah tercatat (di-skip).
+   *
+   * Kata tanpa word_id (mis. board lama / snapshot yang di-generate sebelum
+   * generator membawa word_id) tetap direkam: word_id di-resolve dari teks
+   * kata lewat tabel vocabulary. Jadi SEMUA kata yang dijawab di papan pasti
+   * masuk riwayat — 10 soal = 10 baris, 5 soal = 5 baris.
    */
   async recordDiscoveriesForWords(
     userId: string,
-    words: { word_id?: string }[],
+    words: { word_id?: string; word?: string }[],
   ): Promise<void> {
     const task = (async () => {
       try {
-        const candidates = words
+        // Resolve word_id yang hilang dari teks kata (word unik di vocabulary).
+        let candidates: string[] = words
           .map((w) => w.word_id)
           .filter((id): id is string => !!id);
+        const textOnly = words.filter((w) => !w.word_id && !!w.word);
+        if (textOnly.length > 0) {
+          try {
+            const docs = await vocabularyRepository.getByWords(
+              textOnly.map((w) => w.word as string),
+            );
+            const byWord = new Map(docs.map((d) => [d.word, d.word_id]));
+            const resolved = textOnly
+              .map((w) => byWord.get(w.word as string))
+              .filter((id): id is string => !!id);
+            candidates = [...candidates, ...resolved];
+          } catch (err) {
+            // Gagal resolve — kata tanpa word_id terpaksa dilewati, tapi
+            // jangan sampai menggagalkan kata-kata yang punya word_id.
+            loggerWarn("Gagal resolve word_id dari teks kata", err);
+          }
+        }
         if (candidates.length === 0) return;
 
         // Dedup batch: ambil semua word_id yang sudah tercatat user ini sekali,

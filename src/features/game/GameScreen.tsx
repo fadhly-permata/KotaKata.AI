@@ -24,7 +24,7 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
-import type { Board, WordCandidate } from "../../domain/entities/board";
+import type { Board, BoardWord, WordCandidate } from "../../domain/entities/board";
 import { loggerInfo, loggerWarn } from "../../utils/logger";
 import {
   serializeBoardProgress,
@@ -256,7 +256,11 @@ export default function GameScreen() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-    const solvedWords = store.board.words.filter((w) => w.solved && w.word_id);
+    // Kirim SEMUA kata yang solved (word_id boleh kosong — mis. board lama /
+    // resume snapshot yang dibuat sebelum generator membawa word_id).
+    // word_id di-resolve dari teks kata di dalam repository, jadi tidak ada
+    // satu pun kata terjawab yang terlewat dari "Sejarah Saya".
+    const solvedWords = store.board.words.filter((w) => w.solved);
     if (solvedWords.length === 0) return;
     await wordDiscoveryRepository.recordDiscoveriesForWords(user.id, solvedWords);
     await wordDiscoveryRepository.flushDiscoveries();
@@ -396,26 +400,25 @@ export default function GameScreen() {
   const prevSolvedIdsRef = useRef<string[]>([]);
   useEffect(() => {
     if (!board) return;
-    const solvedIds = board.words
-      .filter((w) => w.solved && w.word_id)
-      .map((w) => w.word_id as string);
+    // Identitas kata untuk deteksi "baru solved": word_id, atau teks kata
+    // sebagai fallback (board lama yang word_id-nya null).
+    const wordKey = (w: BoardWord): string => w.word_id ?? `text:${w.word}`;
+    const solvedKeys = board.words.filter((w) => w.solved).map(wordKey);
 
     // Papan baru (termasuk resume): seed daftar solved — kata yang sudah solved
     // sejak awal tidak di-rekam di sini (di-backfill saat board selesai).
     if (lastBoardRef.current !== board) {
       lastBoardRef.current = board;
-      prevSolvedIdsRef.current = solvedIds;
+      prevSolvedIdsRef.current = solvedKeys;
       return;
     }
 
-    const newlySolved = solvedIds.filter((id) => !prevSolvedIdsRef.current.includes(id));
+    const newlySolved = solvedKeys.filter((id) => !prevSolvedIdsRef.current.includes(id));
     if (newlySolved.length === 0) return;
-    prevSolvedIdsRef.current = solvedIds;
+    prevSolvedIdsRef.current = solvedKeys;
 
     const newlySolvedSet = new Set(newlySolved);
-    const newlySolvedWords = board.words.filter(
-      (w) => w.solved && w.word_id && newlySolvedSet.has(w.word_id),
-    );
+    const newlySolvedWords = board.words.filter((w) => w.solved && newlySolvedSet.has(wordKey(w)));
     (async () => {
       try {
         const {
