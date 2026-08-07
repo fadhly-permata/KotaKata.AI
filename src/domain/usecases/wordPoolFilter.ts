@@ -1,6 +1,7 @@
 import type { WordCandidate, WordPoolFilterParams } from "../entities/board";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
+import { loggerWarn } from "../../utils/logger";
 import type { VocabularyDoc } from "../../data/models/schemas";
 
 /**
@@ -52,7 +53,7 @@ async function loadWordsByTier(
   try {
     return await vocabularyRepository.getByTierFromCloud(tier, excludedWordIds);
   } catch (err) {
-    console.warn("Supabase vocab fetch (dengan eksklusi) gagal — coba tanpa eksklusi:", err);
+    loggerWarn("Supabase vocab fetch (dengan eksklusi) gagal — coba tanpa eksklusi", err);
   }
   try {
     const all = await vocabularyRepository.getByTierFromCloud(tier);
@@ -60,7 +61,7 @@ async function loadWordsByTier(
     const excluded = new Set(excludedWordIds);
     return all.filter((w) => !excluded.has(w.word_id));
   } catch (err) {
-    console.warn("Supabase vocab fetch gagal total:", err);
+    loggerWarn("Supabase vocab fetch gagal total", err);
     return [];
   }
 }

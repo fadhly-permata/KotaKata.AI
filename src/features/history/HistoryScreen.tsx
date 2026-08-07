@@ -17,6 +17,7 @@ import { useAuth } from "../auth/useAuth";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { timeAgo } from "../../utils/timeAgo";
+import { loggerWarn } from "../../utils/logger";
 import type { WordDiscoveryDoc, VocabularyDoc } from "../../data/models/schemas";
 
 interface DiscoveryItem {
@@ -64,7 +65,7 @@ export default function HistoryScreen() {
           );
           vocabMap = new Map(words.map((v) => [v.word_id, v]));
         } catch (cloudErr) {
-          console.warn("Gagal memuat riwayat dari cloud", cloudErr);
+          loggerWarn("Gagal memuat riwayat dari cloud", cloudErr);
           if (!cancelled) setLoadError(true);
           return;
         }
@@ -85,7 +86,7 @@ export default function HistoryScreen() {
 
         if (!cancelled) setItems(mapped);
       } catch (err) {
-        console.warn("Gagal memuat riwayat penemuan", err);
+        loggerWarn("Gagal memuat riwayat penemuan", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
