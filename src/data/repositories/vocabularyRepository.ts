@@ -102,6 +102,24 @@ export const vocabularyRepository = {
     return vocabularyRepository.getByIdsFromCloud(wordIds);
   },
 
+  /** Ambil kata berdasarkan teks kata — dipakai untuk resolve word_id dari
+   *  board lama / snapshot yang dibuat tanpa word_id (word unik di vocabulary). */
+  async getByWords(words: string[]): Promise<VocabularyDoc[]> {
+    if (words.length === 0) return [];
+    const results: VocabularyDoc[] = [];
+    for (const chunkIds of chunk(words, CHUNK_SIZE)) {
+      const { data, error } = await supabase
+        .from("vocabulary")
+        .select(VOCAB_COLUMNS)
+        .in("word", chunkIds);
+      if (error) {
+        throw new Error(`Gagal ambil vocab dari Supabase: ${error.message}`);
+      }
+      results.push(...((data ?? []) as VocabularyDoc[]));
+    }
+    return results;
+  },
+
   async getById(wordId: string): Promise<VocabularyDoc | null> {
     const { data, error } = await supabase
       .from("vocabulary")
