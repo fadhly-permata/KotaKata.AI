@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   actionCard: {
-    width: "48%",
+    flex: 1,
     paddingVertical: 20,
     paddingHorizontal: 16,
     borderRadius: 14,

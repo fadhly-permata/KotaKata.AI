@@ -32,17 +32,22 @@
 
 - [x] **12. Main Menu: susun ulang posisi & tinggi tombol bento** — Di `src/features/game/MainMenuScreen.tsx`: (a) tombol "Sejarah Permainan" pindah ke posisi **di bawah "Kata Ditemukan"** (kolom kanan bawah); (b) tombol "Pengaturan" pindah ke posisi **di bawah "Profil"** (kolom kiri bawah); (c) tinggi "Sejarah Permainan" dibuat **sama dengan "Profil"** (pakai `bentoLargeCard` 180px, bukan `bentoSmallCard` 84px). Urutan JSX dalam `bentoGrid` (flexWrap): Profil (large) → Kata Ditemukan (small) → Pengaturan (small) → Sejarah Permainan (large).
 
-- [ ] **13. Main Menu: lebar kesulurhan tombol bento** — Di `src/features/game/MainMenuScreen.tsx`: Keseluruhan tombol lebarnya jadi gak sesuai. Buat agar lebar total sama dengan lebar tombol "mulai Bermain".
+- [x] **13. Main Menu: lebar kesulurhan tombol bento** — Di `src/features/game/MainMenuScreen.tsx`: Keseluruhan tombol lebarnya jadi gak sesuai. Buat agar lebar total sama dengan lebar tombol "mulai Bermain".
 
-- [ ] **14. Ingame Screen: Hapus Panel** Di atas papan jawaban kan ada panel yang berisi "Level", Progress Bar, dan "reset", Hapus panel tersebut. Tombol reset game kita pindahkan ke panel dibawah disebelah tombol hide/show keyboard. Dan untuk progressbar-nya kita buat progressbar garis aja. dan posisinya berada ditepi atas panel soal.
+- [x] **14. Ingame Screen: Hapus Panel** Di atas papan jawaban kan ada panel yang berisi "Level", Progress Bar, dan "reset", Hapus panel tersebut. Tombol reset game kita pindahkan ke panel dibawah disebelah tombol hide/show keyboard. Dan untuk progressbar-nya kita buat progressbar garis aja. dan posisinya berada ditepi atas panel soal.
 
-- [ ] **15. Ingame Screen: Keyboard Icon Visibility** Hilangkan efek disable pada icon keyboard. Karna sering jadi sulit dilihat.
+- [x] **15. Ingame Screen: Keyboard Icon Visibility** Hilangkan efek disable pada icon keyboard. Karna sering jadi sulit dilihat.
 
-- [ ] **16. Sejarah Permainan: Papan Jawaban** Struktur papan jawaban berantakan isi teksnya, mungkin ini masalah struktur data di databasenya yang gak ada menyebutkan lokasi huruf.
+- [x] **16. Sejarah Permainan: Papan Jawaban** Struktur papan jawaban berantakan isi teksnya, mungkin ini masalah struktur data di databasenya yang gak ada menyebutkan lokasi huruf.
 
-- [ ] **17. Ingame Screen: Navigasi Soal** Untuk jawaban yang belum terjawab dengan benar, harusnya masih bisa mendapat fokus dari aksi klik/tap tombol navigasi soal didalam panel soal.
+- [x] **17. Ingame Screen: Navigasi Soal** Untuk jawaban yang belum terjawab dengan benar, harusnya masih bisa mendapat fokus dari aksi klik/tap tombol navigasi soal didalam panel soal.
 
 ## Catatan Revisi
+- **17.** 2026-08-08: goToPrevWord/goToNextWord: hapus skip kata yang semua selnya terisi — kata terisi penuh tapi belum benar (termasuk kasus 100% terisi tapi belum solved) kini tetap bisa difokus lewat tombol navigasi ◀▶ di panel soal; yang dilewati hanya kata solved
+- **16.** 2026-08-08: viewer papan: buildGrid kini menurunkan sel isBlocked (sel yang tidak dilalui kata mana pun = hitam) + nomor clue (scan baris/kolom sama dgn buildBoard generator). Verifikasi: data layout sudah punya startRow/startCol/orientation lengkap (0 kata kurang posisi); render ASCII 12 kata 10x10 membentuk crossword rapi & semua persimpangan konsisten
+- **15.** 2026-08-08: wrapper opacity keyboardVisible ? 1 : 0.4 dihapus — ikon keyboard selalu tampil penuh, tidak ada efek disable
+- **14.** 2026-08-08: levelCard (LEVEL + nama tier + progress ring + reset) dihapus dari atas papan; tombol reset dipindah ke actionBar kanan di samping toggle keyboard; progress bar baru: garis 3px (#FFD166) di tepi ATAS pill clue (panel soal), overflow hidden, width = fillProgress%
+- **13.** 2026-08-08: actionCard diganti dari width 48% ke flex:1 — total lebar baris aksi & bento kini persis sama dengan lebar tombol Mulai Bermain (kontainer marginHorizontal 16 yang sama, tanpa sisa 2px dari hitungan persen)
 - **12.** 2026-08-08: KOREKSI 2: layout bento diganti dari flexWrap (row-based, Sejarah Permainan sejajar dengan Pengaturan) menjadi 2 kolom independen (bentoCol flex:1 gap 10). Kolom kiri: Profil (180) + Pengaturan (84); kolom kanan: Kata Ditemukan (84) + Sejarah Permainan (180) — Sejarah Permainan kini rapat di bawah Kata Ditemukan dengan gap 10, sama seperti jarak Profil→Pengaturan
 - **12.** 2026-08-08: Sejarah Permainan pindah ke bawah Kata Ditemukan (kolom kanan bawah) dan dipromosikan ke bentoLargeCard (180px, sama dgn Profil); Pengaturan pindah ke bawah Profil (kolom kiri bawah). Urutan bento: Profil, Kata Ditemukan, Pengaturan, Sejarah Permainan
 - **2.** 2026-08-08: KOREKSI: tinggi tombol dikembalikan ke desain asli (actionCard tinggi konten, bentoLarge 180px, bentoSmall 84px) — yang disamakan hanya LEBAR via width 48% konsisten di actionGrid & bentoGrid. Layout: actionGrid = Misi Harian + Kata Ajaib; bento = Profil (besar) + Kata Ditemukan + Sejarah Permainan + Pengaturan (kecil)
