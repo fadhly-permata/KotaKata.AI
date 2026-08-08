@@ -48,7 +48,9 @@
 
 - [ ] **20. Halaman Utama: Animasi Orb** Pergerakan animasi orb masih kurang tampak agak sedikit dipercepat dong. Jangan ekstrem cukup dinaikan sedikit aja speednya.
 
-- [ ] 
+- [ ] **21. README.MD: Update Readme.md** Update dokumen readme.md yang berada di root agar lebih me-representasikan project ini dengan benar.
+
+- [ ] **22. vocabulary-clue-review: Review Vocabulary** Lanjutkan proses review vocabulary sisanya. Pastikan sebelum menjalankan proses ini, sudah melakukan commit dan push ke github. Dan, setiap satu file tier/level selesai di review. langsung commit dan pus ke git dan ke database (supabase).
 
 ## Catatan Revisi
 - **17.** 2026-08-08: goToPrevWord/goToNextWord: hapus skip kata yang semua selnya terisi — kata terisi penuh tapi belum benar (termasuk kasus 100% terisi tapi belum solved) kini tetap bisa difokus lewat tombol navigasi ◀▶ di panel soal; yang dilewati hanya kata solved
