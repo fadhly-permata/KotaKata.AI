@@ -98,13 +98,13 @@ export default function MainMenuScreen() {
         Animated.sequence([
           Animated.timing(anim, {
             toValue: 1,
-            duration: 2600 + i * 500,
+            duration: 1800 + i * 350,
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: true,
           }),
           Animated.timing(anim, {
             toValue: 0,
-            duration: 2600 + i * 500,
+            duration: 1800 + i * 350,
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: true,
           }),

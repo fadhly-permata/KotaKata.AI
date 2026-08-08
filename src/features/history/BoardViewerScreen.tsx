@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useWindowDimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  useWindowDimensions,
+  Platform,
+} from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
@@ -39,6 +47,12 @@ interface Cell {
   letter: string;
   isBlocked: boolean;
   number?: number;
+}
+
+/** Kata + nomor cluenya (dipakai daftar soal, selaras dengan grid). */
+interface NumberedWord {
+  word: FinishedWord;
+  number: number;
 }
 
 function parseLayout(json: string): FinishedLayout | null {
@@ -87,8 +101,31 @@ function buildGrid(layout: FinishedLayout): Cell[][] {
   return grid;
 }
 
+/** Beri nomor ke tiap kata sesuai nomor sel awal di grid (selaras dgn papan). */
+function numberWords(layout: FinishedLayout, grid: Cell[][]): NumberedWord[] {
+  return layout.words
+    .map((w) => ({
+      word: w,
+      number: grid[w.startRow]?.[w.startCol]?.number ?? 0,
+    }))
+    .sort((a, b) => a.number - b.number || (a.word.orientation === b.word.orientation ? 0 : -1));
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export default function BoardViewerScreen({ route }: Props) {
   const { theme } = useTheme();
+  const C = theme.colors;
   const { width: winWidth } = useWindowDimensions();
   const [layout, setLayout] = useState<FinishedLayout | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,37 +159,75 @@ export default function BoardViewerScreen({ route }: Props) {
   }, [load]);
 
   const grid = layout ? buildGrid(layout) : [];
-  const cellSize = layout ? Math.floor(Math.min(winWidth - 64, 420) / layout.size) : 0;
-  const fontSize = Math.max(11, Math.floor(cellSize * 0.45));
+  const numberedWords = layout ? numberWords(layout, grid) : [];
+  const horizontals = numberedWords.filter((nw) => nw.word.orientation === "horizontal");
+  const verticals = numberedWords.filter((nw) => nw.word.orientation === "vertical");
+
+  // Ukuran sel dihitung MUNDUR dari lebar layar: kurangi dulu gap antar sel,
+  // padding & border kontainer — supaya baris grid pas muat dan tidak meluber
+  // (sel terakhir tidak lagi loncat ke baris berikutnya).
+  const GAP = 1;
+  const PAD = 2;
+  const BORDER = 1;
+  const maxGridWidth = Math.min(winWidth - 64, 420);
+  const cellSize = layout
+    ? Math.max(10, Math.floor((maxGridWidth - PAD * 2 - BORDER * 2 - GAP * (layout.size - 1)) / layout.size))
+    : 0;
+  const fontSize = Math.max(11, Math.floor(cellSize * 0.44));
+  const gridWidth = layout ? cellSize * layout.size + GAP * (layout.size - 1) + PAD * 2 + BORDER * 2 : 0;
 
   const tierName =
     TIER_NAMES[Math.max(0, Math.min(tierAtGeneration - 1, TIER_NAMES.length - 1))];
 
   return (
-    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: C.background }]}>
       <TopBar />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {loading ? (
-          <ActivityIndicator color={theme.colors.primary} style={styles.loading} />
+          <ActivityIndicator color={C.primary} style={styles.loading} />
         ) : error || !layout ? (
-          <Text style={[styles.error, { color: theme.colors.textSecondary }]}>
-            Papan tidak ditemukan atau tidak bisa dibaca.
-          </Text>
+          <View style={styles.errorWrap}>
+            <Text style={styles.errorEmoji}>🧩</Text>
+            <Text style={[styles.error, { color: C.textSecondary }]}>
+              Papan tidak ditemukan atau tidak bisa dibaca.
+            </Text>
+          </View>
         ) : (
           <>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Papan Selesai</Text>
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Tier {tierAtGeneration} — {tierName} · {layout.size}×{layout.size}
-            </Text>
+            {/* ─── Header ─── */}
+            <View style={styles.header}>
+              <View style={[styles.headerIcon, { backgroundColor: C.secondaryContainer }]}>
+                <Text style={styles.headerEmoji}>🏁</Text>
+              </View>
+              <View style={styles.headerInfo}>
+                <Text style={[styles.title, { color: C.text }]}>Papan Selesai</Text>
+                <View style={styles.headerMeta}>
+                  <View style={[styles.tierBadge, { backgroundColor: C.primary }]}>
+                    <Text style={styles.tierBadgeText}>
+                      Tier {tierAtGeneration} · {tierName}
+                    </Text>
+                  </View>
+                  <Text style={[styles.gridBadge, { color: C.textSecondary }]}>
+                    {layout.size}×{layout.size} · {layout.words.length} kata
+                  </Text>
+                </View>
+              </View>
+            </View>
 
             {/* ─── Grid read-only — sel hitam (blocked) + huruf + nomor clue ─── */}
             <View
               style={[
                 styles.grid,
                 {
-                  width: cellSize * layout.size,
-                  backgroundColor: theme.colors.border,
-                  borderColor: theme.colors.border,
+                  width: gridWidth,
+                  borderColor: C.border,
+                  backgroundColor: C.border,
+                  ...Platform.select({
+                    web: { boxShadow: "0 12px 32px rgba(0,0,0,0.18)" },
+                  }),
                 },
               ]}
             >
@@ -167,7 +242,7 @@ export default function BoardViewerScreen({ route }: Props) {
                         {
                           width: cellSize,
                           height: cellSize,
-                          backgroundColor: theme.colors.cellBlocked,
+                          backgroundColor: C.cellBlocked,
                         },
                       ]}
                     />
@@ -179,7 +254,7 @@ export default function BoardViewerScreen({ route }: Props) {
                         {
                           width: cellSize,
                           height: cellSize,
-                          backgroundColor: theme.colors.cellActive,
+                          backgroundColor: C.cellActive,
                         },
                       ]}
                     >
@@ -187,13 +262,16 @@ export default function BoardViewerScreen({ route }: Props) {
                         <Text
                           style={[
                             styles.cellNumber,
-                            { color: theme.colors.textSecondary, fontSize: Math.max(7, fontSize * 0.4) },
+                            {
+                              color: C.textSecondary,
+                              fontSize: Math.max(7, fontSize * 0.38),
+                            },
                           ]}
                         >
                           {cell.number}
                         </Text>
                       )}
-                      <Text style={[styles.cellLetter, { color: theme.colors.text, fontSize }]}>
+                      <Text style={[styles.cellLetter, { color: C.text, fontSize }]}>
                         {cell.letter}
                       </Text>
                     </View>
@@ -202,24 +280,69 @@ export default function BoardViewerScreen({ route }: Props) {
               )}
             </View>
 
-            {/* ─── Daftar kata ─── */}
-            <Text style={[styles.clueTitle, { color: theme.colors.text }]}>Kata di papan ini</Text>
-            <View style={styles.clueList}>
-              {layout.words.map((w, i) => (
-                <View
-                  key={i}
-                  style={[styles.clueItem, { backgroundColor: theme.colors.surface }]}
-                >
-                  <Text style={[styles.clueWord, { color: theme.colors.primary }]}>{w.word}</Text>
-                  <Text style={[styles.clueText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                    {w.orientation === "horizontal" ? "Mendatar" : "Menurun"} — {w.clue_1}
-                  </Text>
+            {/* ─── Daftar soal (selaras nomornya dengan grid) ─── */}
+            <View style={styles.clueSection}>
+              <Text style={[styles.clueSectionTitle, { color: C.text }]}>
+                📝 Soal di papan ini
+              </Text>
+
+              {horizontals.length > 0 && (
+                <View style={styles.clueGroup}>
+                  <Text style={[styles.clueGroupLabel, { color: C.secondary }]}>MENDATAR</Text>
+                  {horizontals.map((nw, i) => (
+                    <View
+                      key={`h-${i}`}
+                      style={[styles.clueItem, { backgroundColor: C.surface }]}
+                    >
+                      <View style={[styles.clueNumber, { backgroundColor: C.secondaryContainer }]}>
+                        <Text style={[styles.clueNumberText, { color: C.secondary }]}>
+                          {nw.number}
+                        </Text>
+                      </View>
+                      <View style={styles.clueBody}>
+                        <Text style={[styles.clueWord, { color: C.text }]}>{nw.word.word}</Text>
+                        <Text
+                          style={[styles.clueText, { color: C.textSecondary }]}
+                          numberOfLines={2}
+                        >
+                          {nw.word.clue_1}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              )}
+
+              {verticals.length > 0 && (
+                <View style={styles.clueGroup}>
+                  <Text style={[styles.clueGroupLabel, { color: C.primary }]}>MENURUN</Text>
+                  {verticals.map((nw, i) => (
+                    <View
+                      key={`v-${i}`}
+                      style={[styles.clueItem, { backgroundColor: C.surface }]}
+                    >
+                      <View style={[styles.clueNumber, { backgroundColor: C.primary }]}>
+                        <Text style={[styles.clueNumberText, { color: "#FFFFFF" }]}>
+                          {nw.number}
+                        </Text>
+                      </View>
+                      <View style={styles.clueBody}>
+                        <Text style={[styles.clueWord, { color: C.text }]}>{nw.word.word}</Text>
+                        <Text
+                          style={[styles.clueText, { color: C.textSecondary }]}
+                          numberOfLines={2}
+                        >
+                          {nw.word.clue_1}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
-            <Text style={[styles.updatedAt, { color: theme.colors.textSecondary }]}>
-              Selesai {new Date(updatedAt).toLocaleString()}
+            <Text style={[styles.updatedAt, { color: C.textSecondary }]}>
+              Diselesaikan pada {formatDate(updatedAt)}
             </Text>
           </>
         )}
@@ -230,43 +353,84 @@ export default function BoardViewerScreen({ route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, gap: 12, alignItems: "center" },
-  loading: { marginTop: 40 },
-  error: { fontSize: 14, textAlign: "center", marginTop: 40, paddingHorizontal: 24 },
-  title: { fontSize: 22, fontWeight: "900", letterSpacing: -0.4 },
-  subtitle: { fontSize: 13, fontWeight: "500", marginTop: -6 },
+  content: { padding: 16, gap: 16, alignItems: "center" },
+  loading: { marginTop: 48 },
+  errorWrap: { alignItems: "center", gap: 8, marginTop: 48, paddingHorizontal: 24 },
+  errorEmoji: { fontSize: 40 },
+  error: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+
+  /* ─── Header ─── */
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    alignSelf: "stretch",
+  },
+  headerIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerEmoji: { fontSize: 26 },
+  headerInfo: { flex: 1, gap: 6 },
+  title: { fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
+  headerMeta: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  tierBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  tierBadgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+  gridBadge: { fontSize: 12, fontWeight: "600" },
+
+  /* ─── Grid ─── */
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     overflow: "hidden",
-    marginTop: 8,
     gap: 1,
-    padding: 1,
+    padding: 2,
   },
   cell: {
     alignItems: "center",
     justifyContent: "center",
   },
   blockedCell: {},
-  cellNumber: { position: "absolute", top: 1, left: 2, fontWeight: "600" },
+  cellNumber: { position: "absolute", top: 1, left: 2.5, fontWeight: "600" },
   cellLetter: { fontWeight: "800" },
-  clueTitle: {
-    fontSize: 16,
+
+  /* ─── Daftar soal ─── */
+  clueSection: { alignSelf: "stretch", gap: 14 },
+  clueSectionTitle: { fontSize: 16, fontWeight: "800", letterSpacing: -0.2 },
+  clueGroup: { gap: 8 },
+  clueGroupLabel: {
+    fontSize: 11,
     fontWeight: "800",
-    marginTop: 8,
-    alignSelf: "flex-start",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
   },
-  clueList: { width: "100%", gap: 8 },
   clueItem: {
     borderRadius: 12,
     padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
-  clueWord: { fontSize: 15, fontWeight: "800", minWidth: 64 },
-  clueText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  updatedAt: { fontSize: 11, fontStyle: "italic", marginTop: 4 },
+  clueNumber: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clueNumberText: { fontSize: 13, fontWeight: "800" },
+  clueBody: { flex: 1, gap: 2 },
+  clueWord: { fontSize: 15, fontWeight: "800" },
+  clueText: { fontSize: 13, lineHeight: 18 },
+
+  updatedAt: { fontSize: 11, fontStyle: "italic", marginTop: 2 },
 });

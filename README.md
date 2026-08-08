@@ -1,56 +1,62 @@
 # 📖 KotaKata.AI
 
-**Teka-Teki Silang Puitis — Cross-Platform Dynamic Crossword Game**
+**Teka-Teki Silang Puitis — Dynamic Crossword Game (Cross-Platform)**
 
-KotaKata.AI adalah game Teka-Teki Silang (TTS) modern multiplatform (Android, iOS, Windows, Linux, Web) dengan sistem peringkat puitis 10 tier menggunakan satu basis kode.
+KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat puitis 10 tier. Papan permainan digenerate secara prosedural dari kosakata Bahasa Indonesia yang telah dikurasi, dan setiap permainan selalu berbeda. Satu basis kode untuk Android, iOS, Windows, Linux, dan Web.
 
 ## ✨ Fitur
 
-| Fitur | Status |
+| Fitur | Deskripsi |
 | --- | --- |
-| 🎮 **Papan Prosedural** — setiap board beda, digenerate client-side | ✅ |
-| 📴 **Offline-First** — RxDB local storage | ✅ |
-| ☁️ **Cloud Sync** — Supabase Auth + PostgreSQL + RLS | ✅ |
-| 🏆 **10 Tier Puitis** — Eja Awal → Keabadian Seloka | ✅ |
-| 📖 **Sejarah Saya** — riwayat kata + pencarian | ✅ |
-| 🌗 **Tema Terang/Gelap** — transisi halus 300ms | ✅ |
-| ⌨️ **Keyboard & Touch** — mobile + desktop arrow keys | ✅ |
+| 🎮 **Papan Prosedural** | Setiap board digenerate client-side dari kosakata terkurasi; grid fleksibel dengan minimal 10 soal per papan |
+| 📴 **Offline-First** | Progress board + log tersimpan lokal (AsyncStorage + sql.js), sinkron ke cloud saat online |
+| ☁️ **Cloud Sync** | Supabase Auth + PostgreSQL + RLS; riwayat kata, XP, dan board tersimpan per user |
+| 🏆 **10 Tier Puitis** | Dari *Eja Awal* hingga *Keabadian Seloka* — progres XP naik lewat menyelesaikan kata |
+| 👤 **Identitas Guest** | Guest anonim memakai UUID perangkat sebagai jangkar identitas (tanpa permission MAC/IMEI) |
+| ✨ **Kata Ajaib** | Popup kata acak + clue (otomatis mengecualikan clue sinonim/antonim) |
+| 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
+| 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
+| 🌗 **Tema Terang/Gelap** | Transisi halus, konsisten di semua layar |
+| ⌨️ **Keyboard & Touch** | Mobile touch + desktop arrow keys, keyboard virtual in-game |
+| ✨ **Animasi** | Parallax + orb floating di main menu, transisi halaman & popup beranimasi |
 
 ## 🏆 Sistem Peringkat
 
-| Tier | Nama | Filosofi |
-| :--- | :--- | :--- |
-| 1 | **Eja Awal** | Langkah paling mula mengeja |
-| 2 | **Desau Saujana** | Kata mulai terdengar di kejauhan |
-| 3 | **Rima Gerimis** | Ketukan hurup beraturan |
-| ... | ... | ... |
-| 10 | **Keabadian Seloka** | Puncak tertinggi kebahasaan |
+| Tier | Nama | Tier | Nama |
+| :--- | :--- | :--- | :--- |
+| 1 | **Eja Awal** | 6 | **Raut Metafora** |
+| 2 | **Desau Saujana** | 7 | **Bait Hening** |
+| 3 | **Rima Gerimis** | 8 | **Madah Sanubari** |
+| 4 | **Untai Aksara** | 9 | **Risalah Langit** |
+| 5 | **Gema Diksi** | 10 | **Keabadian Seloka** |
 
 ## 🛠 Tech Stack
 
-- **Framework:** React Native (TypeScript) with Expo
+- **Framework:** React Native + Expo (TypeScript)
 - **Backend & Auth:** Supabase (PostgreSQL + RLS + Auth)
-- **Local Storage:** RxDB (in-memory storage)
 - **State Management:** Zustand
 - **Navigation:** React Navigation (native-stack)
-- **Styling:** React Native StyleSheet
+- **Local Storage:** AsyncStorage (progress, session, identitas guest) + sql.js (log lokal)
+- **Web:** react-native-web (satu kode untuk mobile & web)
 
 ## 📁 Project Structure
 
 ```
 src/
-├── features/        # Feature modules (game, history, auth, profile, settings)
-├── data/            # Data layer (repositories, sources, models)
-│   ├── sources/     # Database, Supabase, sync engine
-│   ├── repositories/ # Repository classes
+├── features/        # Layar per fitur (game, history, auth, profile, settings)
+├── data/            # Data layer (repositories, models, sources)
+│   ├── sources/     # Supabase client
+│   ├── repositories/# Repository (user, board, vocabulary, wordDiscovery)
+│   ├── vocabulary/  # Seed kosakata terkurasi per tier (1–10)
 │   └── models/      # Schemas & types
 ├── domain/          # Business logic
-│   ├── entities/    # Domain types (Board, BoardCell, etc.)
-│   └── usecases/    # Business rules (generator, validator, XP engine)
-└── presentation/    # UI layer
-    ├── components/  # Reusable components
-    ├── stores/      # Zustand stores
-    └── navigation/  # React Navigation setup
+│   ├── entities/    # Domain types (Board, BoardCell, dst.)
+│   └── usecases/    # Generator crossword, validator, XP engine, filter word pool
+├── presentation/    # UI layer
+│   ├── components/  # Komponen reusable (grid, keyboard, popup, dsb.)
+│   ├── stores/      # Zustand stores (gameStore)
+│   └── navigation/  # React Navigation setup
+└── utils/           # Helper (log DB, device identity, board progress, dsb.)
 ```
 
 ## 🚀 Getting Started
@@ -59,34 +65,64 @@ src/
 # Install dependencies
 bun install
 
-# Start development
+# Start development (web)
 bunx expo start --web
 
 # Type check
-npx tsc --noEmit
+bun tsc --noEmit
+
+# Lint
+bun lint
 ```
 
 ## 🔑 Environment Variables
 
-Gunakan **Keys** tab di Freebuff atau buat `.env.local`:
+Buat `.env.local` (atau isi lewat tab Keys di Freebuff):
 
 | Variable | Description |
 | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable/anonymous key |
 
+## 🗄 Database (Supabase)
+
+Migrasi SQL ada di folder `supabase/` (tabel, RLS, fungsi). Jalankan via script:
+
+```bash
+bun scripts/apply-supabase-migrations.mjs
+bun scripts/supabase-run.mjs "SELECT ..."   # jalankan query ad-hoc
+```
+
+Kosakata di-push dari seed lokal (`src/data/vocabulary/`) ke tabel `vocabulary`:
+
+```bash
+bun scripts/gen-vocab-sql.mjs   # generate SQL dari seed
+bun scripts/push-vocab.mjs      # push kosakata ke Supabase
+```
+
+## 📝 Revisi & Planning
+
+Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
+dengan CLI plan:
+
+```bash
+bun .agents/plans/plan.mjs list    # lihat item & status
+bun .agents/plans/plan.mjs start 001
+bun .agents/plans/plan.mjs check 001 <nomor>
+bun .agents/plans/plan.mjs note 001 <nomor> "catatan"
+bun .agents/plans/plan.mjs help    # semua perintah
+```
+
 ## 📦 Build & Deploy
 
 ```bash
-# Build for production
-bunx expo build:web
-
-# Output: dist/
+# Build untuk produksi (output: dist/)
+bunx expo export --platform web
 ```
 
 ## 🗺️ Development Status
 
-**Progress: 13/19 fase completed** — lihat `.agents/checkpoint.json` untuk detail.
+Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 
 ## 📄 Lisensi
 
