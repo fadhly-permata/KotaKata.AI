@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata, avatarUrlFromMetadata } from "../../utils/userMetadata";
+import { getOrCreateDeviceId } from "../../utils/deviceIdentity";
 import type { Session, AuthError } from "@supabase/supabase-js";
 
 export type AuthUser = {
@@ -32,7 +33,13 @@ export function useAuth() {
 
   /** Sign in anonymously — no credentials needed */
   const signInAnonymously = useCallback(async () => {
-    const { data, error } = await supabase.auth.signInAnonymously();
+    // Tempel UUID device ke metadata user anon — jangkar identitas guest lintas
+    // session. Kalau session anonim berganti (hilang/terhapus), device_id yang
+    // sama dipakai restoreGuestIdentity untuk memulihkan riwayat & eksklusi kata.
+    const deviceId = await getOrCreateDeviceId();
+    const { data, error } = await supabase.auth.signInAnonymously({
+      options: { data: { device_id: deviceId } },
+    });
     if (error) throw error;
     return data;
   }, []);

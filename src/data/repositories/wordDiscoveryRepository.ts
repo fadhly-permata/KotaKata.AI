@@ -5,6 +5,38 @@ import type { WordDiscoveryDoc } from "../models/schemas";
 
 const DISCOVERY_COLUMNS = "discovery_id, user_id, word_id, discovered_at";
 
+/** Kapasitas maksimal word_id hasil pencarian yang dipakai memfilter discovery. */
+const SEARCH_CAP = 500;
+
+export interface DiscoveryQuery {
+  /** Filter teks: discovery difilter ke kata/petunjuk di vocabulary yang mengandung teks ini (server-side ilike). */
+  search?: string;
+  /** Batas baris per halaman (PostgREST range). */
+  limit?: number;
+  /** Offset baris untuk pagination. */
+  offset?: number;
+}
+
+/**
+ * Cari word_id di vocabulary yang cocok dengan teks pencarian (word + clue_1 + clue_2
+ * + clue_3, case-insensitive). Mengembalikan null kalau tanpa filter, [] kalau tidak
+ * ada yang cocok. Karakter yang bisa merusak sintaks PostgREST or() (koma, wildcard,
+ * kutip) dibersihkan supaya pencarian tetap literal.
+ */
+async function resolveSearchWordIds(search?: string): Promise<string[] | null> {
+  const q = (search ?? "").replace(/[,*'"]/g, " ").trim();
+  if (!q) return null;
+  const { data, error } = await supabase
+    .from("vocabulary")
+    .select("word_id")
+    .or(`word.ilike.*${q}*,clue_1.ilike.*${q}*,clue_2.ilike.*${q}*,clue_3.ilike.*${q}*`)
+    .limit(SEARCH_CAP);
+  if (error) {
+    throw new Error(`Gagal mencari kata dari Supabase: ${error.message}`);
+  }
+  return (data ?? []).map((d) => d.word_id as string);
+}
+
 /**
  * Antrean write discovery (serial). Semua pemanggilan recordDiscoveriesForWords
  * dijalankan berurutan — dedup cloud tidak pernah race dengan write lain
@@ -19,12 +51,33 @@ export const wordDiscoveryRepository = {
     return wordDiscoveryRepository.getByUserFromCloud(userId);
   },
 
-  async getByUserFromCloud(userId: string): Promise<WordDiscoveryDoc[]> {
-    const { data, error } = await supabase
+  /**
+   * Baca riwayat langsung dari Supabase — sumber kebenaran lintas sesi.
+   * Mendukung pagination server-side (limit/offset) dan filter pencarian
+   * (search dicocokkan ke word/clue di vocabulary, lalu discovery difilter
+   * lewat word_id).
+   */
+  async getByUserFromCloud(
+    userId: string,
+    query: DiscoveryQuery = {},
+  ): Promise<WordDiscoveryDoc[]> {
+    const searchIds = await resolveSearchWordIds(query.search);
+    if (searchIds !== null && searchIds.length === 0) return [];
+
+    let builder = supabase
       .from("word_discoveries")
       .select(DISCOVERY_COLUMNS)
-      .eq("user_id", userId)
-      .order("discovered_at", { ascending: false });
+      .eq("user_id", userId);
+    if (searchIds !== null) {
+      builder = builder.in("word_id", searchIds);
+    }
+    if (typeof query.limit === "number") {
+      const start = query.offset ?? 0;
+      builder = builder.range(start, start + query.limit - 1);
+    }
+    builder = builder.order("discovered_at", { ascending: false });
+
+    const { data, error } = await builder;
     if (error) {
       throw new Error(`Gagal ambil riwayat dari Supabase: ${error.message}`);
     }
@@ -175,11 +228,19 @@ export const wordDiscoveryRepository = {
     return (data ?? []).map((d) => d.word_id as string);
   },
 
-  async countByUser(userId: string): Promise<number> {
-    const { count, error } = await supabase
+  async countByUser(userId: string, search?: string): Promise<number> {
+    const searchIds = await resolveSearchWordIds(search);
+    if (searchIds !== null && searchIds.length === 0) return 0;
+
+    let builder = supabase
       .from("word_discoveries")
       .select("discovery_id", { count: "exact", head: true })
       .eq("user_id", userId);
+    if (searchIds !== null) {
+      builder = builder.in("word_id", searchIds);
+    }
+
+    const { count, error } = await builder;
     if (error) {
       throw new Error(`Gagal menghitung riwayat dari Supabase: ${error.message}`);
     }

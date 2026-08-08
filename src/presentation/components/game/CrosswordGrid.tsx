@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
   StyleSheet,
   Platform,
+  PanResponder,
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import type { Board, BoardCell } from "../../../domain/entities/board";
@@ -16,6 +17,8 @@ interface CrosswordGridProps {
   selectedWordIndex: number | null;
   inputOrientation: "horizontal" | "vertical" | null;
   onCellPress: (row: number, col: number) => void;
+  /** Dipanggil saat jari/mouse menggeser melewati sebuah sel (swipe-to-move). */
+  onCellDrag?: (row: number, col: number) => void;
   onToggleOrientation: () => void;
   filledLetters: Map<string, string>;
   zoomLevel?: number;
@@ -23,6 +26,8 @@ interface CrosswordGridProps {
 
 const CELL_GAP = 3;
 const GRID_PADDING = 3;
+const BORDER_WIDTH = 1; // border container (styles.container)
+const DRAG_CLAIM_PX = 6; // geser minimal sebelum drag mengambil alih dari tap
 
 export default function CrosswordGrid({
   board,
@@ -30,6 +35,7 @@ export default function CrosswordGrid({
   selectedWordIndex,
   inputOrientation,
   onCellPress,
+  onCellDrag,
   filledLetters,
   zoomLevel = 1,
 }: CrosswordGridProps) {
@@ -169,11 +175,71 @@ export default function CrosswordGrid({
     [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme],
   );
 
+  // ---- Drag/swipe: kursor mengikuti jari/mouse melintasi sel ----
+  const cellFromLocation = useCallback(
+    (x: number, y: number): { row: number; col: number } | null => {
+      // Lokasi relatif terhadap container (border box). Konten sel pertama
+      // mulai di border + padding. Iterasi semua sel biar kebal terhadap
+      // selisih hitungan gap/padding di berbagai platform.
+      const origin = GRID_PADDING + BORDER_WIDTH;
+      for (let r = 0; r < board.size; r++) {
+        for (let c = 0; c < board.size; c++) {
+          const cellX = origin + c * (cellSize + CELL_GAP);
+          const cellY = origin + r * (cellSize + CELL_GAP);
+          if (x >= cellX && x < cellX + cellSize && y >= cellY && y < cellY + cellSize) {
+            return { row: r, col: c };
+          }
+        }
+      }
+      return null;
+    },
+    [board.size, cellSize],
+  );
+
+  const lastDragCellRef = useRef<string | null>(null);
+
+  // Tap tetap bekerja normal (start responder = false). Drag baru mengambil
+  // alih setelah bergeser cukup jauh dan dominan horizontal — supaya scroll
+  // vertikal halaman (dan scroll papan saat zoom > 1) tidak tertukar.
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_evt, gesture) =>
+          zoomLevel <= 1 &&
+          Math.abs(gesture.dx) > DRAG_CLAIM_PX &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        onPanResponderGrant: (evt) => {
+          const cell = cellFromLocation(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+          if (!cell) return;
+          lastDragCellRef.current = `${cell.row},${cell.col}`;
+          onCellDrag?.(cell.row, cell.col);
+        },
+        onPanResponderMove: (evt) => {
+          const cell = cellFromLocation(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+          if (!cell) return;
+          const key = `${cell.row},${cell.col}`;
+          if (lastDragCellRef.current === key) return;
+          lastDragCellRef.current = key;
+          onCellDrag?.(cell.row, cell.col);
+        },
+        onPanResponderRelease: () => {
+          lastDragCellRef.current = null;
+        },
+        onPanResponderTerminate: () => {
+          lastDragCellRef.current = null;
+        },
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [zoomLevel, cellFromLocation, onCellDrag],
+  );
+
   // Account for gaps between cells + padding so nothing overflows / gets clipped
   const gridSize = cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2;
 
   return (
     <View
+      {...panResponder.panHandlers}
       style={[
         styles.container,
         {

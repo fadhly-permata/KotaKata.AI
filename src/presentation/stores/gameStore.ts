@@ -41,6 +41,7 @@ interface GameState {
   inputLetter: (letter: string) => void;
   deleteLetter: () => void;
   navigateToCell: (direction: "up" | "down" | "left" | "right") => void;
+  dragToCell: (row: number, col: number) => void;
   goToPrevWord: () => void;
   goToNextWord: () => void;
   useClue2: (wordIndex: number) => void;
@@ -355,36 +356,66 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { board, selectedCell } = get();
     if (!board || !selectedCell) return;
 
-    let { row, col } = selectedCell;
-    switch (direction) {
-      case "up": row = Math.max(0, row - 1); break;
-      case "down": row = Math.min(board.size - 1, row + 1); break;
-      case "left": col = Math.max(0, col - 1); break;
-      case "right": col = Math.min(board.size - 1, col + 1); break;
-    }
+    const dr = direction === "up" ? -1 : direction === "down" ? 1 : 0;
+    const dc = direction === "left" ? -1 : direction === "right" ? 1 : 0;
 
-    const cell = board.grid[row]?.[col];
-    if (cell && !cell.isBlocked && !cell.isLocked) {
-      // Kalau kata yang sedang aktif masih melewati cell tujuan, tetap di kata
-      // itu; kalau tidak, pilih kata dengan orientasi yang sama dengan input
-      // saat ini, lalu fallback ke kata pertama yang tersedia di cell itu.
-      const wordsAtCell = getWordsAtCell(board, row, col);
-      const activeIdx = get().selectedWordIndex;
-      let targetIdx = wordsAtCell[0];
-      if (activeIdx != null && wordsAtCell.includes(activeIdx)) {
-        targetIdx = activeIdx;
-      } else {
-        const orientation = get().inputOrientation;
-        const sameOrientation = wordsAtCell.find((idx) => board.words[idx].orientation === orientation);
-        if (sameOrientation !== undefined) targetIdx = sameOrientation;
+    // Cari sel berikutnya yang MASIH BISA DIKETIK di arah itu. Sel terkunci
+    // (isLocked — mis. dari reveal atau kata solved yang menyilang) dan sel
+    // blocked dilewati, jadi tombol panah (virtual maupun keyboard fisik)
+    // tidak "menyangkut" saat ada sel terkunci di tengah kata.
+    let r = selectedCell.row + dr;
+    let c = selectedCell.col + dc;
+    let target: { row: number; col: number } | null = null;
+    while (r >= 0 && r < board.size && c >= 0 && c < board.size) {
+      const cell = board.grid[r]?.[c];
+      if (cell && !cell.isBlocked && !cell.isLocked) {
+        target = { row: r, col: c };
+        break;
       }
-      const targetWord = board.words[targetIdx];
-      set({
-        selectedCell: { row, col },
-        selectedWordIndex: targetIdx,
-        inputOrientation: targetWord.orientation,
-      });
+      r += dr;
+      c += dc;
     }
+    if (!target) return;
+
+    const targetIdx = pickWordIndexAtCell(
+      board,
+      target.row,
+      target.col,
+      get().selectedWordIndex,
+      get().inputOrientation,
+    );
+    if (targetIdx === null) return;
+    const targetWord = board.words[targetIdx];
+    set({
+      selectedCell: target,
+      selectedWordIndex: targetIdx,
+      inputOrientation: targetWord.orientation,
+    });
+  },
+
+  // Drag/swipe di papan: kursor mengikuti jari. Semantik "cell baru" biasa
+  // (tanpa toggle kata saat sel yang sama di-tap ulang) — kata aktif tetap
+  // dipilih selama melewati cell tujuan.
+  dragToCell: (row: number, col: number) => {
+    const { board } = get();
+    if (!board) return;
+    const cell = board.grid[row]?.[col];
+    if (!cell || cell.isBlocked || cell.isLocked) return;
+
+    const targetIdx = pickWordIndexAtCell(
+      board,
+      row,
+      col,
+      get().selectedWordIndex,
+      get().inputOrientation,
+    );
+    if (targetIdx === null) return;
+    const targetWord = board.words[targetIdx];
+    set({
+      selectedCell: { row, col },
+      selectedWordIndex: targetIdx,
+      inputOrientation: targetWord.orientation,
+    });
   },
 
   markWordSolved: (wordIndex: number) => {
@@ -570,6 +601,28 @@ export const useGameStore = create<GameState>((set, get) => ({
 /** Kata yang masih bisa dimainkan (belum solved dan masih ada cell kosong). */
 function isWordPlayable(word: BoardWord): boolean {
   return !word.solved && word.cells.some((c) => !c.isLocked);
+}
+
+/**
+ * Pilih index kata yang di-fokus saat kursor diarahkan ke (row, col):
+ * lanjutkan kata yang sedang aktif kalau masih melewati cell itu; kalau tidak,
+ * kata dengan orientasi yang sama dengan input saat ini; fallback kata pertama
+ * yang tersedia di cell. Dipakai oleh navigasi panah & drag.
+ */
+function pickWordIndexAtCell(
+  board: Board,
+  row: number,
+  col: number,
+  activeWordIndex: number | null,
+  orientation: Orientation | null,
+): number | null {
+  const wordsAtCell = getWordsAtCell(board, row, col);
+  if (wordsAtCell.length === 0) return null;
+  if (activeWordIndex != null && wordsAtCell.includes(activeWordIndex)) {
+    return activeWordIndex;
+  }
+  const sameOrientation = wordsAtCell.find((idx) => board.words[idx].orientation === orientation);
+  return sameOrientation ?? wordsAtCell[0];
 }
 
 /**

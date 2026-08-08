@@ -5,6 +5,7 @@ import { useTheme } from "../components/providers/ThemeProvider";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { userRepository } from "../../data/repositories/userRepository";
+import { getOrCreateDeviceId } from "../../utils/deviceIdentity";
 import { loggerWarn } from "../../utils/logger";
 import { useGameStore } from "../stores/gameStore";
 import AuthScreen from "../../features/auth/AuthScreen";
@@ -45,6 +46,20 @@ export default function RootNavigator() {
       const uid = session.user.id;
       (async () => {
         try {
+          // Guest anonim: pulihkan dulu identitas device sebelum membaca profil,
+          // supaya kalau session anonim berganti (hilang/terhapus) data lama
+          // (riwayat word_discoveries, board, XP) ikut pindah ke uid yang baru.
+          const guestDeviceId = session.user.is_anonymous
+            ? await getOrCreateDeviceId()
+            : undefined;
+          if (guestDeviceId) {
+            try {
+              await userRepository.restoreGuestIdentity(guestDeviceId, uid);
+            } catch (err) {
+              loggerWarn("Gagal memulihkan identitas tamu", err);
+            }
+          }
+
           const { data: profile, error } = await supabase
             .from("users")
             .select("user_id, display_name, email, total_xp, current_tier, coins, updated_at")
@@ -63,6 +78,7 @@ export default function RootNavigator() {
                 user_id: profile.user_id,
                 display_name: realName,
                 email: profile.email ?? undefined,
+                device_id: guestDeviceId,
                 total_xp: profile.total_xp ?? 0,
                 current_tier: profile.current_tier ?? 1,
                 coins: profile.coins ?? 0,
@@ -73,6 +89,7 @@ export default function RootNavigator() {
                 user_id: profile.user_id,
                 display_name: profile.display_name ?? "Pemain",
                 email: profile.email ?? undefined,
+                device_id: guestDeviceId,
                 total_xp: profile.total_xp ?? 0,
                 current_tier: profile.current_tier ?? 1,
                 coins: profile.coins ?? 0,
@@ -87,6 +104,7 @@ export default function RootNavigator() {
               user_id: uid,
               display_name: realName ?? "Pemain",
               email: session.user.email ?? undefined,
+              device_id: guestDeviceId,
               total_xp: 0,
               current_tier: 1,
               coins: 0,
