@@ -135,6 +135,19 @@ Ini adalah aturan yang tidak bisa ditawar. User mengandalkan file checkpoint unt
 - Fase sedang dikerjakan → `"status": "in_progress"`
 - Jika user minta lanjut → baca `checkpoint.json`, cari fase pertama yang `"not_started"` atau `"in_progress"`, lalu kerjakan.
 
+## Plan Revisi (WAJIB pakai agent, bukan edit manual)
+
+Semua daftar revisi dikelola lewat **skill `revision-plan`** (`.agents/skills/revision-plan/SKILL.md`).
+Jangan menyuruh user mengedit file plan manual — agent yang menjalankan semuanya:
+
+- Mulai/jeda/selesai plan → `bun .agents/plans/plan.mjs start|pause|stop <no>`
+- Centang item + catat revisi → `bun .agents/plans/plan.mjs check|note <no> <item> "..."`
+- Tambah/edit item daftar → edit file `.agents/plans/PLAN-NNN-*.md` langsung (baca dulu, `str_replace`)
+- Buat plan baru → `bun .agents/plans/plan.mjs new "Judul"` lalu isi langkahnya
+- Verifikasi → `bun .agents/plans/plan.mjs list|status <no>`
+
+Baca skill lengkapnya sebelum mengelola plan revisi.
+
 ## Git Conventions
 - Commit messages: `type(scope): description` (e.g. `feat(game): add procedural board generation`, `docs: update PRD`)
 - Preserve pre-existing user changes; stage only files belonging to the current request
