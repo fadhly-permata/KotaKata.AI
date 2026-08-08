@@ -12,14 +12,20 @@ import AuthScreen from "../../features/auth/AuthScreen";
 import MainMenuScreen from "../../features/game/MainMenuScreen";
 import GameScreen from "../../features/game/GameScreen";
 import HistoryScreen from "../../features/history/HistoryScreen";
+import GameHistoryScreen from "../../features/history/GameHistoryScreen";
+import BoardViewerScreen from "../../features/history/BoardViewerScreen";
 import ProfileScreen from "../../features/profile/ProfileScreen";
 import SettingsScreen from "../../features/settings/SettingsScreen";
+import LogViewerScreen from "../../features/settings/LogViewerScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
   MainMenu: undefined;
   Game: undefined;
   History: undefined;
+  GameHistory: undefined;
+  BoardViewer: { boardId: string };
+  LogViewer: undefined;
   Profile: undefined;
   Settings: undefined;
 };
@@ -173,6 +179,21 @@ export default function RootNavigator() {
         <Stack.Screen
           name="History"
           component={HistoryScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="GameHistory"
+          component={GameHistoryScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BoardViewer"
+          component={BoardViewerScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LogViewer"
+          component={LogViewerScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

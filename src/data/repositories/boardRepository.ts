@@ -47,6 +47,21 @@ export const boardRepository = {
     return (data ?? []).map(toDoc);
   },
 
+  /** Ambil daftar board yang sudah selesai (is_finished = true) milik user. */
+  async getFinished(userId: string): Promise<SavedBoardDoc[]> {
+    const { data, error } = await supabase
+      .from("saved_boards")
+      .select(BOARD_COLUMNS)
+      .eq("user_id", userId)
+      .eq("is_finished", true)
+      .order("updated_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      throw new Error(`Gagal ambil board selesai dari Supabase: ${error.message}`);
+    }
+    return (data ?? []).map(toDoc);
+  },
+
   async getInProgress(userId: string): Promise<SavedBoardDoc[]> {
     const { data, error } = await supabase
       .from("saved_boards")

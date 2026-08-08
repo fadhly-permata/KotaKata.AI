@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   ScrollView,
   Animated,
   Platform,
+  Modal,
+  ActivityIndicator,
+  Easing,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -17,13 +20,26 @@ import { useAuth } from "../auth/useAuth";
 import {
   calcTier,
   calcTierProgress,
-  calcXpGain,
   TIER_THRESHOLDS,
   TIER_NAMES,
 } from "../../domain/usecases/xpEngine";
+import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
+import type { VocabularyDoc } from "../../data/models/schemas";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
+
+/** Clue yang merupakan sinonim/antonim — tidak dipakai popup "Kata Ajaib". */
+const CLUE_SYN_ANT_RE = /^(antonim|sinonim|lawan kata|persamaan kata)\s*[:—–-]?/i;
+
+/** Pilih satu clue acak yang BUKAN sinonim/antonim (fallback ke clue_1). */
+function pickMagicClue(word: VocabularyDoc): string {
+  const candidates = [word.clue_1, word.clue_2, word.clue_3].filter(
+    (c): c is string => !!c && !CLUE_SYN_ANT_RE.test(c),
+  );
+  const pool = candidates.length > 0 ? candidates : [word.clue_1];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 export default function MainMenuScreen() {
   const { theme, isDark } = useTheme();
@@ -36,14 +52,12 @@ export default function MainMenuScreen() {
   const currentTier = useMemo(() => calcTier(totalXp), [totalXp]);
   const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
   const tierProgress = useMemo(() => calcTierProgress(totalXp), [totalXp]);
-  const xpToNext = useMemo(() => {
+  // Sisa XP murni menuju tier berikutnya (bukan estimasi jumlah kata).
+  const remainingXp = useMemo(() => {
     const nextThreshold = TIER_THRESHOLDS[Math.min(currentTier, TIER_THRESHOLDS.length - 1)];
-    const remainingXp = Math.max(0, nextThreshold - totalXp);
-    if (remainingXp === 0) return 0;
-    // Estimasi kata: XP rata-rata per kata di tier sekarang (asumsi kata ~6 huruf)
-    const xpPerWord = Math.max(1, calcXpGain(6, currentTier));
-    return Math.ceil(remainingXp / xpPerWord);
+    return Math.max(0, nextThreshold - totalXp);
   }, [currentTier, totalXp]);
+  const isMaxTier = currentTier >= TIER_THRESHOLDS.length;
 
   // ─── Bounce animation for play button icon ───
   const bounceAnim = useRef(new Animated.Value(0)).current;
@@ -63,8 +77,109 @@ export default function MainMenuScreen() {
     outputRange: [0, -8],
   });
 
-  // ─── Parallax scroll ───
+  // ─── Parallax scroll + idle bounce for floating orbs ───
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Tiap orb punya animasi idle sendiri (fase & durasi berbeda) supaya terlihat
+  // hidup: naik-turun halus "mantul" sebagai pemanis, tanpa mengganggu parallax.
+  const orbBounce = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
+  useEffect(() => {
+    const loops = orbBounce.map((anim, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 2600 + i * 500,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 2600 + i * 500,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    );
+    const starts = loops.map((loop, i) => setTimeout(() => loop.start(), i * 900));
+    return () => {
+      loops.forEach((l) => l.stop());
+      starts.forEach(clearTimeout);
+    };
+  }, [orbBounce]);
+
+  const orbSpecs = [
+    {
+      width: 160,
+      height: 160,
+      backgroundColor: isDark ? "#3a2050" : "#ffd6ee",
+      top: "-5%",
+      left: "-10%",
+      opacity: 0.5,
+      parallaxRange: [0, -80],
+      bounceRange: [0, -12],
+    },
+    {
+      width: 200,
+      height: 200,
+      backgroundColor: C.secondaryContainer,
+      top: "35%",
+      right: "-15%",
+      opacity: 0.45,
+      parallaxRange: [0, -120],
+      bounceRange: [0, 14],
+    },
+    {
+      width: 120,
+      height: 120,
+      backgroundColor: C.tertiaryContainer,
+      bottom: "10%",
+      left: "5%",
+      opacity: 0.4,
+      parallaxRange: [0, -160],
+      bounceRange: [0, -10],
+    },
+  ];
+
+  // ─── "Kata Ajaib" popup state ───
+  const [magicVisible, setMagicVisible] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
+  const [magicError, setMagicError] = useState(false);
+  const [magicWord, setMagicWord] = useState<VocabularyDoc | null>(null);
+  const [magicClue, setMagicClue] = useState("");
+
+  const loadMagicWord = useCallback(async () => {
+    setMagicLoading(true);
+    setMagicError(false);
+    try {
+      const words = await vocabularyRepository.getRandomWords(10);
+      // Pilih kata yang punya setidaknya satu clue non-sinonim/antonim.
+      const pool = words.filter((w) =>
+        [w.clue_1, w.clue_2, w.clue_3].some((c) => c && !CLUE_SYN_ANT_RE.test(c)),
+      );
+      const chosen = (pool.length > 0 ? pool : words)[
+        Math.floor(Math.random() * (pool.length > 0 ? pool.length : Math.max(1, words.length)))
+      ];
+      if (!chosen) throw new Error("Kosakata kosong");
+      setMagicWord(chosen);
+      setMagicClue(pickMagicClue(chosen));
+    } catch {
+      setMagicError(true);
+      setMagicWord(null);
+    } finally {
+      setMagicLoading(false);
+    }
+  }, []);
+
+  const openMagicWord = useCallback(() => {
+    setMagicVisible(true);
+    void loadMagicWord();
+  }, [loadMagicWord]);
 
   const handlePlay = () => {
     reset();
@@ -75,74 +190,41 @@ export default function MainMenuScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: C.background }]}>
-      {/* ─── Floating Background Shapes (Parallax) ─── */}
+      {/* ─── Floating Background Shapes (Parallax + idle bounce) ─── */}
       <View style={styles.floatingContainer} pointerEvents="none">
-        <Animated.View
-          style={[
-            styles.floatingOrb,
-            {
-              width: 160,
-              height: 160,
-              backgroundColor: isDark ? "#3a2050" : "#ffd6ee",
-              top: "-5%",
-              left: "-10%",
-              opacity: 0.5,
-              transform: [
-                {
-                  translateY: scrollY.interpolate({
-                    inputRange: [0, 300],
-                    outputRange: [0, -80],
-                    extrapolate: "clamp",
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.floatingOrb,
-            {
-              width: 200,
-              height: 200,
-              backgroundColor: C.secondaryContainer,
-              top: "35%",
-              right: "-15%",
-              opacity: 0.45,
-              transform: [
-                {
-                  translateY: scrollY.interpolate({
-                    inputRange: [0, 300],
-                    outputRange: [0, -120],
-                    extrapolate: "clamp",
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.floatingOrb,
-            {
-              width: 120,
-              height: 120,
-              backgroundColor: C.tertiaryContainer,
-              bottom: "10%",
-              left: "5%",
-              opacity: 0.4,
-              transform: [
-                {
-                  translateY: scrollY.interpolate({
-                    inputRange: [0, 300],
-                    outputRange: [0, -160],
-                    extrapolate: "clamp",
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
+        {orbSpecs.map((spec, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              styles.floatingOrb,
+              {
+                width: spec.width,
+                height: spec.height,
+                backgroundColor: spec.backgroundColor,
+                top: spec.top as any,
+                left: spec.left as any,
+                right: spec.right as any,
+                bottom: spec.bottom as any,
+                opacity: spec.opacity,
+                transform: [
+                  {
+                    translateY: scrollY.interpolate({
+                      inputRange: [0, 300],
+                      outputRange: spec.parallaxRange,
+                      extrapolate: "clamp",
+                    }),
+                  },
+                  {
+                    translateY: orbBounce[i].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: spec.bounceRange,
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        ))}
       </View>
 
       {/* ─── Scrollable Content ─── */}
@@ -153,7 +235,7 @@ export default function MainMenuScreen() {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: true },
         )}
         scrollEventThrottle={16}
       >
@@ -196,7 +278,9 @@ export default function MainMenuScreen() {
             </View>
 
             <Text style={[styles.heroSubtext, { color: C.textSecondary }]}>
-              Lengkapi {xpToNext} kata lagi untuk level berikutnya!
+              {isMaxTier
+                ? "Kamu sudah berada di level tertinggi! 🏆"
+                : `Dapatkan ${remainingXp} XP lagi untuk naik ke level`}
             </Text>
           </View>
         </View>
@@ -221,7 +305,7 @@ export default function MainMenuScreen() {
           <View style={styles.shineOverlay} />
         </TouchableOpacity>
 
-        {/* ═══ Action Grid: Misi Harian + Sejarah ═══ */}
+        {/* ═══ Action Grid: Misi Harian + Kata Ajaib — lebar 48% (sama dgn bento) ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
@@ -235,18 +319,18 @@ export default function MainMenuScreen() {
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate("History")}
+            onPress={openMagicWord}
           >
-            <Text style={styles.actionCardIcon}>🎓</Text>
-            <Text style={[styles.actionCardLabel, { color: C.text }]}>Sejarah</Text>
+            <Text style={styles.actionCardIcon}>✨</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Kata Ajaib</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ═══ Koleksi Terbaru (Bento) — Solid Colors ═══ */}
+        {/* ═══ Koleksi Terbaru (Bento) — tinggi asli: Profil besar, sisanya kecil ═══ */}
         <View style={styles.bentoSection}>
           <Text style={[styles.bentoTitle, { color: C.text }]}>Koleksi Terbaru</Text>
           <View style={styles.bentoGrid}>
-            {/* Large card — Profil */}
+            {/* Large card — Profil (tinggi penuh 180) */}
             <TouchableOpacity
               style={[styles.bentoLargeCard, { backgroundColor: "#FF8A65" }]}
               activeOpacity={0.8}
@@ -258,19 +342,19 @@ export default function MainMenuScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Small card 1 — Kata Ajaib */}
+            {/* Small card 1 — Kata Ditemukan */}
             <TouchableOpacity
               style={[styles.bentoSmallCard, { backgroundColor: "#00B894" }]}
               activeOpacity={0.8}
-              onPress={() => {}}
+              onPress={() => navigation.navigate("History")}
             >
               <View style={styles.bentoSmallContent}>
-                <Text style={styles.bentoSmallEmoji}>✨</Text>
-                <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Kata Ajaib</Text>
+                <Text style={styles.bentoSmallEmoji}>🔍</Text>
+                <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Kata Ditemukan</Text>
               </View>
             </TouchableOpacity>
 
-            {/* Small card 2 — Pengaturan */}
+            {/* Small card 2 — Pengaturan (di bawah Profil) */}
             <TouchableOpacity
               style={[styles.bentoSmallCard, { backgroundColor: "#74B9FF" }]}
               activeOpacity={0.8}
@@ -281,9 +365,74 @@ export default function MainMenuScreen() {
                 <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Pengaturan</Text>
               </View>
             </TouchableOpacity>
+
+            {/* Large card 2 — Sejarah Permainan (tinggi sama dgn Profil, di bawah Kata Ditemukan) */}
+            <TouchableOpacity
+              style={[styles.bentoLargeCard, { backgroundColor: "#8E6CC9" }]}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate("GameHistory")}
+            >
+              <View style={styles.bentoLargeContent}>
+                <Text style={styles.bentoLargeEmoji}>🕹️</Text>
+                <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Sejarah Permainan</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
+
+      {/* ─── Popup "Kata Ajaib" ─── */}
+      <Modal
+        visible={magicVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMagicVisible(false)}
+      >
+        <View style={styles.magicOverlay}>
+          <View style={[styles.magicCard, { backgroundColor: C.surface }]}>
+            <Text style={styles.magicEmoji}>✨</Text>
+            <Text style={[styles.magicTitle, { color: C.primary }]}>Kata Ajaib</Text>
+
+            {magicLoading ? (
+              <ActivityIndicator color={C.primary} style={styles.magicLoading} />
+            ) : magicError ? (
+              <Text style={[styles.magicError, { color: C.error }]}>
+                Gagal mengambil kata. Periksa koneksi lalu coba lagi.
+              </Text>
+            ) : magicWord ? (
+              <>
+                <Text style={[styles.magicWord, { color: C.text }]}>{magicWord.word}</Text>
+                <Text style={[styles.magicTier, { color: C.textSecondary }]}>
+                  Tier {magicWord.tier_level}
+                </Text>
+                <View style={[styles.magicClueBox, { backgroundColor: C.secondaryContainer }]}>
+                  <Text style={[styles.magicClue, { color: C.text }]}>{magicClue}</Text>
+                </View>
+              </>
+            ) : null}
+
+            <View style={styles.magicButtons}>
+              <TouchableOpacity
+                style={[styles.magicBtn, { backgroundColor: C.secondaryContainer }]}
+                activeOpacity={0.7}
+                onPress={() => void loadMagicWord()}
+                disabled={magicLoading}
+              >
+                <Text style={[styles.magicBtnText, { color: C.secondary }]}>
+                  {magicLoading ? "Memuat…" : "🔄 Kata Lain"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.magicBtn, { backgroundColor: C.primary }]}
+                activeOpacity={0.7}
+                onPress={() => setMagicVisible(false)}
+              >
+                <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>Tutup</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -385,6 +534,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     marginTop: 4,
+    textAlign: "center",
   },
 
   /* ─── Play Button ─── */
@@ -421,7 +571,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
 
-  /* ─── Action Grid ─── */
+  /* ─── Action Grid (Misi Harian + Kata Ajaib) — lebar sama dgn bento (48%) ─── */
   actionGrid: {
     flexDirection: "row",
     gap: 12,
@@ -429,7 +579,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   actionCard: {
-    flex: 1,
+    width: "48%",
     paddingVertical: 20,
     paddingHorizontal: 16,
     borderRadius: 14,
@@ -439,7 +589,7 @@ const styles = StyleSheet.create({
   actionCardIcon: { fontSize: 28 },
   actionCardLabel: { fontSize: 14, fontWeight: "700", textAlign: "center" },
 
-  /* ─── Bento Section ─── */
+  /* ─── Bento Section (Koleksi Terbaru) — tinggi asli: besar 180, kecil 47% ─── */
   bentoSection: {
     marginHorizontal: 16,
     marginBottom: 24,
@@ -454,11 +604,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    height: 180,
   },
   bentoLargeCard: {
     width: "48%",
-    height: "100%",
+    height: 180,
     borderRadius: 14,
     overflow: "hidden",
     justifyContent: "flex-end",
@@ -473,7 +622,7 @@ const styles = StyleSheet.create({
   bentoLargeLabel: { fontSize: 14, fontWeight: "700" },
   bentoSmallCard: {
     width: "48%",
-    height: "47%",
+    height: 84,
     borderRadius: 14,
     justifyContent: "flex-end",
     overflow: "hidden",
@@ -486,4 +635,47 @@ const styles = StyleSheet.create({
   },
   bentoSmallEmoji: { fontSize: 24 },
   bentoSmallLabel: { fontSize: 13, fontWeight: "700" },
+
+  /* ─── Popup Kata Ajaib ─── */
+  magicOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  magicCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: "center",
+    gap: 10,
+  },
+  magicEmoji: { fontSize: 40 },
+  magicTitle: { fontSize: 18, fontWeight: "800" },
+  magicLoading: { marginVertical: 24 },
+  magicError: { fontSize: 13, textAlign: "center", marginVertical: 12 },
+  magicWord: { fontSize: 34, fontWeight: "900", letterSpacing: -0.5, textAlign: "center" },
+  magicTier: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 1 },
+  magicClueBox: {
+    borderRadius: 12,
+    padding: 14,
+    width: "100%",
+    marginTop: 4,
+  },
+  magicClue: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  magicButtons: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+    marginTop: 8,
+  },
+  magicBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  magicBtnText: { fontSize: 14, fontWeight: "700" },
 });
