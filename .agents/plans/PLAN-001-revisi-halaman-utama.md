@@ -1,6 +1,6 @@
 # Revisi Halaman Utama & Navigasi
 
-<!-- status: done -->
+<!-- status: in-progress -->
 <!-- dibuat: 2026-08-08 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 001`
@@ -42,17 +42,21 @@
 
 - [x] **17. Ingame Screen: Navigasi Soal** Untuk jawaban yang belum terjawab dengan benar, harusnya masih bisa mendapat fokus dari aksi klik/tap tombol navigasi soal didalam panel soal.
 
-- [ ] **18. Sejarah Saya: Halaman detail sejarah** Halaman detail ini masih meletakkan huruf di papan jawaban secara random. Harusnya disesuaikan dengan struktur yang sama pada saat disajikan pada pemain. Dugaan gua, ini karna struktur data JSON yang disimpan pada table saved_board ini gak menyimpan informasi koordinat jawaban pada saat game selesai dimainkan.
+- [x] **18. Sejarah Saya: Halaman detail sejarah** Halaman detail ini masih meletakkan huruf di papan jawaban secara random. Harusnya disesuaikan dengan struktur yang sama pada saat disajikan pada pemain. Dugaan gua, ini karna struktur data JSON yang disimpan pada table saved_board ini gak menyimpan informasi koordinat jawaban pada saat game selesai dimainkan.
 
-- [ ] **19. Sejarah Saya: Halaman detail sejarah** Desain pada halaman ini juga terasa berantakan. Buat jadi lebih indah dan rapih dong.
+- [x] **19. Sejarah Saya: Halaman detail sejarah** Desain pada halaman ini juga terasa berantakan. Buat jadi lebih indah dan rapih dong.
 
-- [ ] **20. Halaman Utama: Animasi Orb** Pergerakan animasi orb masih kurang tampak agak sedikit dipercepat dong. Jangan ekstrem cukup dinaikan sedikit aja speednya.
+- [x] **20. Halaman Utama: Animasi Orb** Pergerakan animasi orb masih kurang tampak agak sedikit dipercepat dong. Jangan ekstrem cukup dinaikan sedikit aja speednya.
 
-- [ ] **21. README.MD: Update Readme.md** Update dokumen readme.md yang berada di root agar lebih me-representasikan project ini dengan benar.
+- [x] **21. README.MD: Update Readme.md** Update dokumen readme.md yang berada di root agar lebih me-representasikan project ini dengan benar.
 
 - [ ] **22. vocabulary-clue-review: Review Vocabulary** Lanjutkan proses review vocabulary sisanya. Pastikan sebelum menjalankan proses ini, sudah melakukan commit dan push ke github. Dan, setiap satu file tier/level selesai di review. langsung commit dan pus ke git dan ke database (supabase).
 
 ## Catatan Revisi
+- **21.** 2026-08-08: README ditulis ulang: hapus klaim RxDB (salah — pakai AsyncStorage + sql.js), tech stack & struktur akurat, tabel 10 tier lengkap, env vars, migrasi DB (supabase/ + scripts), workflow plan (.agents/plans/plan.mjs), build expo export
+- **20.** 2026-08-08: durasi animasi orb dipercepat dari 2600+i*500ms menjadi 1800+i*350ms (naik-turun lebih terlihat, tetap halus easing inOut quad)
+- **19.** 2026-08-08: Redesign BoardViewerScreen: header kartu (ikon 🏁 + title + badge Tier berwarna + badge ukuran/kata), grid shadow halus (web), daftar soal dikelompokkan MENDATAR (badge secondary) & MENURUN (badge primary) dengan nomor bulat 30px yang SELARAS dengan nomor grid, tanggal selesai format id-ID
+- **18.** 2026-08-08: AKAR MASALAH: grid viewer meluber — lebar kontainer dihitung cellSize*size tapi isi sebenarnya cellSize*size + gap*(size-1) + padding*2 + border*2, jadi sel terakhir tiap baris loncat ke baris berikutnya (terlihat huruf acak). FIX: cellSize dihitung MUNDUR dari lebar layar (kurangi total gap+padding+border dulu, baru bagi size); gridWidth dihitung persis = sel+gap+padding+border. Daftar soal kini bernomor sesuai grid (numberWords dari nomor sel awal).
 - **17.** 2026-08-08: goToPrevWord/goToNextWord: hapus skip kata yang semua selnya terisi — kata terisi penuh tapi belum benar (termasuk kasus 100% terisi tapi belum solved) kini tetap bisa difokus lewat tombol navigasi ◀▶ di panel soal; yang dilewati hanya kata solved
 - **16.** 2026-08-08: viewer papan: buildGrid kini menurunkan sel isBlocked (sel yang tidak dilalui kata mana pun = hitam) + nomor clue (scan baris/kolom sama dgn buildBoard generator). Verifikasi: data layout sudah punya startRow/startCol/orientation lengkap (0 kata kurang posisi); render ASCII 12 kata 10x10 membentuk crossword rapi & semua persimpangan konsisten
 - **15.** 2026-08-08: wrapper opacity keyboardVisible ? 1 : 0.4 dihapus — ikon keyboard selalu tampil penuh, tidak ada efek disable
