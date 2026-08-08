@@ -42,6 +42,14 @@
 
 - [x] **17. Ingame Screen: Navigasi Soal** Untuk jawaban yang belum terjawab dengan benar, harusnya masih bisa mendapat fokus dari aksi klik/tap tombol navigasi soal didalam panel soal.
 
+- [ ] **18. Sejarah Saya: Halaman detail sejarah** Halaman detail ini masih meletakkan huruf di papan jawaban secara random. Harusnya disesuaikan dengan struktur yang sama pada saat disajikan pada pemain. Dugaan gua, ini karna struktur data JSON yang disimpan pada table saved_board ini gak menyimpan informasi koordinat jawaban pada saat game selesai dimainkan.
+
+- [ ] **19. Sejarah Saya: Halaman detail sejarah** Desain pada halaman ini juga terasa berantakan. Buat jadi lebih indah dan rapih dong.
+
+- [ ] **20. Halaman Utama: Animasi Orb** Pergerakan animasi orb masih kurang tampak agak sedikit dipercepat dong. Jangan ekstrem cukup dinaikan sedikit aja speednya.
+
+- [ ] 
+
 ## Catatan Revisi
 - **17.** 2026-08-08: goToPrevWord/goToNextWord: hapus skip kata yang semua selnya terisi — kata terisi penuh tapi belum benar (termasuk kasus 100% terisi tapi belum solved) kini tetap bisa difokus lewat tombol navigasi ◀▶ di panel soal; yang dilewati hanya kata solved
 - **16.** 2026-08-08: viewer papan: buildGrid kini menurunkan sel isBlocked (sel yang tidak dilalui kata mana pun = hitam) + nomor clue (scan baris/kolom sama dgn buildBoard generator). Verifikasi: data layout sudah punya startRow/startCol/orientation lengkap (0 kata kurang posisi); render ASCII 12 kata 10x10 membentuk crossword rapi & semua persimpangan konsisten
