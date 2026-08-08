@@ -44,3 +44,6 @@ yarn-error.*
 
 # CodeGraph local index
 .codegraph/
+
+# Artefak lokal Freebuff (sqlite desktop, bukan bagian proyek)
+.freebuff/
