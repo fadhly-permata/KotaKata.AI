@@ -8,7 +8,7 @@
 
 ## Langkah
 
-- [ ] **1. Bersihkan folder `.freebuff`** — Hasil investigasi: berisi `desktop-v2.db` + `-shm` + `-wal` (SQLite ~10MB) yang **ter-track di git** (commit "manual commit" 3f611df) tapi **tidak dirujuk satu pun kode** (grep `freebuff|desktop-v2` di `src/`, `scripts/`, `supabase/` kosong; log lokal memakai sql.js in-memory + AsyncStorage, bukan file ini). Tindakan: hapus folder (git rm), tambahkan `.freebuff/` ke `.gitignore`, commit.
+- [x] **1. Bersihkan folder `.freebuff`** — Hasil investigasi: berisi `desktop-v2.db` + `-shm` + `-wal` (SQLite ~10MB) yang **ter-track di git** (commit "manual commit" 3f611df) tapi **tidak dirujuk satu pun kode** (grep `freebuff|desktop-v2` di `src/`, `scripts/`, `supabase/` kosong; log lokal memakai sql.js in-memory + AsyncStorage, bukan file ini). Tindakan: hapus folder (git rm), tambahkan `.freebuff/` ke `.gitignore`, commit.
 
 - [ ] **2. Samakan lebar tombol menu halaman utama** — Di `src/features/game/MainMenuScreen.tsx`: baris "actionGrid" (Misi Harian + Sejarah) pakai `flex: 1` (lebar 50%-an), sedangkan baris "bento" (Profil besar 48%, Kata Ajaib + Pengaturan 48% kecil) memakai `width: 48%` — hasilnya lebar tombol tidak konsisten antar baris. Tindakan: buat satu sistem grid seragam (mis. semua kartu `flex: 1` dengan tinggi konsisten atau satu konstanta lebar), sehingga Misi Harian, Sejarah/Kata Ditemukan, Profil, Kata Ajaib, Pengaturan, dan tombol baru Sejarah Permainan (lihat #8) terlihat rapi sejajar.
 
@@ -32,4 +32,4 @@
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 001 <no> "teks"`)_
+- **1.** 2026-08-08: folder .freebuff dihapus (git rm) + .gitignore ditambah .freebuff/, commit d84778f sudah di-push

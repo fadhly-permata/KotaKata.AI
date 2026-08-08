@@ -5,6 +5,20 @@ Setiap plan adalah satu file markdown (`PLAN-NNN-*.md`) yang berisi daftar
 langkah revisi dengan checkbox, status plan, dan catatan revisi yang sudah
 dikerjakan.
 
+## 🤖 Cara PRAKTIS: minta agent yang kerjain (disarankan)
+
+**Tidak perlu mengedit file manual.** Tinggal minta agent (Buffy) dengan bahasa
+sehari-hari — agent memakai skill **`revision-plan`** untuk menjalankan semuanya:
+
+- "mulai plan 001" / "lanjutkan plan revisi" → `start`
+- "pause dulu" → `pause`  ·  "hentikan/selesaikan plan ini" → `stop`
+- "tandai item 3 selesai" / "item 5 udah kelar" → `check`
+- "catat revisi item 2: ..." → `note`
+- "tambah item revisi baru: ..." → agent mengedit file plan langsung
+- "buat plan baru berjudul ..." → `new` + agent mengisi daftar itemnya
+
+Skill berada di `.agents/skills/revision-plan/SKILL.md`.
+
 ## Alat: `plan.mjs`
 
 Semua operasi dikelola lewat satu command: `bun .agents/plans/plan.mjs`.
