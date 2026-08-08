@@ -132,15 +132,19 @@ create table if not exists public.vocabulary (
   created_at timestamptz not null default now()
 );
 
--- Isi tabel DIBERSIHKAN tiap generate (data soal dikelola dari repo).
--- CASCADE: word_discoveries punya FK ON DELETE CASCADE ke vocabulary, jadi
--- TRUNCATE biasa ditolak Postgres. Catatan: cascade ikut menghapus riwayat
--- penemuan — untuk seed ulang non-destruktif nanti gunakan upsert (on conflict).
-truncate table public.vocabulary cascade;
-
+-- Isi tabel di-UPSERT (bukan TRUNCATE + insert). word_discoveries punya FK
+-- ON DELETE CASCADE ke vocabulary, jadi TRUNCATE cascade ikut menghapus
+-- SELURUH riwayat penemuan pemain ("Sejarah Saya") setiap kali soal di-push
+-- ulang. Upsert di bawah memperbarui clue/koreksi tier tanpa menyentuh baris
+-- word_discoveries yang sudah ada — riwayat pemain tetap utuh.
 insert into public.vocabulary (word_id, word, clue_1, clue_2, clue_3, tier_level) values
 ${rows.join(",\n")}
-on conflict (word_id) do nothing;
+on conflict (word_id) do update set
+  word = excluded.word,
+  clue_1 = excluded.clue_1,
+  clue_2 = excluded.clue_2,
+  clue_3 = excluded.clue_3,
+  tier_level = excluded.tier_level;
 
 create index if not exists idx_vocabulary_tier on public.vocabulary (tier_level);
 `;

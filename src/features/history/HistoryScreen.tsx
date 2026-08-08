@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
@@ -29,46 +31,76 @@ interface DiscoveryItem {
   discoveredAt: string; // ISO timestamp
 }
 
+/** Berapa data yang dimuat tiap scroll (pagination server-side). */
+const PAGE_SIZE = 25;
+/** Jeda sebelum pencarian dikirim ke cloud (hindari spam query per ketikan). */
+const SEARCH_DEBOUNCE_MS = 400;
+
 export default function HistoryScreen() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selected, setSelected] = useState<DiscoveryItem | null>(null);
   const [items, setItems] = useState<DiscoveryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true); // muat halaman pertama / reset
+  const [loadingMore, setLoadingMore] = useState(false); // muat halaman berikutnya
+  const [hasMore, setHasMore] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
+  const pageRef = useRef(0); // halaman terakhir yang sudah dimuat
+  const searchRef = useRef(""); // term pencarian yang sedang dipakai query
+  const loadingMoreRef = useRef(false); // cegah load-more bertumpuk
+  const hasMoreRef = useRef(true); // masih ada halaman berikutnya?
+  const resetTokenRef = useRef(0); // invalidasi load lama yang basi (reset/ganti pencarian)
+
+  // Debounce input pencarian.
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
+    const t = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
 
-    (async () => {
+  /**
+   * Muat satu halaman discovery dari cloud.
+   * - `reset=true` (mount / ganti pencarian): mulai dari halaman 0, replace list.
+   * - `reset=false` (scroll ke bawah): ambil halaman berikutnya, append.
+   */
+  const loadPage = useCallback(
+    async (reset: boolean) => {
+      if (!user) return;
+      if (!reset && (loadingMoreRef.current || !hasMoreRef.current)) return;
+      // Setiap pemanggilan mengambil token FRESH (increment dulu, baru capture).
+      // Reset/ganti pencarian menaikkan token → load lama (mis. load-more yang
+      // masih berjalan) yang selesai belakangan dianggap basi dan dibuang.
+      const token = ++resetTokenRef.current;
+      if (reset) {
+        setLoading(true);
+        setLoadError(false);
+      } else {
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      }
+      const offset = reset ? 0 : (pageRef.current + 1) * PAGE_SIZE;
+
       try {
-        // Tunggu semua pencatatan discovery yang masih berjalan (termasuk push
-        // langsung ke Supabase) selesai dulu. Kalau user membuka Sejarah tepat
-        // setelah menjawab sebuah kata, riwayat terbaru sudah sampai cloud
-        // sebelum di-baca — tanpa ini halaman sering tampak "tidak bertambah"
-        // karena baca cloud duluan daripada push-nya.
-        await wordDiscoveryRepository.flushDiscoveries();
+        // Reset: tunggu pencatatan discovery yang masih berjalan (termasuk
+        // push langsung ke Supabase) selesai, biar riwayat terbaru sudah ada
+        // di cloud sebelum di-baca.
+        if (reset) await wordDiscoveryRepository.flushDiscoveries();
 
-        // Sumber kebenaran: Supabase (bertahan lintas sesi/reload). Tidak ada
-        // database lokal — kalau cloud gagal, tampilkan pesan error.
-        let discoveries: WordDiscoveryDoc[] = [];
-        let vocabMap = new Map<string, VocabularyDoc>();
-        try {
-          discoveries = await wordDiscoveryRepository.getByUserFromCloud(user.id);
-          const words = await vocabularyRepository.getByIdsFromCloud(
-            discoveries.map((d) => d.word_id),
-          );
-          vocabMap = new Map(words.map((v) => [v.word_id, v]));
-        } catch (cloudErr) {
-          loggerWarn("Gagal memuat riwayat dari cloud", cloudErr);
-          if (!cancelled) setLoadError(true);
-          return;
-        }
+        const searchTerm = searchRef.current || undefined;
+        const discoveries: WordDiscoveryDoc[] =
+          await wordDiscoveryRepository.getByUserFromCloud(user.id, {
+            search: searchTerm,
+            limit: PAGE_SIZE,
+            offset,
+          });
+
+        const words = await vocabularyRepository.getByIdsFromCloud(
+          discoveries.map((d) => d.word_id),
+        );
+        const vocabMap = new Map(words.map((v) => [v.word_id, v]));
 
         const mapped: DiscoveryItem[] = [];
         for (const d of discoveries) {
@@ -84,30 +116,58 @@ export default function HistoryScreen() {
           });
         }
 
-        if (!cancelled) setItems(mapped);
+        if (resetTokenRef.current !== token) return; // ada load lebih baru — buang hasil basi
+
+        setItems((prev) => (reset ? mapped : [...prev, ...mapped]));
+        pageRef.current = reset ? 0 : pageRef.current + 1;
+        const more = discoveries.length === PAGE_SIZE;
+        hasMoreRef.current = more;
+        setHasMore(more);
+
+        if (reset) {
+          try {
+            setTotal(await wordDiscoveryRepository.countByUser(user.id, searchTerm));
+          } catch (err) {
+            // Total hanya label — gagal menghitung tidak menggagalkan list.
+            loggerWarn("Gagal menghitung total riwayat", err);
+          }
+        }
       } catch (err) {
         loggerWarn("Gagal memuat riwayat penemuan", err);
+        if (resetTokenRef.current === token && reset) setLoadError(true);
       } finally {
-        if (!cancelled) setLoading(false);
+        loadingMoreRef.current = false;
+        if (resetTokenRef.current === token) {
+          if (reset) setLoading(false);
+          setLoadingMore(false);
+        }
       }
-    })();
+    },
+    [user],
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  // Muat ulang dari halaman 0 saat user berubah atau term pencarian berubah.
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    searchRef.current = debouncedSearch.trim();
+    loadPage(true);
+  }, [user, debouncedSearch, loadPage]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return items;
-    const q = search.toLowerCase();
-    return items.filter(
-      (item) =>
-        item.word.toLowerCase().includes(q) ||
-        item.clue_1.toLowerCase().includes(q) ||
-        item.clue_2?.toLowerCase().includes(q) ||
-        item.clue_3?.toLowerCase().includes(q),
-    );
-  }, [items, search]);
+  // Pemicu lazy load cadangan: mendekati dasar list saat scroll (di samping
+  // onEndReached). Menjamin data berikutnya termuat walau onEndReached tidak
+  // terpicu di platform tertentu — aman berulang karena loadPage di-guard.
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - (contentOffset.y + layoutMeasurement.height);
+      if (distanceFromBottom < 600) loadPage(false);
+    },
+    [loadPage],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: DiscoveryItem }) => (
@@ -129,6 +189,42 @@ export default function HistoryScreen() {
     ),
     [theme],
   );
+
+  const renderFooter = useCallback(() => {
+    if (loadingMore) {
+      return (
+        <View style={styles.footerWrap}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
+            Memuat riwayat lainnya…
+          </Text>
+        </View>
+      );
+    }
+    if (hasMore && items.length > 0) {
+      // Jaring pengaman: kalau auto-load saat scroll tidak terpicu (mis. di
+      // platform tertentu), user tetap bisa memuat data berikutnya manual.
+      return (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={() => loadPage(false)}
+          style={[styles.loadMoreBtn, { borderColor: theme.colors.border }]}
+        >
+          <Text style={[styles.loadMoreText, { color: theme.colors.primary }]}>
+            Muat lebih banyak
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+    if (items.length > 0) {
+      return (
+        <Text style={[styles.endLabel, { color: theme.colors.textSecondary }]}>
+          — Akhir riwayat —
+        </Text>
+      );
+    }
+    return null;
+  }, [loadingMore, hasMore, items.length, loadPage, theme]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -161,18 +257,23 @@ export default function HistoryScreen() {
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={items}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => loadPage(false)}
+          onEndReachedThreshold={0.4}
+          onScroll={handleScroll}
+          scrollEventThrottle={200}
           ListHeaderComponent={
-            items.length > 0 ? (
+            total > 0 ? (
               <Text style={[styles.countLabel, { color: theme.colors.textSecondary }]}>
-                {items.length} kata ditemukan
+                {total} kata ditemukan
               </Text>
             ) : null
           }
+          ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>{loadError ? "📡" : "🎓"}</Text>
@@ -268,6 +369,18 @@ const styles = StyleSheet.create({
   itemWord: { fontSize: 16, fontWeight: "700", textTransform: "uppercase" },
   itemClue: { fontSize: 13, lineHeight: 18 },
   itemTime: { fontSize: 11, fontWeight: "500", marginLeft: 8 },
+  footerWrap: { alignItems: "center", paddingVertical: 16, gap: 6 },
+  footerText: { fontSize: 12, fontWeight: "600" },
+  loadMoreBtn: {
+    alignSelf: "center",
+    marginVertical: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  loadMoreText: { fontSize: 13, fontWeight: "700" },
+  endLabel: { textAlign: "center", fontSize: 12, fontStyle: "italic", paddingVertical: 16 },
   empty: { alignItems: "center", paddingTop: 48, gap: 8 },
   emptyEmoji: { fontSize: 36 },
   emptyText: { fontSize: 14, fontStyle: "italic", textAlign: "center", paddingHorizontal: 24 },

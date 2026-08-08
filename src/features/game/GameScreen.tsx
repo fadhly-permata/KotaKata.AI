@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator, Modal } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator, Modal, PanResponder } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -24,30 +24,13 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
-import type { Board, BoardWord, WordCandidate } from "../../domain/entities/board";
+import type { Board, BoardWord } from "../../domain/entities/board";
 import { loggerInfo, loggerWarn } from "../../utils/logger";
 import {
   serializeBoardProgress,
   deserializeBoardProgress,
   IN_PROGRESS_BOARD_ID,
 } from "../../utils/boardProgress";
-
-// Only used as a last-resort fallback if the local DB is unavailable.
-const FALLBACK_WORDS: WordCandidate[] = [
-  { word: "REACT", clue_1: "Library JavaScript buat UI", clue_2: "Dibuat oleh Meta", clue_3: "Framework frontend populer", tier_level: 1 },
-  { word: "KOTAK", clue_1: "Bentuk segi empat", clue_2: "Benda berbentuk kubus", clue_3: "Kardus berbentuk ini", tier_level: 1 },
-  { word: "KATA", clue_1: "Unit bahasa", clue_2: "Gabungan huruf", clue_3: "Elemen dari kalimat", tier_level: 1 },
-  { word: "TEKA", clue_1: "Teka-teki", clue_2: "Permainan asah otak", clue_3: "Sinonim dari puzzle", tier_level: 1 },
-  { word: "AKU", clue_1: "Diri sendiri", clue_2: "Kata ganti orang pertama", clue_3: "Saya", tier_level: 1 },
-  { word: "AIR", clue_1: "Cairan bening", clue_2: "Minuman pokok", clue_3: "H2O", tier_level: 1 },
-  { word: "API", clue_1: "Panas membara", clue_2: "Sumber nyala", clue_3: "Fenomena pembakaran", tier_level: 1 },
-  { word: "MATI", clue_1: "Tidak hidup", clue_2: "Akhir kehidupan", clue_3: "Lawan dari hidup", tier_level: 1 },
-  { word: "TALI", clue_1: "Benda untuk mengikat", clue_2: "Terbuat dari serat", clue_3: "Tali", tier_level: 1 },
-  { word: "RATA", clue_1: "Permukaan datar", clue_2: "Tidak bergelombang", clue_3: "Datar", tier_level: 1 },
-  { word: "KERA", clue_1: "Hewan primata", clue_2: "Monyet ekor panjang", clue_3: "Hewan lucu", tier_level: 1 },
-  { word: "BUKU", clue_1: "Benda yang dibaca", clue_2: "Kumpulan kertas", clue_3: "Teman belajar", tier_level: 1 },
-  { word: "RUMUS", clue_1: "Formula matematika", clue_2: "Pola perhitungan", clue_3: "Biasa ada di fisika", tier_level: 1 },
-];
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -71,6 +54,8 @@ export default function GameScreen() {
   const pendingNavAction = useRef<any>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const prevZoomLevel = useRef(1);
+  const [boardLoadError, setBoardLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const zoomAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const outerScrollRef = useRef<ScrollView>(null);
@@ -87,6 +72,7 @@ export default function GameScreen() {
   const selectedWordIndex = useGameStore((s) => s.selectedWordIndex);
   const inputOrientation = useGameStore((s) => s.inputOrientation);
   const selectCell = useGameStore((s) => s.selectCell);
+  const dragToCell = useGameStore((s) => s.dragToCell);
   const navigateToCell = useGameStore((s) => s.navigateToCell);
   const inputLetter = useGameStore((s) => s.inputLetter);
   const filledLetters = useGameStore((s) => s.filledLetters);
@@ -117,6 +103,34 @@ export default function GameScreen() {
       setKeyboardVisible(true);
     }
   }, [selectCell]);
+
+  // Drag/swipe di papan: kursor mengikuti jari. Keyboard juga ikut muncul di
+  // interaksi pertama (sama seperti tap).
+  const handleCellDrag = useCallback(
+    (row: number, col: number) => {
+      dragToCell(row, col);
+      if (!keyboardAutoShown.current) {
+        keyboardAutoShown.current = true;
+        setKeyboardVisible(true);
+      }
+    },
+    [dragToCell],
+  );
+
+  // Swipe kiri/kanan pada pill clue untuk ganti kata (geser seperti carousel).
+  const cluePillPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_evt, gesture) =>
+          Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderRelease: (_evt, gesture) => {
+          if (gesture.dx < -30) goToNextWord();
+          else if (gesture.dx > 30) goToPrevWord();
+        },
+      }),
+    [goToNextWord, goToPrevWord],
+  );
 
   // Fill progress: % of active (non-blocked) cells that have been filled
   const fillProgress = useMemo(() => {
@@ -323,13 +337,17 @@ export default function GameScreen() {
     pendingNavAction.current = null;
   }, []);
 
-  // Load a fresh board from the vocabulary database (seeded from VOCABULARY_SEED).
+  // Load a fresh board from the vocabulary database.
   // Kalau ada board in-progress yang tersimpan, resume dulu dari sana.
+  // TANPA fallback kata demo: kalau query gagal, tampilkan layar error dengan
+  // tombol Coba Lagi (retryNonce) — tidak ada jalur yang memunculkan ulang
+  // kata yang sudah ditemukan.
   useEffect(() => {
     if (board) return;
     let cancelled = false;
 
     (async () => {
+      setBoardLoadError(false);
       try {
         // 1) Coba resume board in-progress milik user ini (dari Supabase)
         const {
@@ -347,7 +365,9 @@ export default function GameScreen() {
         }
 
         // 2) Tidak ada progres tersimpan — generate papan baru sesuai tier.
-        //    Kata yang sudah pernah ditemukan dikecualikan biar soal selalu fresh.
+        //    SEMUA kata yang pernah ditemukan user ini (lintas tier, dari
+        //    word_discoveries) dikecualikan server-side — tidak akan pernah
+        //    muncul lagi di papan mana pun.
         const playerTier = calcTier(useGameStore.getState().totalXp);
         const discoveredWordIds = user
           ? await wordDiscoveryRepository.getDiscoveredWordIds(user.id)
@@ -360,15 +380,15 @@ export default function GameScreen() {
         const generated = generateBoard(candidates, 10, playerTier);
         if (!cancelled) setBoard(generated);
       } catch (err) {
-        loggerInfo("DB board generation failed — falling back to demo words", err);
-        if (!cancelled) setBoard(generateBoard(FALLBACK_WORDS, 10, 1));
+        loggerWarn("Gagal menyusun papan kata", err);
+        if (!cancelled) setBoardLoadError(true);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [board, setBoard, resumeProgress]);
+  }, [board, setBoard, resumeProgress, retryNonce]);
 
   // Auto-solve check — skip words that were fully revealed (no XP for revealed words)
   const prevFilledRef = useRef(filledLetters);
@@ -606,6 +626,23 @@ export default function GameScreen() {
   }, [board, navigateToCell, inputLetter]);
 
   if (!board) {
+    if (boardLoadError) {
+      return (
+        <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme.colors.background }]}>
+          <Text style={styles.errorEmoji}>⚠️</Text>
+          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+            Gagal menyusun papan kata. Periksa koneksi internetmu, lalu coba lagi.
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryBtn, { backgroundColor: theme.colors.primary }]}
+            activeOpacity={0.7}
+            onPress={() => setRetryNonce((n) => n + 1)}
+          >
+            <Text style={styles.retryBtnText}>🔄 Coba Lagi</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     return (
       <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -708,6 +745,7 @@ export default function GameScreen() {
                   selectedWordIndex={selectedWordIndex}
                   inputOrientation={inputOrientation}
                   onCellPress={handleCellPress}
+                  onCellDrag={handleCellDrag}
                   onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
                   filledLetters={new Map(Object.entries(filledLetters))}
                   zoomLevel={zoomLevel}
@@ -720,8 +758,8 @@ export default function GameScreen() {
 
       {/* === Fixed Bottom Panels (always visible) === */}
       <View style={[styles.bottomPanels, { backgroundColor: theme.colors.background }]}>
-        {/* Clue Pill: [<] [nomor] [>] | clue [switch] */}
-        <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]}>
+        {/* Clue Pill: [<] [nomor] [>] | clue [switch] — geser kiri/kanan untuk ganti kata */}
+        <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]} {...cluePillPanResponder.panHandlers}>
           {/* Nav kata */}
           <TooltipButton tooltip="Kata sebelumnya" icon="◀️" activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
             <NextIcon flipped size={17} color="#FFF" />
@@ -999,8 +1037,18 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  loadingWrap: { alignItems: "center", justifyContent: "center", gap: 12 },
-  loadingText: { fontSize: 14, fontWeight: "600" },
+  loadingWrap: { alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+  loadingText: { fontSize: 14, fontWeight: "600", textAlign: "center" },
+  errorEmoji: { fontSize: 40 },
+  retryBtn: {
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  retryBtnText: { fontSize: 14, fontWeight: "700", color: "#FFF" },
   scrollContent: {},
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },

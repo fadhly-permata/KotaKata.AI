@@ -6,6 +6,8 @@ export interface UserDoc {
   user_id: string;
   display_name: string;
   email?: string;
+  /** Jangkar identitas guest (UUID device dari AsyncStorage). Hanya terisi untuk user anonim. */
+  device_id?: string;
   total_xp: number;
   current_tier: number;
   coins: number;
