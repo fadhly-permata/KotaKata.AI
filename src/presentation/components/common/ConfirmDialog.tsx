@@ -26,16 +26,24 @@ export default function ConfirmDialog({
   emoji,
 }: ConfirmDialogProps) {
   const { theme } = useTheme();
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(18)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      scaleAnim.setValue(0.95);
+      scaleAnim.setValue(0.85);
       opacityAnim.setValue(0);
+      translateYAnim.setValue(18);
+      backdropAnim.setValue(0);
+      // Spring ceria: kartu membesar sedikit melewati ukuran asli lalu
+      // mendarat halus — lebih hidup daripada timing linear.
       Animated.parallel([
-        Animated.timing(scaleAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 110, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateYAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
       ]).start();
     }
   }, [visible]);
@@ -46,13 +54,17 @@ export default function ConfirmDialog({
 
   return (
     <View style={styles.wrapper}>
+      {/* Backdrop memudar masuk pelan — elegan, tidak mencolok. */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropAnim }]}
+      />
       <Animated.View
         style={[
           styles.dialog,
           {
             backgroundColor: theme.colors.surface,
             opacity: opacityAnim,
-            transform: [{ scale: scaleAnim }],
+            transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
           },
         ]}
       >
@@ -84,11 +96,13 @@ export default function ConfirmDialog({
 const styles = StyleSheet.create({
   wrapper: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
     padding: 24,
+  },
+  backdrop: {
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   dialog: {
     width: "100%",

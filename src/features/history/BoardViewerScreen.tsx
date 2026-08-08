@@ -6,6 +6,7 @@ import TopBar from "../../presentation/components/common/TopBar";
 import { boardRepository } from "../../data/repositories/boardRepository";
 import { TIER_NAMES } from "../../domain/usecases/xpEngine";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type Props = NativeStackScreenProps<RootStackParamList, "BoardViewer">;
 
@@ -128,7 +129,7 @@ export default function BoardViewerScreen({ route }: Props) {
     TIER_NAMES[Math.max(0, Math.min(tierAtGeneration - 1, TIER_NAMES.length - 1))];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
@@ -223,7 +224,7 @@ export default function BoardViewerScreen({ route }: Props) {
           </>
         )}
       </ScrollView>
-    </View>
+    </ScreenFade>
   );
 }
 

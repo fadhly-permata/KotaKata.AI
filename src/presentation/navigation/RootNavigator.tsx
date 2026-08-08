@@ -147,8 +147,8 @@ export default function RootNavigator() {
       <Stack.Navigator
         initialRouteName="Auth"
         screenOptions={{
-          animation: "slide_from_right",
-          animationDuration: 300,
+          animation: "fade_from_bottom",
+          animationDuration: 320,
           headerShown: true,
           headerStyle: { backgroundColor: theme.colors.surface },
           headerTintColor: theme.colors.text,
@@ -159,7 +159,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="Auth"
           component={AuthScreen}
-          options={{ headerShown: false, animation: "fade", animationDuration: 350 }}
+          options={{ headerShown: false, animation: "fade_from_bottom", animationDuration: 400 }}
         />
         <Stack.Screen
           name="MainMenu"

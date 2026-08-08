@@ -17,6 +17,7 @@ import type { SavedBoardDoc } from "../../data/models/schemas";
 import { TIER_NAMES } from "../../domain/usecases/xpEngine";
 import { timeAgo } from "../../utils/timeAgo";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "GameHistory">;
 
@@ -77,7 +78,7 @@ export default function GameHistoryScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: theme.colors.text }]}>Sejarah Permainan</Text>
@@ -123,7 +124,7 @@ export default function GameHistoryScreen() {
           })
         )}
       </ScrollView>
-    </View>
+    </ScreenFade>
   );
 }
 

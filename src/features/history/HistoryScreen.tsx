@@ -20,6 +20,7 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { timeAgo } from "../../utils/timeAgo";
 import { loggerWarn } from "../../utils/logger";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 import type { WordDiscoveryDoc, VocabularyDoc } from "../../data/models/schemas";
 
 interface DiscoveryItem {
@@ -227,7 +228,7 @@ export default function HistoryScreen() {
   }, [loadingMore, hasMore, items.length, loadPage, theme]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
 
       {/* Search bar */}
@@ -335,7 +336,7 @@ export default function HistoryScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenFade>
   );
 }
 

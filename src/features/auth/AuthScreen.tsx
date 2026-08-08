@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useAuth } from "./useAuth";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type AuthMode = "select" | "email";
 
@@ -187,10 +188,11 @@ export default function AuthScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: C.bg }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <ScreenFade style={{ backgroundColor: C.bg }}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       {/* Floating decorative orbs */}
       <Animated.View
         style={[
@@ -472,7 +474,8 @@ export default function AuthScreen() {
           </Text>
         </Animated.View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ScreenFade>
   );
 }
 
