@@ -43,6 +43,7 @@
 - [ ] **17. Ingame Screen: Navigasi Soal** Untuk jawaban yang belum terjawab dengan benar, harusnya masih bisa mendapat fokus dari aksi klik/tap tombol navigasi soal didalam panel soal.
 
 ## Catatan Revisi
+- **12.** 2026-08-08: KOREKSI 2: layout bento diganti dari flexWrap (row-based, Sejarah Permainan sejajar dengan Pengaturan) menjadi 2 kolom independen (bentoCol flex:1 gap 10). Kolom kiri: Profil (180) + Pengaturan (84); kolom kanan: Kata Ditemukan (84) + Sejarah Permainan (180) — Sejarah Permainan kini rapat di bawah Kata Ditemukan dengan gap 10, sama seperti jarak Profil→Pengaturan
 - **12.** 2026-08-08: Sejarah Permainan pindah ke bawah Kata Ditemukan (kolom kanan bawah) dan dipromosikan ke bentoLargeCard (180px, sama dgn Profil); Pengaturan pindah ke bawah Profil (kolom kiri bawah). Urutan bento: Profil, Kata Ditemukan, Pengaturan, Sejarah Permainan
 - **2.** 2026-08-08: KOREKSI: tinggi tombol dikembalikan ke desain asli (actionCard tinggi konten, bentoLarge 180px, bentoSmall 84px) — yang disamakan hanya LEBAR via width 48% konsisten di actionGrid & bentoGrid. Layout: actionGrid = Misi Harian + Kata Ajaib; bento = Profil (besar) + Kata Ditemukan + Sejarah Permainan + Pengaturan (kecil)
 - **11.** 2026-08-08: Settings: seksi log diganti tombol 'Lihat Log Aplikasi' → LogViewerScreen (detail log, filter, salin, hapus, polling 3s) — halaman Settings tidak lagi render log langsung
