@@ -120,6 +120,33 @@ export const vocabularyRepository = {
     return results;
   },
 
+  /**
+   * Ambil beberapa kata acak dari seluruh tabel vocabulary (lintas tier).
+   * Dipakai tombol "Kata Ajaib": ambil 10 kata dari offset acak, lalu UI
+   * memilih satu kata + clue (yang bukan antonim/sinonim) secara acak.
+   */
+  async getRandomWords(limit = 10): Promise<VocabularyDoc[]> {
+    const { count, error: countErr } = await supabase
+      .from("vocabulary")
+      .select("word_id", { count: "exact", head: true });
+    if (countErr) {
+      throw new Error(`Gagal menghitung vocab: ${countErr.message}`);
+    }
+    const total = count ?? 0;
+    if (total === 0) return [];
+    const maxStart = Math.max(0, total - limit);
+    const start = Math.floor(Math.random() * (maxStart + 1));
+    const { data, error } = await supabase
+      .from("vocabulary")
+      .select(VOCAB_COLUMNS)
+      .order("word_id", { ascending: true })
+      .range(start, start + limit - 1);
+    if (error) {
+      throw new Error(`Gagal ambil vocab acak dari Supabase: ${error.message}`);
+    }
+    return (data ?? []) as VocabularyDoc[];
+  },
+
   async getById(wordId: string): Promise<VocabularyDoc | null> {
     const { data, error } = await supabase
       .from("vocabulary")

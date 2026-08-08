@@ -52,17 +52,23 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Account actions */}
+        {/* Account actions — hubungkan akun hanya relevan untuk guest */}
         <View style={[styles.actions, { backgroundColor: theme.colors.surface }]}>
-          <TouchableOpacity style={styles.actionRow} activeOpacity={0.6}>
-            <Text style={[styles.actionText, { color: theme.colors.text }]}>Hubungkan Akun</Text>
-            <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>Simpan progres ke cloud</Text>
-          </TouchableOpacity>
-          <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
-          <TouchableOpacity style={styles.actionRow} activeOpacity={0.6}>
-            <Text style={[styles.actionText, { color: theme.colors.text }]}>Tentang Aplikasi</Text>
-            <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>v1.0.0</Text>
-          </TouchableOpacity>
+          {user?.isAnonymous ? (
+            <TouchableOpacity style={styles.actionRow} activeOpacity={0.6}>
+              <Text style={[styles.actionText, { color: theme.colors.text }]}>Hubungkan Akun</Text>
+              <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>
+                Simpan progres ke cloud
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.actionRow}>
+              <Text style={[styles.actionText, { color: theme.colors.text }]}>✓ Akun Terhubung</Text>
+              <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {user?.email ?? "Masuk sebagai pemain terdaftar"}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
