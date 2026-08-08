@@ -23,7 +23,7 @@ import { boardRepository } from "../../data/repositories/boardRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
-import { calcTier, calcTierProgress, TIER_NAMES, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
+import { calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
 import type { Board, BoardWord } from "../../domain/entities/board";
 import { loggerInfo, loggerWarn } from "../../utils/logger";
 import {
@@ -528,10 +528,6 @@ export default function GameScreen() {
     })();
   }, [board, boardResult, recordSolvedDiscoveries]);
 
-  const currentTier = useMemo(() => calcTier(totalXp + currentXp), [totalXp, currentXp]);
-  const tierName = useMemo(() => TIER_NAMES[Math.max(0, currentTier - 1)], [currentTier]);
-  const tierProgress = useMemo(() => calcTierProgress(totalXp + currentXp), [totalXp, currentXp]);
-
   const selectedWord = useMemo(() => {
     if (selectedWordIndex === null || !board) return null;
     return board.words[selectedWordIndex] ?? null;
@@ -696,33 +692,6 @@ export default function GameScreen() {
           </View>
         )}
 
-        {/* Level Info Card */}
-        <View style={[styles.levelCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.levelInfo}>
-            <Text style={[styles.levelLabel, { color: theme.colors.secondary }]}>LEVEL {currentTier}</Text>
-            <Text style={[styles.levelName, { color: theme.colors.text }]}>{tierName}</Text>
-          </View>
-          <View style={styles.levelActions}>
-            {/* Reset button — circular refresh icon */}
-            <TooltipButton
-              tooltip="Reset papan — kosongkan jawaban & XP"
-              icon="🔄"
-              style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
-              activeOpacity={0.7}
-              onPress={() => setShowResetConfirm(true)}
-            >
-              <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
-            </TooltipButton>
-            {/* Progress ring — shows fill progress */}
-            <View style={[styles.progressRing, { borderColor: theme.colors.border }]}>
-              <View style={[styles.progressRingFill, { borderColor: theme.colors.primary }]} />
-              <Text style={[styles.progressText, { color: theme.colors.primary }]}>
-                {Math.round(fillProgress * 100)}%
-              </Text>
-            </View>
-          </View>
-        </View>
-
         {/* Crossword Grid (Scrollable + Zoomable) */}
         <View
           style={zoomLevel <= 1 ? [styles.gridOuterWrapper, styles.gridOuterCentered] : styles.gridOuterWrapper}
@@ -758,8 +727,18 @@ export default function GameScreen() {
 
       {/* === Fixed Bottom Panels (always visible) === */}
       <View style={[styles.bottomPanels, { backgroundColor: theme.colors.background }]}>
-        {/* Clue Pill: [<] [nomor] [>] | clue [switch] — geser kiri/kanan untuk ganti kata */}
+        {/* Clue Pill: [<] [nomor] [>] | clue [switch] — geser kiri/kanan untuk ganti kata.
+            Progress bar garis di tepi ATAS panel soal (pengganti progress ring lama). */}
         <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]} {...cluePillPanResponder.panHandlers}>
+          {/* Progress bar garis — lebar mengikuti fillProgress */}
+          <View style={styles.cluePillProgress}>
+            <View
+              style={[
+                styles.cluePillProgressFill,
+                { width: `${Math.round(fillProgress * 100)}%` as any },
+              ]}
+            />
+          </View>
           {/* Nav kata */}
           <TooltipButton tooltip="Kata sebelumnya" icon="◀️" activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
             <NextIcon flipped size={17} color="#FFF" />
@@ -902,6 +881,17 @@ export default function GameScreen() {
           {/* Spacer */}
           <View style={{ flex: 1 }} />
 
+          {/* Reset (Right) — pindahan dari panel atas, di samping tombol keyboard */}
+          <TooltipButton
+            tooltip="Reset papan — kosongkan jawaban & XP"
+            icon="🔄"
+            style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={() => setShowResetConfirm(true)}
+          >
+            <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
+          </TooltipButton>
+
           {/* Keyboard Toggle (Right) — border bulat biar konsisten dengan tombol lain */}
           <TooltipButton
             tooltip={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
@@ -914,9 +904,7 @@ export default function GameScreen() {
             activeOpacity={0.7}
             onPress={() => setKeyboardVisible((v) => !v)}
           >
-            <View style={{ opacity: keyboardVisible ? 1 : 0.4 }}>
-              <KeyboardIcon size={24} />
-            </View>
+            <KeyboardIcon size={24} />
           </TooltipButton>
         </View>
       </View>
@@ -1057,16 +1045,8 @@ const styles = StyleSheet.create({
   appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
   xpPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   xpPillText: { fontSize: 12, fontWeight: "700" },
-  levelCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginTop: 4, padding: 14, borderRadius: 12, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, marginBottom: 8 },
-  levelInfo: { gap: 2 },
-  levelLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
-  levelName: { fontSize: 18, fontWeight: "800" },
-  levelActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   rstBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   rstBtnText: { fontSize: 16 },
-  progressRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, justifyContent: "center", alignItems: "center" },
-  progressRingFill: { position: "absolute", width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderLeftColor: "transparent", borderBottomColor: "transparent", transform: [{ rotate: "-90deg" }] },
-  progressText: { fontSize: 10, fontWeight: "800" },
   wrongHint: {
     flexDirection: "row",
     marginHorizontal: 16,
@@ -1089,7 +1069,16 @@ const styles = StyleSheet.create({
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
   bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 8, paddingHorizontal: 4, marginBottom: 8 },
+  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 8, paddingHorizontal: 4, marginBottom: 8, position: "relative", overflow: "hidden" },
+  cluePillProgress: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.28)",
+  },
+  cluePillProgressFill: { height: "100%", backgroundColor: "#FFD166" },
   clueArrow: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
   clueSwitchBtn: {
     width: 34,

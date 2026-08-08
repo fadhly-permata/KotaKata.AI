@@ -309,15 +309,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   goToPrevWord: () => {
-    const { board, selectedWordIndex, filledLetters } = get();
+    const { board, selectedWordIndex } = get();
     if (!board) return;
     const sortedIndices = getSortedWordIndices(board);
     const currentPos = sortedIndices.indexOf(selectedWordIndex ?? -1);
     for (let offset = sortedIndices.length - 1; offset > 0; offset--) {
       const idx = sortedIndices[(currentPos + offset) % sortedIndices.length];
       const word = board.words[idx];
+      // Kata yang sudah selesai (solved) dilewati; kata yang masih terisi penuh
+      // tapi BELUM benar TETAP bisa difokus — supaya pemain bisa kembali ke
+      // kata yang keliru lewat tombol navigasi soal di panel soal.
       if (word.solved) continue;
-      if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`] || c.isLocked)) continue;
       const firstUnlocked = word.cells.find((c) => !c.isLocked);
       if (firstUnlocked) {
         set({
@@ -331,15 +333,16 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   goToNextWord: () => {
-    const { board, selectedWordIndex, filledLetters } = get();
+    const { board, selectedWordIndex } = get();
     if (!board) return;
     const sortedIndices = getSortedWordIndices(board);
     const currentPos = sortedIndices.indexOf(selectedWordIndex ?? -1);
     for (let offset = 1; offset < sortedIndices.length; offset++) {
       const idx = sortedIndices[(currentPos + offset) % sortedIndices.length];
       const word = board.words[idx];
+      // Lihat catatan di goToPrevWord: kata terisi penuh tapi belum benar tetap
+      // bisa difokus lewat navigasi soal.
       if (word.solved) continue;
-      if (word.cells.every((c) => filledLetters[`${c.row},${c.col}`] || c.isLocked)) continue;
       const firstUnlocked = word.cells.find((c) => !c.isLocked);
       if (firstUnlocked) {
         set({
