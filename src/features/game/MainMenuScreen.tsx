@@ -330,53 +330,55 @@ export default function MainMenuScreen() {
         <View style={styles.bentoSection}>
           <Text style={[styles.bentoTitle, { color: C.text }]}>Koleksi Terbaru</Text>
           <View style={styles.bentoGrid}>
-            {/* Large card — Profil (tinggi penuh 180) */}
-            <TouchableOpacity
-              style={[styles.bentoLargeCard, { backgroundColor: "#FF8A65" }]}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("Profile")}
-            >
-              <View style={styles.bentoLargeContent}>
-                <Text style={styles.bentoLargeEmoji}>🎨</Text>
-                <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Profil</Text>
-              </View>
-            </TouchableOpacity>
+            {/* Kolom kiri: Profil (besar) + Pengaturan (kecil) */}
+            <View style={styles.bentoCol}>
+              <TouchableOpacity
+                style={[styles.bentoLargeCard, { backgroundColor: "#FF8A65" }]}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("Profile")}
+              >
+                <View style={styles.bentoLargeContent}>
+                  <Text style={styles.bentoLargeEmoji}>🎨</Text>
+                  <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Profil</Text>
+                </View>
+              </TouchableOpacity>
 
-            {/* Small card 1 — Kata Ditemukan */}
-            <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: "#00B894" }]}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("History")}
-            >
-              <View style={styles.bentoSmallContent}>
-                <Text style={styles.bentoSmallEmoji}>🔍</Text>
-                <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Kata Ditemukan</Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bentoSmallCard, { backgroundColor: "#74B9FF" }]}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("Settings")}
+              >
+                <View style={styles.bentoSmallContent}>
+                  <Text style={styles.bentoSmallEmoji}>⚙️</Text>
+                  <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Pengaturan</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
-            {/* Small card 2 — Pengaturan (di bawah Profil) */}
-            <TouchableOpacity
-              style={[styles.bentoSmallCard, { backgroundColor: "#74B9FF" }]}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("Settings")}
-            >
-              <View style={styles.bentoSmallContent}>
-                <Text style={styles.bentoSmallEmoji}>⚙️</Text>
-                <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Pengaturan</Text>
-              </View>
-            </TouchableOpacity>
+            {/* Kolom kanan: Kata Ditemukan (kecil) + Sejarah Permainan (besar) */}
+            <View style={styles.bentoCol}>
+              <TouchableOpacity
+                style={[styles.bentoSmallCard, { backgroundColor: "#00B894" }]}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("History")}
+              >
+                <View style={styles.bentoSmallContent}>
+                  <Text style={styles.bentoSmallEmoji}>🔍</Text>
+                  <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Kata Ditemukan</Text>
+                </View>
+              </TouchableOpacity>
 
-            {/* Large card 2 — Sejarah Permainan (tinggi sama dgn Profil, di bawah Kata Ditemukan) */}
-            <TouchableOpacity
-              style={[styles.bentoLargeCard, { backgroundColor: "#8E6CC9" }]}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("GameHistory")}
-            >
-              <View style={styles.bentoLargeContent}>
-                <Text style={styles.bentoLargeEmoji}>🕹️</Text>
-                <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Sejarah Permainan</Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bentoLargeCard, { backgroundColor: "#8E6CC9" }]}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("GameHistory")}
+              >
+                <View style={styles.bentoLargeContent}>
+                  <Text style={styles.bentoLargeEmoji}>🕹️</Text>
+                  <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Sejarah Permainan</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -602,11 +604,15 @@ const styles = StyleSheet.create({
   },
   bentoGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    gap: 10,
+  },
+  /* Kolom independen: kartu menumpuk dengan gap 10 (rapat seperti
+     Profil→Pengaturan), tidak lagi sejajar antar kolom. */
+  bentoCol: {
+    flex: 1,
     gap: 10,
   },
   bentoLargeCard: {
-    width: "48%",
     height: 180,
     borderRadius: 14,
     overflow: "hidden",
@@ -621,7 +627,6 @@ const styles = StyleSheet.create({
   bentoLargeEmoji: { fontSize: 28 },
   bentoLargeLabel: { fontSize: 14, fontWeight: "700" },
   bentoSmallCard: {
-    width: "48%",
     height: 84,
     borderRadius: 14,
     justifyContent: "flex-end",
