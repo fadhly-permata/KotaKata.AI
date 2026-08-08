@@ -22,14 +22,19 @@ interface Props {
 
 export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, onHome }: Props) {
   const { theme } = useTheme();
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(24)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+  // Emoji melayang pelan — sentuhan "ceria" setelah papan selesai.
+  const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(scaleAnim, {
+      Animated.spring(scaleAnim, {
         toValue: 1,
-        duration: 200,
+        friction: 6,
+        tension: 110,
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
@@ -37,7 +42,26 @@ export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, on
         duration: 200,
         useNativeDriver: true,
       }),
+      Animated.timing(translateYAnim, {
+        toValue: 0,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
     ]).start();
+
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    floatLoop.start();
+    return () => floatLoop.stop();
   }, []);
 
   const tierColor = TIER_COLORS[Math.max(0, result.newTier - 1)];
@@ -46,19 +70,29 @@ export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, on
   const minutes = Math.floor(result.timeElapsed / 60000);
   const seconds = Math.floor((result.timeElapsed % 60000) / 1000);
 
+  const floatTranslate = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
+
   return (
-    <View style={[styles.wrapper, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
+    <View style={styles.wrapper}>
+      {/* Backdrop memudar masuk pelan. */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropAnim }]}
+      />
       <Animated.View
         style={[
           styles.dialog,
           {
             backgroundColor: theme.colors.surface,
             opacity: opacityAnim,
-            transform: [{ scale: scaleAnim }],
+            transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
           },
         ]}
       >
-        <Text style={[styles.emoji]}>{result.tierChanged ? "🌟" : "✨"}</Text>
+        <Animated.Text
+          style={[styles.emoji, { transform: [{ translateY: floatTranslate }] }]}
+        >
+          {result.tierChanged ? "🌟" : "✨"}
+        </Animated.Text>
         <Text style={[styles.title, { color: theme.colors.text }]}>
           {result.tierChanged ? "TIER UP!" : "Papan Selesai!"}
         </Text>
@@ -128,6 +162,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+  },
+  backdrop: {
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
   dialog: {
     width: "100%",

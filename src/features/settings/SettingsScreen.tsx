@@ -8,6 +8,7 @@ import { useGameStore } from "../../presentation/stores/gameStore";
 import { useAuth } from "../auth/useAuth";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -42,7 +43,7 @@ export default function SettingsScreen() {
   }, [signOut, reset, navigation]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Tampilan */}
@@ -143,7 +144,7 @@ export default function SettingsScreen() {
         emoji="🚪"
       />
 
-    </View>
+    </ScreenFade>
   );
 }
 

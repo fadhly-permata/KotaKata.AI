@@ -26,6 +26,7 @@ import {
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import type { VocabularyDoc } from "../../data/models/schemas";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
@@ -83,6 +84,10 @@ export default function MainMenuScreen() {
   // Tiap orb punya animasi idle sendiri (fase & durasi berbeda) supaya terlihat
   // hidup: naik-turun halus "mantul" sebagai pemanis, tanpa mengganggu parallax.
   const orbBounce = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
@@ -144,6 +149,47 @@ export default function MainMenuScreen() {
       parallaxRange: [0, -160],
       bounceRange: [0, -10],
     },
+    // 4 orb tambahan — lebih meriah, tetap halus & tidak menutupi konten.
+    {
+      width: 96,
+      height: 96,
+      backgroundColor: isDark ? "#4a2a5e" : "#ffd6a5",
+      top: "6%",
+      right: "6%",
+      opacity: 0.4,
+      parallaxRange: [0, -60],
+      bounceRange: [0, 10],
+    },
+    {
+      width: 64,
+      height: 64,
+      backgroundColor: isDark ? "#245046" : "#a5e8d8",
+      top: "52%",
+      left: "2%",
+      opacity: 0.4,
+      parallaxRange: [0, -100],
+      bounceRange: [0, -8],
+    },
+    {
+      width: 110,
+      height: 110,
+      backgroundColor: isDark ? "#3a2f5a" : "#c9b6ff",
+      bottom: "2%",
+      right: "10%",
+      opacity: 0.4,
+      parallaxRange: [0, -140],
+      bounceRange: [0, 12],
+    },
+    {
+      width: 52,
+      height: 52,
+      backgroundColor: isDark ? "#5a3244" : "#ffb4c8",
+      top: "22%",
+      left: "18%",
+      opacity: 0.45,
+      parallaxRange: [0, -50],
+      bounceRange: [0, -6],
+    },
   ];
 
   // ─── "Kata Ajaib" popup state ───
@@ -152,6 +198,22 @@ export default function MainMenuScreen() {
   const [magicError, setMagicError] = useState(false);
   const [magicWord, setMagicWord] = useState<VocabularyDoc | null>(null);
   const [magicClue, setMagicClue] = useState("");
+
+  // Animasi kemunculan popup Kata Ajaib — spring ceria (sedikit memantul).
+  const magicAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (magicVisible) {
+      magicAnim.setValue(0);
+      Animated.spring(magicAnim, {
+        toValue: 1,
+        friction: 7,
+        tension: 90,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [magicVisible, magicAnim]);
+  const magicScale = magicAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
+  const magicTranslateY = magicAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
 
   const loadMagicWord = useCallback(async () => {
     setMagicLoading(true);
@@ -189,7 +251,7 @@ export default function MainMenuScreen() {
   const heroBg = isDark ? "rgba(42,26,48,0.85)" : "rgba(255,255,255,0.7)";
 
   return (
-    <View style={[styles.root, { backgroundColor: C.background }]}>
+    <ScreenFade style={[styles.root, { backgroundColor: C.background }]}>
       {/* ─── Floating Background Shapes (Parallax + idle bounce) ─── */}
       <View style={styles.floatingContainer} pointerEvents="none">
         {orbSpecs.map((spec, i) => (
@@ -391,7 +453,16 @@ export default function MainMenuScreen() {
         onRequestClose={() => setMagicVisible(false)}
       >
         <View style={styles.magicOverlay}>
-          <View style={[styles.magicCard, { backgroundColor: C.surface }]}>
+          <Animated.View
+            style={[
+              styles.magicCard,
+              {
+                backgroundColor: C.surface,
+                opacity: magicAnim,
+                transform: [{ scale: magicScale }, { translateY: magicTranslateY }],
+              },
+            ]}
+          >
             <Text style={styles.magicEmoji}>✨</Text>
             <Text style={[styles.magicTitle, { color: C.primary }]}>Kata Ajaib</Text>
 
@@ -432,10 +503,10 @@ export default function MainMenuScreen() {
                 <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>Tutup</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
-    </View>
+    </ScreenFade>
   );
 }
 

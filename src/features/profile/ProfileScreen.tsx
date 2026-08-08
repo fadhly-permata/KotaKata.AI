@@ -6,6 +6,7 @@ import { useGameStore } from "../../presentation/stores/gameStore";
 import UserAvatar from "../../presentation/components/common/UserAvatar";
 import { useAuth } from "../auth/useAuth";
 import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
@@ -19,7 +20,7 @@ export default function ProfileScreen() {
   const displayName = user?.displayName ?? "Pemain";
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Profile header */}
@@ -71,7 +72,7 @@ export default function ProfileScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </ScreenFade>
   );
 }
 

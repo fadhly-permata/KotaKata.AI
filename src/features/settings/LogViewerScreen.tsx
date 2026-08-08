@@ -14,6 +14,7 @@ import { useTheme } from "../../presentation/components/providers/ThemeProvider"
 import TopBar from "../../presentation/components/common/TopBar";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { timeAgo } from "../../utils/timeAgo";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 import {
   getLogs,
   getLogCounts,
@@ -122,7 +123,7 @@ export default function LogViewerScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
@@ -285,7 +286,7 @@ export default function LogViewerScreen() {
         variant="danger"
         emoji="🗑"
       />
-    </View>
+    </ScreenFade>
   );
 }
 

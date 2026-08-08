@@ -31,12 +31,18 @@ import {
   deserializeBoardProgress,
   IN_PROGRESS_BOARD_ID,
 } from "../../utils/boardProgress";
+import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.25;
 const CELL_GAP = 3;
 const GRID_PADDING = 3;
+// Minimal jumlah soal (kata) per papan & rentang ukuran grid fleksibel.
+// Grid mulai dari 10×10 dan naik bertahap sampai minimal 10 kata tertampung.
+const MIN_WORDS = 10;
+const MIN_GRID_SIZE = 10;
+const MAX_GRID_SIZE = 14;
 
 export default function GameScreen() {
   const { theme } = useTheme();
@@ -372,12 +378,22 @@ export default function GameScreen() {
         const discoveredWordIds = user
           ? await wordDiscoveryRepository.getDiscoveredWordIds(user.id)
           : [];
+        // Pool diambil SEKALI (generator menyaring panjang kata per ukuran grid
+        // di dalamnya), lalu ukuran grid dibuat FLEKSIBEL: mulai 10×10, naik
+        // bertahap sampai minimal MIN_WORDS soal tertampung (bisa > 10).
         const candidates = await selectWordPool({
           playerTier,
           excludedWordIds: discoveredWordIds,
-          gridSize: 10,
+          gridSize: MAX_GRID_SIZE,
         });
-        const generated = generateBoard(candidates, 10, playerTier);
+        let generated: Board | null = null;
+        for (let size = MIN_GRID_SIZE; size <= MAX_GRID_SIZE && !generated; size++) {
+          const attempt = generateBoard(candidates, size, playerTier);
+          if (attempt.words.length >= MIN_WORDS) generated = attempt;
+        }
+        if (!generated) {
+          generated = generateBoard(candidates, MAX_GRID_SIZE, playerTier);
+        }
         if (!cancelled) setBoard(generated);
       } catch (err) {
         loggerWarn("Gagal menyusun papan kata", err);
@@ -649,7 +665,7 @@ export default function GameScreen() {
     );
   }
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Scrollable area */}
       <ScrollView
         ref={outerScrollRef}
@@ -1019,7 +1035,7 @@ export default function GameScreen() {
           />
         )}
       </Modal>
-    </View>
+    </ScreenFade>
   );
 }
 
