@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator, Modal, PanResponder } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator, Modal, PanResponder, AppState } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -320,6 +320,89 @@ export default function GameScreen() {
     // sudah dijawab — bukan cuma yang board-nya sampai selesai.
     await recordSolvedDiscoveries();
   }, [recordSolvedDiscoveries]);
+
+  // ─── Auto-simpan progres board ───
+  // Sebelumnya papan hanya tersimpan saat user keluar lewat dialog konfirmasi
+  // (beforeRemove). Kalau tab di-refresh / ditutup (web) atau app di-background
+  // (native), progres yang belum selesai HILANG — masuk lagi dari "Mulai
+  // Bermain" selalu membuat papan baru. Di sini progres disimpan otomatis:
+  //  - debounce 500ms setiap ada perubahan (huruf, hint, XP, kata solved), dan
+  //  - flush langsung saat pagehide/beforeunload (web) / background (native) /
+  //    unmount, supaya simpanan terakhir tidak tertinggal di timer.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedKeyRef = useRef<string>("");
+
+  // Kunci dedup: snapshot state game yang relevan untuk disimpan.
+  const saveKey = useCallback(() => {
+    const store = useGameStore.getState();
+    return JSON.stringify([
+      store.filledLetters,
+      store.hints,
+      store.wordsSolved,
+      store.currentXp,
+    ]);
+  }, []);
+
+  const scheduleAutoSave = useCallback(() => {
+    const store = useGameStore.getState();
+    if (!store.board || store.boardResult) return;
+    const key = saveKey();
+    if (key === lastSavedKeyRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      lastSavedKeyRef.current = key;
+      void saveInProgress().catch((err) =>
+        loggerInfo("Auto-simpan progres gagal", err),
+      );
+    }, 500);
+  }, [saveInProgress, saveKey]);
+
+  // Simpan SEKARANG kalau masih ada perubahan yang belum tersimpan.
+  const flushSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const store = useGameStore.getState();
+    if (!store.board || store.boardResult) return;
+    const key = saveKey();
+    if (key === lastSavedKeyRef.current) return;
+    lastSavedKeyRef.current = key;
+    void saveInProgress().catch((err) =>
+      loggerInfo("Simpan progres terakhir gagal", err),
+    );
+  }, [saveInProgress, saveKey]);
+
+  // 1) Auto-simpan (debounce) setiap ada perubahan state game.
+  useEffect(() => {
+    if (!board || boardResult) return;
+    scheduleAutoSave();
+  }, [filledLetters, hints, wordsSolved, currentXp, board, boardResult, scheduleAutoSave]);
+
+  // 2) Flush saat halaman web ditutup/di-refresh & saat app native di-background.
+  useEffect(() => {
+    if (!board) return;
+    if (Platform.OS === "web") {
+      window.addEventListener("pagehide", flushSave);
+      window.addEventListener("beforeunload", flushSave);
+      return () => {
+        window.removeEventListener("pagehide", flushSave);
+        window.removeEventListener("beforeunload", flushSave);
+      };
+    }
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background" || state === "inactive") flushSave();
+    });
+    return () => sub.remove();
+  }, [board, flushSave]);
+
+  // 3) Flush saat layar Game dilepas (navigasi keluar tanpa dialog).
+  useEffect(() => {
+    return () => {
+      flushSave();
+    };
+  }, [flushSave]);
 
   const handleConfirmQuit = useCallback(() => {
     setShowQuitConfirm(false);

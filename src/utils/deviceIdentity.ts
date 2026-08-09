@@ -41,3 +41,17 @@ export async function getOrCreateDeviceId(): Promise<string> {
   cached = id;
   return id;
 }
+
+/**
+ * Hapus identitas device — dipakai saat user menghapus akun permanen, supaya
+ * guest berikutnya di device yang sama benar-benar mulai dari nol (tanpa
+ * risiko restore identitas lama lewat restore_guest_identity).
+ */
+export async function clearDeviceId(): Promise<void> {
+  cached = null;
+  try {
+    await AsyncStorage.removeItem(DEVICE_ID_KEY);
+  } catch {
+    // Identitas hanya lokal — gagal hapus tidak fatal.
+  }
+}

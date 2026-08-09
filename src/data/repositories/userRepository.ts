@@ -52,6 +52,19 @@ export const userRepository = {
     }
   },
 
+  /**
+   * Hapus akun PERMANEN: semua data milik user yang sedang login
+   * (word_discoveries, saved_boards, users, lalu auth.users) lewat RPC
+   * delete_user_data() (security definer — klien anonim tidak boleh
+   * menghapus auth.users). Setelah dipanggil, sesi tidak lagi valid.
+   */
+  async deleteAccount(): Promise<void> {
+    const { error } = await supabase.rpc("delete_user_data");
+    if (error) {
+      throw new Error(`Gagal menghapus akun: ${error.message}`);
+    }
+  },
+
   async updateXp(userId: string, delta: number): Promise<void> {
     const user = await this.getById(userId);
     if (!user) return;
