@@ -68,3 +68,4 @@ dibaca, tidak terpengaruh.
 | `plan.mjs` | Command pengelola plan (dokumentasi penggunaan ada di dalamnya) |
 | `README.md` | Panduan ini |
 | `PLAN-NNN-*.md` | Dokumen plan revisi (satu file per plan) |
+| `archive/` | Dokumen historis (CHECKPOINT, DESIGN_PLAN, development-plan) |
