@@ -1,10 +1,17 @@
 {
   "project": "KotaKata.AI",
-  "updated_at": "2026-07-28T21:10:00Z",
+  "updated_at": "2026-08-09T22:00:00Z",
   "current_phase": 19,
   "current_phase_status": "completed",
   "total_phases": 19,
   "auto_update": true,
+  "revision_plans": {
+    "PLAN-001": "done",
+    "PLAN-002": "done",
+    "PLAN-003": "done — kualitas clue tier 1-10 (0 issue/bocor/duplikat, placeholder 2331→1996, 964 penanda asal bahasa)",
+    "PLAN-004": "done",
+    "PLAN-005": "done — termasuk item 1 (tag asal bahasa daerah Nusantara, 15 kata)"
+  },
   "instructions": "File ini DIWAJIBKAN di-update oleh agent SETIAP KALI selesai mengerjakan task. Jangan pernah skip update. User tidak perlu mengingat phase terakhir karena ini otomatis terbaca.",
   "phases": [
     {

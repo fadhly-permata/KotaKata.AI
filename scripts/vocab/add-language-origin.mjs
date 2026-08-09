@@ -38,6 +38,10 @@ const esc = (s) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 // Penanda yang sudah ada di clue (jangan dobel).
 const HAS_ORIGIN = /(Kata serapan dari bahasa|Berasal dari bahasa)\s+[A-Z]/i;
 
+// Kata yang TIDAK BOLEH diberi prefix: prefix "Kata serapan dari bahasa X"
+// memuat kata jawaban itu sendiri → bocor jawaban di clue (mis. "bahasa").
+const EXCLUDE = new Set(["bahasa"]);
+
 const files = readdirSync(vocabDir)
   .filter((f) => /^tier(\d+)(?:[ab]|-part\d+)?\.ts$/.test(f))
   .sort((a, b) => {
@@ -69,6 +73,7 @@ for (const f of files) {
   const out = src.replace(WORD_RE, (full, word, c1, c2, c3) => {
     const lang = wordToLang.get(word);
     if (!lang) return full;
+    if (EXCLUDE.has(word)) return full;
     if (HAS_ORIGIN.test(c1)) {
       stats.skippedHasOrigin++;
       return full;

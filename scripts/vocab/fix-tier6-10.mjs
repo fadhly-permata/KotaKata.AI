@@ -69,12 +69,19 @@ function parseEntry(e) {
     const klassTokens = klass.split(/\s+/);
     const posCode = klassTokens[klassTokens.length - 1];
     if (FUNCTION_CLASSES.has(posCode)) return null;
-    const defMatch = m[2].match(/^(.*?)(?=<b>|<br>|$)/s);
+    // Def = teks sebelum tag <i> pertama (contoh pemakaian), sebelum <b>/<br>.
+    // Kalau contoh menempel di definisi ("...; contoh: <i>..."), c1 tidak boleh
+    // memuat contoh (dan "--") — pisahkan, contoh dipakai untuk clue_2.
+    const defMatch = m[2].match(/^(.*?)(?=<i>|<b>|<br>|$)/s);
     const def = cleanDef(defMatch ? defMatch[1] : m[2]);
     if (!def || def.toLowerCase() === word) return null;
     if (/^lihat\b/i.test(def) || /^[?]/.test(def)) return null;
     const senses = arti.split(/<b>\d+<\/b>/).slice(1).map(p => cleanDef(p)).filter(Boolean);
-    const exMatch = m[2].match(/<i>([^<]*)<\/i>/);
+    // Contoh pemakaian = tag <i> pertama yang PANJANG (>= 3 karakter). Tag <i>
+    // pendek ("n", "v", "a", "Geo", "Kim") adalah kelas kata homograf berikutnya,
+    // bukan contoh — contoh sejati adalah kalimat. KBBI format lama sering
+    // menulis <i>contoh tanpa penutup </i> — regex toleran terhadap itu.
+    const exMatch = m[2].match(/<i>([^<]{3,})(?:<\/i>|$)/);
     const example = exMatch ? modernize(exMatch[1].replace(/\s+/g, " ").trim()) : null;
     const klassCode = klass.split(/\s+/)[0] ?? "";
     return { word, def, senses, example, arti, klass: klassCode };
@@ -207,7 +214,7 @@ function defFragments(def) {
     if (!t || t.length < 8) return;
     if (/^(dan|atau|serta|yang|dengan|sebagai)\b/i.test(t)) return;
     if (/[():]/.test(t)) return; // fragmen masih punya kurung/titik dua = belum bersih
-    if (/^(sebagainya|dsb|dll|dst|lainnya|semuanya|dan\s+lain)$/i.test(t)) return; // sisa "dan sebagainya"
+    if (hasTail(t)) return; // sisa pola "... dan sebagainya ..." di mana pun posisinya
     out.push(t);
   };
   for (const part of String(def).split(/[;,(]|\s+dan\s+|\s+atau\s+|\s+serta\s+/i)) {
@@ -215,6 +222,11 @@ function defFragments(def) {
   }
   return out;
 }
+// Tolak fragment yang masih memuat sisa pola KBBI "... dan sebagainya ..." —
+// fragment seperti itu tidak pernah jadi clue yang baik dan mudah bentrok
+// (mis. "sebagainya ke tempat lain" vs "beralih beranjak dan sebagainya ke
+// tempat lain"). Fragmen yang bersih tetap lolos.
+const hasTail = (t) => /\b(sebagainya|dsb|dll|dst|lain-lain|lainnya)\b/i.test(t);
 // Pola clue yang MEMBOCORKAN jawaban (huruf awal/panjang) — harus 0 di hasil akhir.
 // CATATAN: "berjumlah" TANPA angka (mis. "yang berjumlah tiga") adalah definisi sah,
 // bukan kebocoran — hanya "berjumlah <digit>" yang menandakan pola panjang huruf.
@@ -231,8 +243,11 @@ const nearSame = (a, b) => {
 const redactExample = (ex, word) => {
   if (!ex) return null;
   const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
-  const red = ex.replace(re, "…").replace(/\s+/g, " ").trim();
-  if (red === ex) return ex; // tidak memuat kata → aman dipakai apa adanya
+  let red = ex.replace(re, "…").replace(/\s+/g, " ").trim();
+  // Penanda KBBI "--" dalam kalimat contoh (gaya lama: kata yg diilustrasikan
+  // ditulis "--") dianggap bocor oleh checker → ganti dengan "…".
+  red = red.replace(/--/g, "…").trim();
+  if (red === ex.replace(/--/g, "…").trim()) return red; // tidak memuat kata → aman
   if (red.length < 6) return null;
   return red;
 };
@@ -431,9 +446,13 @@ function pickPair(c, clue1) {
   // memakai pola huruf (bocor). Pastikan c2 != c3, c3 != clue1, dan tidak bocor.
   const notLeak = (t) => !!t && !LEAK_RE.test(t) && !same(t, word) && !wb(word).test(t) && !/\b(Verba|Nomina|Adjektiva|Adverbia)\b/i.test(t) && !/^(sebagainya|dsb|dll|dst|lainnya|semuanya|dan\s+lain)$/i.test(t);
   const stripKlassFb = (s) => cleanCand(s).replace(/^(?:Nomina|Verba|Adjektiva|Adverbia|Numeralia|Pronomina|Partikel|Interjeksi|Konjungsi|Preposisi)\b[^a-z]*/i, "");
-  const altDef = homographs.map((h) => stripKlassFb(h.def)).find((d) => notLeak(d) && !same(d, def) && !same(d, clue1) && !tooClose(d, clue1));
+  // Cek dua arah: d tidak boleh memuat ATAU termuat oleh clue_1 (hindari
+  // issue "c1 memuat c3" dan "c3 memuat c1" — mis. jurnalisme di mana
+  // parafrasa penuh definisi dipilih sebagai clue_3).
+  const notSubOfC1 = (d) => !clue1.toLowerCase().includes(d.toLowerCase()) && !d.toLowerCase().includes(clue1.toLowerCase());
+  const altDef = homographs.map((h) => stripKlassFb(h.def)).find((d) => notLeak(d) && !same(d, def) && !same(d, clue1) && !tooClose(d, clue1) && notSubOfC1(d));
   const defParts = defFragments(def).map(stripKlassFb).filter(notLeak);
-  const shortDef = defParts.find((d) => d.length >= 4 && d.length <= 140 && !same(d, clue1) && !tooClose(d, clue1));
+  const shortDef = defParts.find((d) => d.length >= 4 && d.length <= 140 && !same(d, clue1) && !tooClose(d, clue1) && notSubOfC1(d));
   const cls3 = cls ? `Merupakan ${cls}` : null;
   const c3 = altDef ?? shortDef ?? cls3;
   if (!c3) {
@@ -449,15 +468,24 @@ function pickPair(c, clue1) {
     return [c2b, c3b];
   }
   // c2 HARUS berbeda dari c3 (jangan duplikat "Merupakan kata benda" di keduanya)
-  const c2 = c2s.find((x) => !same(x, c3) && !nearSame(x, c3) && !x.toLowerCase().includes(c3.toLowerCase()))
-    ?? cands.descriptives.find((d) => !same(d, c3))
-    ?? (cls ? `Merupakan ${cls}` : (defParts.find((d) => !same(d, c3)) ?? (exRed ? `Contoh: ${exRed}` : `Merupakan kata`)));
+  // DAN tidak boleh memuat/termuat oleh clue_1 (cegah issue "c1 memuat c2").
+  // Kalimat contoh dikecualikan dari cek saling-memuat (contoh memang memakai
+  // kata yang diilustrasikan).
+  const notInC1 = (x) => !clue1.toLowerCase().includes(x.toLowerCase()) && !x.toLowerCase().includes(clue1.toLowerCase());
+  const notMut = (x) => x.startsWith("Contoh:") ||
+    (!x.toLowerCase().includes(c3.toLowerCase()) && !c3.toLowerCase().includes(x.toLowerCase()));
+  const c2 = c2s.find((x) => !same(x, c3) && !nearSame(x, c3) && notMut(x) && notInC1(x))
+    ?? cands.descriptives.find((d) => !same(d, c3) && notMut(d) && notInC1(d))
+    ?? (cls ? `Merupakan ${cls}` : (defParts.find((d) => !same(d, c3) && notMut(d) && notInC1(d)) ?? (exRed && notInC1(`Contoh: ${exRed}`) && !c3.toLowerCase().includes(`Contoh: ${exRed}`.toLowerCase()) ? `Contoh: ${exRed}` : `Merupakan kata`)));
   // c2 tidak boleh sama dengan clue_1 (standar tier 1-5: c1/c2/c3 selalu berbeda)
   const c2ok = same(c2, clue1) || tooClose(c2, clue1) ? `Merupakan kata` : c2;
   return same(c2ok, c3) ? [`Merupakan kata`, c3] : [c2ok, c3];
 }
 
 // ---------------------------------------------------------------- fix tier 6-10 (pertahankan kata & clue_1)
+// Override manual c2/c3 untuk kata yang pipeline-nya jatuh ke placeholder ganda
+// (definisi KBBI satu kalimat tanpa sense kedua/sinonim). clue_1 tetap pipeline.
+import { MANUAL_C2C3 } from "./manual-tier6-c2c3.mjs";
 const WORD_RE = /^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm;
 const byWordLookup = new Map(candidates.map(c => [c.word, c]));
 
@@ -531,7 +559,24 @@ for (let tier = 6; tier <= 10; tier++) {
     const cand = byWordLookup.get(word);
     if (!cand) {
       stats.takAda++;
-      return [word, c1, c2, c3];
+      // Kata tidak ada di lookup KBBI → data asli dipertahankan, TAPI tetap
+      // dibersihkan minimal: c2/c3 tidak boleh saling memuat, tidak boleh sama
+      // dengan c1, tidak boleh bocor kata jawaban, dan "--" → "…". Kalau rusak,
+      // ganti dengan placeholder non-duplikat (bukan bocor/duplikat).
+      const cleanT = (t) => (t ? t.replace(/--/g, "…").replace(/\s+/g, " ").trim() : t);
+      let r1 = cleanT(c1), r2 = cleanT(c2), r3 = cleanT(c3);
+      const wbW = (t) => !!t && !t.startsWith("Contoh:") && new RegExp(`\\b${word}\\b`, "i").test(t);
+      if (wbW(r1)) r1 = `Merupakan kata`;
+      if (wbW(r2)) r2 = `Merupakan kata`;
+      if (wbW(r3)) r3 = `Merupakan kata`;
+      if (r2 === r1) r2 = `Merupakan kata`;
+      if (r3 === r1 || r3 === r2) r3 = `Merupakan kata`;
+      const low2 = (r2 ?? "").toLowerCase(), low3 = (r3 ?? "").toLowerCase();
+      if (low2.length >= 6 && low3.length >= 4 && (low2.includes(low3) || low3.includes(low2))) {
+        r2 = `Merupakan kata`;
+      }
+      if (r2.startsWith("Merupakan kata") || r3.startsWith("Merupakan kata")) stats.placeholder++;
+      return [word, r1, r2, r3];
     }
     // Kata tanpa kelas kata eksplisit di KBBI → infer dari morfologi
     // (memangkas placeholder "Merupakan kata" yang membingungkan).
@@ -553,6 +598,35 @@ for (let tier = 6; tier <= 10; tier++) {
     // Buang trailer "; <kata tunggal>" dari c1 (sinonim bawaan KBBI) supaya
     // tidak duplikat dengan clue_3 / tidak memuat jawaban (mis. "; menggendong").
     c1Use = trimSynTrail(c1Use);
+    // Def multi-fragment: c1 ambil 2 segmen pertama saja (batas ";" ke-2).
+    // Segmen sisanya TIDAK boleh menjadi subset c1 — kalau semua fragment definisi
+    // termuat di c1, pipeline tidak punya bahan c2/c3 dan jatuh ke placeholder
+    // ganda ("Merupakan kata X" + "Merupakan kata Y"). Kalau tidak ada ";",
+    // potong di koma ke-2 / " dan " pertama — pola "proses, cara, perbuatan X"
+    // dan "ilmu tentang A dan B" (ikonografi, seismologi) menyisakan bahan untuk
+    // clue_2/clue_3 ("perbuatan membelah", "teknik membuat arca").
+    const cutC1 = (s) => {
+      if (!s) return s;
+      if (s.split(";").length > 2) {
+        const h = s.split(";").slice(0, 2).join(";").trim();
+        if (h.length >= 14) return h;
+      }
+      const commaParts = s.split(",");
+      if (commaParts.length >= 3) {
+        const h = commaParts.slice(0, 2).join(",").trim();
+        if (h.length >= 14 && commaParts.slice(2).join(",").trim().length >= 8) return h;
+      } else if (commaParts.length === 2) {
+        const h = commaParts[0].trim();
+        if (h.length >= 14 && commaParts[1].trim().length >= 8) return h;
+      }
+      const danIdx = s.indexOf(" dan ");
+      if (danIdx > 0) {
+        const h = s.slice(0, danIdx).trim();
+        if (h.length >= 14 && s.slice(danIdx + 5).trim().length >= 8) return h;
+      }
+      return s;
+    };
+    c1Use = cutC1(c1Use);
     if (wb(word).test(c1Use)) {
       stats.c1Bocor++;
       const alt = [cand, ...cand.homographs].flatMap(h => [h.def, ...(h.senses ?? [])])
@@ -564,14 +638,19 @@ for (let tier = 6; tier <= 10; tier++) {
     // Jaring pengaman bocor: clue TIDAK boleh memuat kata jawaban
     // (sinonim turunan, definisi yang menyebut kata, dll).
     const bocorClue = (t) => !!t && !t.startsWith("Contoh:") && wb(word).test(t);
-    if (bocorClue(n2)) n2 = `Kata yang bermakna ${c1Use}`;
-    if (bocorClue(n3)) n3 = `Merupakan ${cand.klass && CLASS_NAME[cand.klass] ? CLASS_NAME[cand.klass] : "kata"}`;
+    // JANGAN pakai fallback "Kata yang bermakna <c1>" — frasa itu memuat
+    // seluruh clue_1 (check-clue-quality melaporkannya sebagai "c1 memuat c2").
+    // Pakai kelas kata bila ada; sisanya placeholder generik (lebih baik daripada
+    // clue yang memuat jawaban).
+    if (bocorClue(n2)) n2 = cand.klass && CLASS_NAME[cand.klass] ? `Merupakan ${CLASS_NAME[cand.klass]}` : `Merupakan kata`;
+    if (bocorClue(n3)) n3 = cand.klass && CLASS_NAME[cand.klass] ? `Merupakan ${CLASS_NAME[cand.klass]}` : `Merupakan kata`;
     if (word === "kesalahan" && process.env.TRACE) {
       console.log(`[TRACE kesalahan] pickPair=> n2="${n2}" n3="${n3}"`);
     }
     // Jaring pengaman: clue_3 tidak boleh sama/hampir sama dengan clue_1
-    // (standar tier 1-5: c1/c2/c3 selalu berbeda).
-    if (same(n3, c1Use) || tooClose(n3, c1Use)) {
+    // (standar tier 1-5: c1/c2/c3 selalu berbeda), dan clue_3 tidak boleh
+    // menjadi substring clue_1 (issue "c1 memuat c3").
+    if (same(n3, c1Use) || tooClose(n3, c1Use) || c1Use.toLowerCase().includes(n3.toLowerCase())) {
       n3 = cand.klass && CLASS_NAME[cand.klass] ? `Merupakan ${CLASS_NAME[cand.klass]}` : `Merupakan kata`;
       stats.c1SamaC3++;
     }
@@ -629,15 +708,22 @@ for (let tier = 6; tier <= 10; tier++) {
     }
     // PASI KAN AKHIR (deterministik): c1/c2/c3 harus semuanya berbeda dan tidak bocor.
     // Untuk kata yang data KBBI-nya benar-benar satu kalimat, placeholder generik
-    // dipakai agar tidak ada duplikat clue.
-    if (same(n2, c1Use) || tooClose(n2, c1Use)) n2 = n3 === `Merupakan kata` ? `Merupakan kata benda` : `Merupakan kata`;
-    if (same(n3, c1Use) || tooClose(n3, c1Use)) n3 = n2 === `Merupakan kata` ? `Merupakan kata benda` : `Merupakan kata`;
+    // dipakai agar tidak ada duplikat clue. Pengganti TIDAK boleh sama dengan
+    // c1Use (yang bisa juga placeholder, mis. "Merupakan kata benda").
+    const phOther = (cur, other) =>
+      ["kata benda", "kata kerja", "kata sifat", "kata keterangan", "kata bilangan"]
+        .find((c) => `Merupakan ${c}` !== cur && `Merupakan ${c}` !== other && `Merupakan ${c}` !== c1Use.toLowerCase())
+        ?? (cur.startsWith("Merupakan ") ? `Merupakan kata` : `Merupakan kata`);
+    if (same(n2, c1Use) || tooClose(n2, c1Use) || c1Use.toLowerCase().includes(n2.toLowerCase())) n2 = phOther(n2, n3);
+    if (same(n3, c1Use) || tooClose(n3, c1Use) || c1Use.toLowerCase().includes(n3.toLowerCase())) n3 = phOther(n3, n2);
     if (same(n2, n3) || nearSame(n2, n3)) {
       if (n3.startsWith(`Merupakan kata`)) n2 = n3 === `Merupakan kata benda` ? `Merupakan kata` : `Merupakan kata benda`;
       else n2 = n3.startsWith("Sinonim:") ? `Merupakan kata` : `Merupakan kata`;
     }
-    if (word === "kesalahan" && process.env.TRACE) {
-      console.log(`[TRACE kesalahan] FINAL=> c1="${c1Use.slice(0, 30)}" c2="${n2}" c3="${n3}"`);
+    if ((word === "kesalahan" || word === "menerapkan" || word === "peranggang" || word === "bersungut" || word === "jurnalisme" || word === "tempatan" || word === "manajerial" || word === "seismologi" || word === "ikonografi") && process.env.TRACE) {
+      const c2sT = (cand ? clue2Candidates(cand, c1Use) : []).slice(0, 6);
+      const c3sT = cand ? clue3Candidates(cand, c1Use) : null;
+      console.log(`[TRACE ${word}] FINAL=> c1="${c1Use.slice(0, 50)}" c2="${n2}" c3="${n3}" | c2s=${JSON.stringify(c2sT)} | c3sin=${JSON.stringify((c3sT?.sinonims ?? []).slice(0, 4))} c3desc=${JSON.stringify((c3sT?.descriptives ?? []).slice(0, 4))} | example=${JSON.stringify(cand?.example ?? null)}`);
     }
     // Placeholder polos "Merupakan kata" tidak boleh muncul — ganti dengan frasa
     // bermakna yang tidak menyebut jawaban (definisi terbalik). Bila clue_1 sendiri
@@ -647,15 +733,176 @@ for (let tier = 6; tier <= 10; tier++) {
       if (c1Use.startsWith("Merupakan ")) {
         return c1Use === "Merupakan kata benda" ? "Merupakan kata kerja" : "Merupakan kata benda";
       }
-      return `Kata yang bermakna ${c1Use}`;
+      // Jangan pernah membungkus seluruh c1 ("Kata yang bermakna <c1>") — itu
+      // membuat clue_2 memuat clue_1 penuh (issue "c1 memuat c2" di checker).
+      if (cand && cand.klass && CLASS_NAME[cand.klass]) return `Merupakan ${CLASS_NAME[cand.klass]}`;
+      const exR = cand && cand.example ? redactExample(cand.example, cand.word) : null;
+      if (exR && exR.length >= 6 && !c1Use.toLowerCase().includes(exR.toLowerCase())) return `Contoh: ${exR}`;
+      return `Merupakan kata`;
     };
     n2 = fill(n2);
     n3 = fill(n3);
-    if (same(n2, n3)) {
-      n3 = `Merupakan ${cand.klass && CLASS_NAME[cand.klass] ? CLASS_NAME[cand.klass] : "kata"}`;
+    // Jaring AKHIR (deterministik): c2/c3 harus saling berbeda dan TIDAK boleh
+    // menjadi substring clue_1 (issue "c1 memuat c2/c3"). Kalimat Contoh:
+    // dikecualikan — contoh memang memakai kata yang diilustrasikan. Pengganti
+    // memakai "Merupakan kata" polos (generik, tidak salah kelas) supaya tidak
+    // pernah menghasilkan kelas kata yang keliru.
+    const subOf = (a, b) =>
+      !a.startsWith("Contoh:") &&
+      (b.toLowerCase().includes(a.toLowerCase()) || a.toLowerCase().includes(b.toLowerCase()));
+    if (same(n2, n3)) n3 = n2.startsWith("Merupakan ") ? "Merupakan kata" : "Merupakan kata benda";
+    if (subOf(n2, c1Use)) n2 = n3 === "Merupakan kata" ? "Merupakan kata benda" : "Merupakan kata";
+    if (subOf(n3, c1Use)) n3 = n2 === "Merupakan kata" ? "Merupakan kata benda" : "Merupakan kata";
+    if (same(n2, n3)) n3 = n2 === "Merupakan kata" ? "Merupakan kata benda" : "Merupakan kata";
+    // Pasangan placeholder TIDAK boleh saling memuat (checker: "a memuat b").
+    // "Merupakan kata" adalah substring semua bentuk; "Merupakan kata X" vs
+    // "Merupakan kata Y" (X≠Y) tidak saling memuat. Ganti bentuk yang lebih
+    // pendek dengan kelas lain yang tidak nested, atau dengan contoh pemakaian.
+    if (n2.startsWith("Merupakan ") && n3.startsWith("Merupakan ") &&
+        (n2.includes(n3) || n3.includes(n2))) {
+      const exR2 = cand && cand.example ? redactExample(cand.example, cand.word) : null;
+      if (exR2 && exR2.length >= 6 && !c1Use.toLowerCase().includes(exR2.toLowerCase()) && !n3.includes(`Contoh: ${exR2}`)) {
+        n2 = `Contoh: ${exR2}`;
+      } else {
+        const clsAlt = ["kata benda", "kata kerja", "kata sifat", "kata keterangan", "kata bilangan"]
+          .find((c) => `Merupakan ${c}` !== n2 && `Merupakan ${c}` !== n3 &&
+            !n2.includes(`Merupakan ${c}`) && !n3.includes(`Merupakan ${c}`) &&
+            `Merupakan ${c}` !== c1Use.toLowerCase());
+        if (clsAlt) {
+          if (n2.length <= n3.length) n2 = `Merupakan ${clsAlt}`;
+          else n3 = `Merupakan ${clsAlt}`;
+        }
+      }
+    }
+    // Contoh placeholder "--" (gaya lama) → "…" supaya tidak dianggap bocor.
+    if (n2.startsWith("Contoh:")) n2 = n2.replace(/--/g, "…");
+    if (n3.startsWith("Contoh:")) n3 = n3.replace(/--/g, "…");
+    // Placeholder polos "Merupakan kata" (tanpa kelas) — coba angkat kelas asli
+    // bila diketahui (dari KBBI/morfologi) supaya clue tetap informatif.
+    if (n2 === "Merupakan kata" && cand && cand.klass && CLASS_NAME[cand.klass]) n2 = `Merupakan ${CLASS_NAME[cand.klass]}`;
+    if (n3 === "Merupakan kata" && cand && cand.klass && CLASS_NAME[cand.klass]) n3 = `Merupakan ${CLASS_NAME[cand.klass]}`;
+    // ===== ISI PLACEHOLDER DENGAN CONTOH PEMAKAIAN (sebelum merge asli) =====
+    // Banyak kata berdefinisi satu kalimat pendek tidak punya sinonim/sense
+    // kedua, tapi KBBI menyediakan kalimat contoh pemakaian — bahan clue_2
+    // terbaik yang tidak pernah duplikat c1. Placeholder apa pun ("Merupakan
+    // kata X") yang masih tersisa dan contoh tersedia diganti di sini.
+    const exR2 = cand && cand.example ? redactExample(cand.example, cand.word) : null;
+    const exText2 = exR2 && exR2.length >= 6 ? `Contoh: ${exR2}` : null;
+    const notDupEx = (t) =>
+      !!exText2 &&
+      !c1Use.toLowerCase().includes(exText2.toLowerCase()) &&
+      t !== exText2 && !t.includes(exText2) && !exText2.includes(t);
+    if (n2.startsWith("Merupakan ") && notDupEx(n3)) n2 = exText2;
+    else if (n3.startsWith("Merupakan ") && notDupEx(n2)) n3 = exText2;
+    // Pasangan placeholder yang TERSISA (tanpa contoh) — jangan biarkan saling
+    // memuat (checker: "a memuat b"). Ganti yang lebih pendek dengan kelas lain
+    // yang tidak nested, atau biarkan kelas asli yang sudah benar.
+    if (n2.startsWith("Merupakan ") && n3.startsWith("Merupakan ") &&
+        (n2.includes(n3) || n3.includes(n2))) {
+      const clsAlt = ["kata benda", "kata kerja", "kata sifat", "kata keterangan", "kata bilangan"]
+        .find((c) => `Merupakan ${c}` !== n2 && `Merupakan ${c}` !== n3 &&
+          !n2.includes(`Merupakan ${c}`) && !n3.includes(`Merupakan ${c}`) &&
+          `Merupakan ${c}` !== c1Use.toLowerCase());
+      if (clsAlt) {
+        if (n2.length <= n3.length) n2 = `Merupakan ${clsAlt}`;
+        else n3 = `Merupakan ${clsAlt}`;
+      }
+    }
+    // ===== MERGE AKHIR: pertahankan c2/c3 ASLI yang VALID terhadap c1 final. =====
+    // Jaring pengaman di atas bisa menimpa pasangan yang sudah baik dengan
+    // placeholder (karena c1Use baru lebih pendek → c2/c3 asli jadi subset).
+    // Di sini (paling akhir) data asli yang lolos semua validasi dipakai lagi,
+    // sehingga baris yang sudah bagus tidak dirusak pipeline. Merge hanya
+    // menimpa bila pasangan asli LEBIH BAIK (tidak placeholder) daripada
+    // hasil pipeline yang placeholder.
+    const bothPhNow = n2.startsWith("Merupakan ") && n3.startsWith("Merupakan ");
+    const origPairValid = (o2, o3, c1) => {
+      const ok = (t) => {
+        if (!t || t.trim().length < 4) return false;
+        const tc = t.toLowerCase();
+        if (/^Merupakan kata/i.test(t)) return false;
+        if (/^Kata yang bermakna/i.test(t)) return false;
+        if (/^Istilah\b/i.test(t)) return false; // "Istilah kedokteran 1 ..." (sense bernomor)
+        if (/--/.test(t)) return false; // placeholder contoh "--"
+        if (/\b\d+\b/.test(t)) return false; // penanda sense bernomor / data rusak
+        if (hasTail(t)) return false;
+        // c2/c3 tidak boleh memuat ATAU termuat oleh c1 (cek dua arah)
+        if (c1.toLowerCase().includes(tc) || tc.includes(c1.toLowerCase())) return false;
+        return true;
+      };
+      if (!ok(o2) || !ok(o3)) return false;
+      if (same(o2, o3) || nearSame(o2, o3)) return false;
+      const l2 = o2.toLowerCase(), l3 = o3.toLowerCase();
+      if (l2.includes(l3) || l3.includes(l2)) return false;
+      // Contoh pemakaian boleh memuat kata jawaban (kalimat diilustrasikan),
+      // tapi deskriptif/sinonim tidak boleh bocor.
+      if (!o2.startsWith("Contoh:") && l2.includes(word)) return false;
+      if (!o3.startsWith("Contoh:") && l3.includes(word)) return false;
+      return true;
+    };
+    if (origPairValid(c2, c3, c1Use) &&
+        (bothPhNow || n2.startsWith("Merupakan ") || n3.startsWith("Merupakan "))) {
+      n2 = c2;
+      n3 = c3;
+    }
+    // ===== OVERRIDE MANUAL c2/c3 (data terkurasi, menang atas semuanya) =====
+    // Untuk kata yang pipeline-nya tetap placeholder ganda. Divalidasi ulang di
+    // sini: manual ditolak bila memuat kata jawaban, subset c1, atau bentrok
+    // satu sama lain (cek dua arah). Kalau ditolak, hasil pipeline dipertahankan.
+    const manual23 = MANUAL_C2C3[word];
+    if (manual23) {
+      const m2 = manual23.c2, m3 = manual23.c3;
+      const l1 = c1Use.toLowerCase();
+      const okM = (t) =>
+        !!t && t.trim().length >= 4 &&
+        !/^Merupakan /i.test(t) &&
+        !hasTail(t) &&
+        !l1.includes(t.toLowerCase()) &&
+        (t.startsWith("Contoh:") || !t.toLowerCase().includes(word));
+      if (okM(m2) && okM(m3)) {
+        const lm2 = m2.toLowerCase(), lm3 = m3.toLowerCase();
+        if (!same(m2, m3) && !lm2.includes(lm3) && !lm3.includes(lm2)) {
+          n2 = m2;
+          n3 = m3;
+        }
+      }
     }
     if (n2 === "Merupakan kata" || n2 === "Merupakan kata benda") stats.placeholder++;
     if (n3 === "Merupakan kata" || n3 === "Merupakan kata benda") stats.placeholder++;
+    // ===== JARING TERAKHIR (deterministik, berlaku untuk SEMUA jalur) =====
+    // Jaminan mutlak: c1/c2/c3 pairwise berbeda, tidak saling memuat (dua arah),
+    // dan tidak bocor. Kalimat "Contoh: ..." dikecualikan dari cek saling-memuat
+    // (contoh memang memakai kata yang diilustrasikan).
+    const mutOverlap = (a, b) => {
+      if (!a || !b) return false;
+      if (a.startsWith("Contoh:") || b.startsWith("Contoh:")) return false;
+      const la = a.toLowerCase(), lb = b.toLowerCase();
+      if (la.length < 6 || lb.length < 4) return false;
+      return la.includes(lb) || lb.includes(la);
+    };
+    const safePh = (other) => {
+      const used = [c1Use.toLowerCase(), (other ?? "").toLowerCase()];
+      const pick = ["kata benda", "kata kerja", "kata sifat", "kata keterangan", "kata bilangan"]
+        .find((c) => {
+          const v = `merupakan ${c}`;
+          return !used.some((u) => u.includes(v) || v.includes(u));
+        });
+      return pick ? `Merupakan ${pick}` : `Merupakan kata`;
+    };
+    if (mutOverlap(n2, n3)) {
+      // ganti yang LEBIH PENDEK dengan kelas lain yang aman (tidak memuat/memuati)
+      if (n2.length <= n3.length) n2 = safePh(n3);
+      else n3 = safePh(n2);
+    }
+    if (mutOverlap(n2, c1Use)) n2 = safePh(n3);
+    if (mutOverlap(n3, c1Use)) n3 = safePh(n2);
+    if (same(n2, c1Use) || same(n3, c1Use)) {
+      if (same(n2, c1Use)) n2 = safePh(n3);
+      if (same(n3, c1Use)) n3 = safePh(n2);
+    }
+    if (same(n2, n3)) n3 = safePh(n2);
+    if (n2.startsWith("Contoh:")) n2 = n2.replace(/--/g, "…");
+    if (n3.startsWith("Contoh:")) n3 = n3.replace(/--/g, "…");
     return [word, c1Use, n2, n3];
   });
   if (DRY) {
