@@ -50,9 +50,10 @@
 
 - [x] **21. README.MD: Update Readme.md** Update dokumen readme.md yang berada di root agar lebih me-representasikan project ini dengan benar.
 
-- [ ] **22. vocabulary-clue-review: Review Vocabulary** Lanjutkan proses review vocabulary sisanya. Pastikan sebelum menjalankan proses ini, sudah melakukan commit dan push ke github. Dan, setiap satu file tier/level selesai di review. langsung commit dan pus ke git dan ke database (supabase).
+- [x] **22. vocabulary-clue-review: Review Vocabulary** Lanjutkan proses review vocabulary sisanya. Pastikan sebelum menjalankan proses ini, sudah melakukan commit dan push ke github. Dan, setiap satu file tier/level selesai di review. langsung commit dan pus ke git dan ke database (supabase).
 
 ## Catatan Revisi
+- **22.** 2026-08-09: Tier 6-10 (5000 kata) dikoreksi total: hilangkan 1836x pola bocor 'Kata berawalan M (9 huruf)' + 1691x 'N huruf, huruf terakhir X' (bocor=0). Format baru konsisten tier 1-5: c3 = Sinonim: 1603 / deskriptif 3397, c2 = fragmen deskriptif/Contoh (283), placeholder jujur 'Merupakan kata X' untuk kata berdefinisi tunggal (31%). c1/c2/c3 selalu berbeda, 0 duplikat, 0 kosong. Script: scripts/fix-tier6-10.mjs (regenerasi dari /tmp/kbbi.json, dry-run --dry-run).
 - **21.** 2026-08-08: README ditulis ulang: hapus klaim RxDB (salah — pakai AsyncStorage + sql.js), tech stack & struktur akurat, tabel 10 tier lengkap, env vars, migrasi DB (supabase/ + scripts), workflow plan (.agents/plans/plan.mjs), build expo export
 - **20.** 2026-08-08: durasi animasi orb dipercepat dari 2600+i*500ms menjadi 1800+i*350ms (naik-turun lebih terlihat, tetap halus easing inOut quad)
 - **19.** 2026-08-08: Redesign BoardViewerScreen: header kartu (ikon 🏁 + title + badge Tier berwarna + badge ukuran/kata), grid shadow halus (web), daftar soal dikelompokkan MENDATAR (badge secondary) & MENURUN (badge primary) dengan nomor bulat 30px yang SELARAS dengan nomor grid, tanggal selesai format id-ID
