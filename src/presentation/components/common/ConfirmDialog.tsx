@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
+import { play } from "../../../utils/sound";
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -33,6 +34,8 @@ export default function ConfirmDialog({
 
   useEffect(() => {
     if (visible) {
+      // Popup muncul — efek suara "whoosh" halus.
+      play("popup");
       scaleAnim.setValue(0.85);
       opacityAnim.setValue(0);
       translateYAnim.setValue(18);
@@ -76,14 +79,20 @@ export default function ConfirmDialog({
           <TouchableOpacity
             style={[styles.btn, styles.cancelBtn, { borderColor: theme.colors.border }]}
             activeOpacity={0.6}
-            onPress={onCancel}
+            onPress={() => {
+              play("tap");
+              onCancel();
+            }}
           >
             <Text style={[styles.cancelText, { color: theme.colors.textSecondary }]}>{cancelText}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: confirmColor }]}
             activeOpacity={0.7}
-            onPress={onConfirm}
+            onPress={() => {
+              play("tap");
+              onConfirm();
+            }}
           >
             <Text style={styles.confirmText}>{confirmText}</Text>
           </TouchableOpacity>

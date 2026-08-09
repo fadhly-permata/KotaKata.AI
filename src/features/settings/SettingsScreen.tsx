@@ -7,6 +7,7 @@ import TopBar from "../../presentation/components/common/TopBar";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { useAuth } from "../auth/useAuth";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
+import { isSoundEnabled, setSoundEnabled, play } from "../../utils/sound";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 
@@ -18,7 +19,7 @@ export default function SettingsScreen() {
   const totalXp = useGameStore((s) => s.totalXp);
   const reset = useGameStore((s) => s.reset);
   const { signOut } = useAuth();
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -27,6 +28,14 @@ export default function SettingsScreen() {
   const toggleTheme = () => {
     setThemeMode(isDark ? "light" : "dark");
   };
+
+  // Efek Suara: simpan preferensi ke AsyncStorage. Saat dinyalakan ulang,
+  // bunyikan tap sebagai konfirmasi bahwa suara benar-benar aktif.
+  const toggleSound = useCallback((value: boolean) => {
+    setSoundEnabledState(value);
+    void setSoundEnabled(value);
+    if (value) play("tap");
+  }, []);
 
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
@@ -63,7 +72,7 @@ export default function SettingsScreen() {
             <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Efek Suara</Text>
             <Switch
               value={soundEnabled}
-              onValueChange={setSoundEnabled}
+              onValueChange={toggleSound}
               trackColor={{ false: "#ccc", true: theme.colors.primary }}
               thumbColor="#fff"
             />

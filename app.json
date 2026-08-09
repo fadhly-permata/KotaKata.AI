@@ -23,6 +23,8 @@
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      "expo-audio"
+    ]
   }
 }

@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import { useGameStore } from "../../stores/gameStore";
+import { playLetterPressFeedback, playDeleteFeedback } from "../../../utils/soundFeedback";
+import { play } from "../../../utils/sound";
 
 const ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
@@ -17,10 +19,19 @@ export default function InGameKeyboard() {
 
   const handlePress = (key: string) => {
     if (key === "⌫") {
+      playDeleteFeedback();
       deleteLetter();
     } else {
+      // Suara dievaluasi SEBELUM input: kalau huruf terakhir membuat kata
+      // lengkap, mainkan "word" (benar) atau "error" (salah).
+      playLetterPressFeedback(useGameStore.getState().selectedWordIndex, key);
       inputLetter(key);
     }
+  };
+
+  const handleNav = (dir: "up" | "down" | "left" | "right") => {
+    play("tap");
+    navigateToCell(dir);
   };
 
   const isHorizontal = inputOrientation === "horizontal";
@@ -106,7 +117,7 @@ export default function InGameKeyboard() {
           <>
             <TouchableOpacity
               activeOpacity={0.6}
-              onPress={() => navigateToCell("left")}
+              onPress={() => handleNav("left")}
               style={[
                 styles.navKey,
                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
@@ -116,7 +127,7 @@ export default function InGameKeyboard() {
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.6}
-              onPress={() => navigateToCell("right")}
+              onPress={() => handleNav("right")}
               style={[
                 styles.navKey,
                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
@@ -129,7 +140,7 @@ export default function InGameKeyboard() {
           <>
             <TouchableOpacity
               activeOpacity={0.6}
-              onPress={() => navigateToCell("up")}
+              onPress={() => handleNav("up")}
               style={[
                 styles.navKey,
                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
@@ -139,7 +150,7 @@ export default function InGameKeyboard() {
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.6}
-              onPress={() => navigateToCell("down")}
+              onPress={() => handleNav("down")}
               style={[
                 styles.navKey,
                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },

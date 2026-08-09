@@ -27,6 +27,7 @@ import { vocabularyRepository } from "../../data/repositories/vocabularyReposito
 import type { VocabularyDoc } from "../../data/models/schemas";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import { play } from "../../utils/sound";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
@@ -239,11 +240,13 @@ export default function MainMenuScreen() {
   }, []);
 
   const openMagicWord = useCallback(() => {
+    play("popup");
     setMagicVisible(true);
     void loadMagicWord();
   }, [loadMagicWord]);
 
   const handlePlay = () => {
+    play("tap");
     reset();
     navigation.navigate("Game");
   };
@@ -347,12 +350,11 @@ export default function MainMenuScreen() {
           </View>
         </View>
 
-        {/* ═══ Main Action: Mulai Bermain ═══ */}
-        <TouchableOpacity
-          style={[styles.playButton, { backgroundColor: C.primary }]}
-          activeOpacity={0.9}
-          onPress={handlePlay}
-        >
+        {/* ═══ Main Action: Mulai Bermain ═══ */}          <TouchableOpacity
+            style={[styles.playButton, { backgroundColor: C.primary }]}
+            activeOpacity={0.9}
+            onPress={handlePlay}
+          >
           <View style={styles.playButtonContent}>
             <Text style={styles.playButtonText}>Mulai Bermain</Text>
             <Animated.Text
@@ -372,7 +374,7 @@ export default function MainMenuScreen() {
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
             activeOpacity={0.8}
-            onPress={() => {}}
+            onPress={() => play("tap")}
           >
             <Text style={styles.actionCardIcon}>🏆</Text>
             <Text style={[styles.actionCardLabel, { color: C.text }]}>Misi Harian</Text>
@@ -397,7 +399,10 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[styles.bentoLargeCard, { backgroundColor: "#FF8A65" }]}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate("Profile")}
+                onPress={() => {
+                  play("tap");
+                  navigation.navigate("Profile");
+                }}
               >
                 <View style={styles.bentoLargeContent}>
                   <Text style={styles.bentoLargeEmoji}>🎨</Text>
@@ -408,7 +413,10 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[styles.bentoSmallCard, { backgroundColor: "#74B9FF" }]}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate("Settings")}
+                onPress={() => {
+                  play("tap");
+                  navigation.navigate("Settings");
+                }}
               >
                 <View style={styles.bentoSmallContent}>
                   <Text style={styles.bentoSmallEmoji}>⚙️</Text>
@@ -422,7 +430,10 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[styles.bentoSmallCard, { backgroundColor: "#00B894" }]}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate("History")}
+                onPress={() => {
+                  play("tap");
+                  navigation.navigate("History");
+                }}
               >
                 <View style={styles.bentoSmallContent}>
                   <Text style={styles.bentoSmallEmoji}>🔍</Text>
@@ -433,7 +444,10 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[styles.bentoLargeCard, { backgroundColor: "#8E6CC9" }]}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate("GameHistory")}
+                onPress={() => {
+                  play("tap");
+                  navigation.navigate("GameHistory");
+                }}
               >
                 <View style={styles.bentoLargeContent}>
                   <Text style={styles.bentoLargeEmoji}>🕹️</Text>
@@ -488,7 +502,10 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[styles.magicBtn, { backgroundColor: C.secondaryContainer }]}
                 activeOpacity={0.7}
-                onPress={() => void loadMagicWord()}
+                onPress={() => {
+                  play("tap");
+                  void loadMagicWord();
+                }}
                 disabled={magicLoading}
               >
                 <Text style={[styles.magicBtnText, { color: C.secondary }]}>
@@ -498,7 +515,10 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[styles.magicBtn, { backgroundColor: C.primary }]}
                 activeOpacity={0.7}
-                onPress={() => setMagicVisible(false)}
+                onPress={() => {
+                  play("tap");
+                  setMagicVisible(false);
+                }}
               >
                 <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>Tutup</Text>
               </TouchableOpacity>

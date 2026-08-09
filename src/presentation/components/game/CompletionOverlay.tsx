@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from "react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
+import { play } from "../../../utils/sound";
 import { TIER_NAMES, TIER_PHILOSOPHIES, TIER_COLORS } from "../../../domain/usecases/xpEngine";
 
 interface BoardResult {
@@ -129,7 +130,10 @@ export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, on
           <TouchableOpacity
             style={[styles.iconBtn, { backgroundColor: theme.colors.secondaryContainer }]}
             activeOpacity={0.7}
-            onPress={onViewBoard}
+            onPress={() => {
+              play("tap");
+              onViewBoard();
+            }}
           >
             <Text style={styles.iconBtnEmoji}>🧩</Text>
             <Text style={[styles.iconBtnLabel, { color: theme.colors.textSecondary }]}>Lihat Papan</Text>
@@ -137,7 +141,10 @@ export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, on
           <TouchableOpacity
             style={[styles.iconBtn, { backgroundColor: theme.colors.secondaryContainer }]}
             activeOpacity={0.7}
-            onPress={onHome}
+            onPress={() => {
+              play("tap");
+              onHome();
+            }}
           >
             <Text style={styles.iconBtnEmoji}>🏠</Text>
             <Text style={[styles.iconBtnLabel, { color: theme.colors.textSecondary }]}>Beranda</Text>
@@ -145,7 +152,10 @@ export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, on
           <TouchableOpacity
             style={[styles.iconBtn, { backgroundColor: theme.colors.primary }]}
             activeOpacity={0.7}
-            onPress={onPlayAgain}
+            onPress={() => {
+              play("tap");
+              onPlayAgain();
+            }}
           >
             <Text style={styles.iconBtnEmoji}>🔄</Text>
             <Text style={[styles.iconBtnLabel, { color: "#FFF" }]}>Main Lagi</Text>

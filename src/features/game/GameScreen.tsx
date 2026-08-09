@@ -32,6 +32,8 @@ import {
   IN_PROGRESS_BOARD_ID,
 } from "../../utils/boardProgress";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import { play } from "../../utils/sound";
+import { playLetterPressFeedback, playDeleteFeedback } from "../../utils/soundFeedback";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -407,6 +409,16 @@ export default function GameScreen() {
   }, [board, setBoard, resumeProgress, retryNonce]);
 
   // Auto-solve check — skip words that were fully revealed (no XP for revealed words)
+  // ─── Efek suara saat papan selesai: fanfare kemenangan (sekali per hasil). ───
+  const winPlayedRef = useRef(false);
+  useEffect(() => {
+    if (boardResult && !winPlayedRef.current) {
+      winPlayedRef.current = true;
+      play("win");
+    }
+    if (!boardResult) winPlayedRef.current = false;
+  }, [boardResult]);
+
   const prevFilledRef = useRef(filledLetters);
   useEffect(() => {
     if (!board || boardResult) return;
@@ -613,6 +625,7 @@ export default function GameScreen() {
   // Konfirmasi reveal clue berikutnya (2 lalu 3). XP potong sekali lalu gratis.
   const confirmRevealClue = useCallback(() => {
     if (selectedWordIndex === null) return;
+    play("hint");
     if (nextClueToReveal === 2) {
       useClue2(selectedWordIndex);
       setClueLevel(2);
@@ -626,12 +639,16 @@ export default function GameScreen() {
   useEffect(() => {
     if (Platform.OS !== "web" || !board) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowUp") { navigateToCell("up"); e.preventDefault(); }
-      if (e.key === "ArrowDown") { navigateToCell("down"); e.preventDefault(); }
-      if (e.key === "ArrowLeft") { navigateToCell("left"); e.preventDefault(); }
-      if (e.key === "ArrowRight") { navigateToCell("right"); e.preventDefault(); }
-      if (e.key === "Backspace") { useGameStore.getState().deleteLetter(); e.preventDefault(); }
-      if (/^[a-zA-Z]$/.test(e.key)) { inputLetter(e.key); e.preventDefault(); }
+      if (e.key === "ArrowUp") { play("tap"); navigateToCell("up"); e.preventDefault(); }
+      if (e.key === "ArrowDown") { play("tap"); navigateToCell("down"); e.preventDefault(); }
+      if (e.key === "ArrowLeft") { play("tap"); navigateToCell("left"); e.preventDefault(); }
+      if (e.key === "ArrowRight") { play("tap"); navigateToCell("right"); e.preventDefault(); }
+      if (e.key === "Backspace") { playDeleteFeedback(); useGameStore.getState().deleteLetter(); e.preventDefault(); }
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        playLetterPressFeedback(useGameStore.getState().selectedWordIndex, e.key);
+        inputLetter(e.key);
+        e.preventDefault();
+      }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -648,7 +665,10 @@ export default function GameScreen() {
           <TouchableOpacity
             style={[styles.retryBtn, { backgroundColor: theme.colors.primary }]}
             activeOpacity={0.7}
-            onPress={() => setRetryNonce((n) => n + 1)}
+            onPress={() => {
+              play("tap");
+              setRetryNonce((n) => n + 1);
+            }}
           >
             <Text style={styles.retryBtnText}>🔄 Coba Lagi</Text>
           </TouchableOpacity>
@@ -682,7 +702,10 @@ export default function GameScreen() {
               icon="🏠"
               style={[styles.backBtn, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
-              onPress={() => navigation.goBack()}
+              onPress={() => {
+                play("tap");
+                navigation.goBack();
+              }}
             >
               <Text style={[styles.backBtnText, { color: theme.colors.text }]}>‹</Text>
             </TooltipButton>
@@ -756,7 +779,16 @@ export default function GameScreen() {
             />
           </View>
           {/* Nav kata */}
-          <TooltipButton tooltip="Kata sebelumnya" icon="◀️" activeOpacity={0.7} onPress={goToPrevWord} style={styles.clueArrow}>
+          <TooltipButton
+            tooltip="Kata sebelumnya"
+            icon="◀️"
+            activeOpacity={0.7}
+            onPress={() => {
+              play("tap");
+              goToPrevWord();
+            }}
+            style={styles.clueArrow}
+          >
             <NextIcon flipped size={17} color="#FFF" />
           </TooltipButton>
           <View style={styles.clueNumberBadge}>
@@ -764,7 +796,16 @@ export default function GameScreen() {
               {selectedWord?.cells[0]?.number ?? "?"}
             </Text>
           </View>
-          <TooltipButton tooltip="Kata berikutnya" icon="▶️" activeOpacity={0.7} onPress={goToNextWord} style={styles.clueArrow}>
+          <TooltipButton
+            tooltip="Kata berikutnya"
+            icon="▶️"
+            activeOpacity={0.7}
+            onPress={() => {
+              play("tap");
+              goToNextWord();
+            }}
+            style={styles.clueArrow}
+          >
             <NextIcon size={17} color="#FFF" />
           </TooltipButton>
 
@@ -783,7 +824,12 @@ export default function GameScreen() {
             icon="🔁"
             accessibilityLabel="Ganti tampilan clue"
             activeOpacity={0.7}
-            onPress={() => canRotateClue && switchClue()}
+            onPress={() => {
+              if (canRotateClue) {
+                play("tap");
+                switchClue();
+              }
+            }}
             style={[styles.clueSwitchBtn, { opacity: canRotateClue ? 1 : 0.4 }]}
           >
             <NumberSquareIcon number={shownClueLevel} size={20} color="#FFF" />
@@ -809,7 +855,10 @@ export default function GameScreen() {
               icon="🔍"
               style={[styles.zoomBtnSmall, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 }]}
               activeOpacity={0.7}
-              onPress={zoomOut}
+              onPress={() => {
+                play("tap");
+                zoomOut();
+              }}
             >
               <ZoomIcon variant="out" size={18} color={theme.colors.text} />
             </TooltipButton>
@@ -818,7 +867,10 @@ export default function GameScreen() {
               icon="🔍"
               style={[styles.zoomResetBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
               activeOpacity={0.7}
-              onPress={resetZoom}
+              onPress={() => {
+                play("tap");
+                resetZoom();
+              }}
             >
               <Text style={[styles.zoomLabel, { color: theme.colors.textSecondary }]}>{Math.round(zoomLevel * 100)}%</Text>
             </TooltipButton>
@@ -827,7 +879,10 @@ export default function GameScreen() {
               icon="🔍"
               style={[styles.zoomBtnSmall, { backgroundColor: theme.colors.secondaryContainer, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 }]}
               activeOpacity={0.7}
-              onPress={zoomIn}
+              onPress={() => {
+                play("tap");
+                zoomIn();
+              }}
             >
               <ZoomIcon variant="in" size={18} color={theme.colors.text} />
             </TooltipButton>
@@ -863,7 +918,12 @@ export default function GameScreen() {
                 },
               ]}
               activeOpacity={0.7}
-              onPress={() => !revealClueDisabled && setShowRevealClueConfirm(true)}
+              onPress={() => {
+                if (!revealClueDisabled) {
+                  play("tap");
+                  setShowRevealClueConfirm(true);
+                }
+              }}
             >
               <ListNumbersIcon size={18} color={allCluesOpened ? theme.colors.textSecondary : "#FFF"} />
               <View style={[styles.clueBadge, { backgroundColor: allCluesOpened ? theme.colors.border : "#FFF" }]}>
@@ -878,7 +938,12 @@ export default function GameScreen() {
               icon="🔍"
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
-              onPress={() => selectedWordIndex !== null && setShowRevealLetterConfirm(true)}
+              onPress={() => {
+                if (selectedWordIndex !== null) {
+                  play("tap");
+                  setShowRevealLetterConfirm(true);
+                }
+              }}
             >
               <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>🔍</Text>
             </TooltipButton>
@@ -888,7 +953,12 @@ export default function GameScreen() {
               icon="💡"
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
-              onPress={() => selectedWordIndex !== null && setShowRevealWordConfirm(true)}
+              onPress={() => {
+                if (selectedWordIndex !== null) {
+                  play("tap");
+                  setShowRevealWordConfirm(true);
+                }
+              }}
             >
               <Text style={[styles.actionIcon, { color: theme.colors.secondary }]}>💡</Text>
             </TooltipButton>
@@ -903,7 +973,10 @@ export default function GameScreen() {
             icon="🔄"
             style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
             activeOpacity={0.7}
-            onPress={() => setShowResetConfirm(true)}
+            onPress={() => {
+              play("tap");
+              setShowResetConfirm(true);
+            }}
           >
             <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
           </TooltipButton>
@@ -918,7 +991,10 @@ export default function GameScreen() {
               { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
             ]}
             activeOpacity={0.7}
-            onPress={() => setKeyboardVisible((v) => !v)}
+            onPress={() => {
+              play("tap");
+              setKeyboardVisible((v) => !v);
+            }}
           >
             <KeyboardIcon size={24} />
           </TooltipButton>
@@ -980,6 +1056,7 @@ export default function GameScreen() {
         confirmText="Ya, Buka"
         cancelText="Batal"
         onConfirm={() => {
+          play("hint");
           if (selectedWordIndex !== null) revealLetter(selectedWordIndex);
           setShowRevealLetterConfirm(false);
         }}
@@ -996,6 +1073,7 @@ export default function GameScreen() {
         confirmText="Ya, Buka Semua"
         cancelText="Batal"
         onConfirm={() => {
+          play("hint");
           if (selectedWordIndex !== null) revealWord(selectedWordIndex);
           setShowRevealWordConfirm(false);
         }}
