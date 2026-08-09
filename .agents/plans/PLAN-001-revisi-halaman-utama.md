@@ -1,6 +1,6 @@
 # Revisi Halaman Utama & Navigasi
 
-<!-- status: in-progress -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-08 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 001`
