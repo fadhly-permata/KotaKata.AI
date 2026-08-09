@@ -1,6 +1,6 @@
 // Aggregator vocabulary — sumber kebenaran untuk app.
 // Semua kata berasal dari KBBI asli (Kamus Besar Bahasa Indonesia), dibuat oleh
-// scripts/build-kbbi-seed.mjs. Format tuple: [kata, clue_1 (definisi KBBI),
+// scripts/vocab/build-kbbi-seed.mjs. Format tuple: [kata, clue_1 (definisi KBBI),
 // clue_2 (petunjuk improvisasi), clue_3 (pola huruf)] — semua clue digenerate
 // oleh builder sehingga app & cloud selalu konsisten.
 import { TIER_1_WORDS } from "./tier1";

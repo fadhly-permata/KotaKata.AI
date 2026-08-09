@@ -35,6 +35,9 @@ yarn-error.*
 .env.*
 !.env.example
 
+# lockfile npm (proyek memakai bun)
+package-lock.json
+
 # typescript
 *.tsbuildinfo
 

@@ -6,7 +6,7 @@
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 003`
 > (lihat `bun .agents/plans/plan.mjs help`)
 
-## Hasil audit awal (scripts/check-clue-quality.mjs)
+## Hasil audit awal (scripts/check/check-clue-quality.mjs)
 
 **Tier 6** — bermasalah serius (837 issue / 1000 baris):
 - **"Contoh:" yang memuat kata jawabannya sendiri** (leak langsung) — mis. `seseorang` → "Contoh: tadi ada seseorang menelepon Anda"; `kehidupan`, `terlambat`, `bergabung`, `mempunyai`, `menderita`, `perbedaan`, `terhormat` dan puluhan lainnya. Tidak konsisten: kadang memakai kata utuh, kadang "--".
@@ -24,8 +24,8 @@
 - [ ] **2. Ganti sinonim asal & duplikat** — sinonim (c3) hanya dipakai kalau benar-benar kata lain yang setara (dari entri KBBI terpisah); kalau tidak, gunakan clue deskriptif. Hilangkan c1≈c3 / c2≈c3.
 - [ ] **3. Kurangi placeholder "Merupakan kata X"** — ganti dengan fragmen definisi/deskriptif asli semaksimal mungkin; placeholder hanya tersisa untuk kata berdefinisi tunggal yang benar-benar tanpa materi lain (target turun jauh dari 17%).
 - [ ] **4. Perbaiki leak lembut tier 5** — c1/c2 yang sudah memuat kata sinonim c3 diganti c3-nya (deskriptif) supaya clue tidak saling membocorkan.
-- [ ] **5. Verifikasi kualitas menyeluruh** — `node scripts/check-clue-quality.mjs` pada tier5.ts & tier6.ts: 0 bocor jawaban, 0 duplikat, 0 penanda KBBI, 0 label kelas nyasar, placeholder minimum; idempotent; tsc bersih; jumlah kata per tier tetap 1000.
-- [ ] **6. Push ulang ke Supabase** — regenerate `supabase/vocabulary.sql` + upsert (riwayat word_discoveries pemain aman), verifikasi sample di DB, commit & push.
+- [ ] **5. Verifikasi kualitas menyeluruh** — `node scripts/check/check-clue-quality.mjs` pada tier5.ts & tier6.ts: 0 bocor jawaban, 0 duplikat, 0 penanda KBBI, 0 label kelas nyasar, placeholder minimum; idempotent; tsc bersih; jumlah kata per tier tetap 1000.
+- [ ] **6. Push ulang ke Supabase** — regenerate `supabase/data/vocabulary.sql` + upsert (riwayat word_discoveries pemain aman), verifikasi sample di DB, commit & push.
 
 ## Catatan Revisi
 

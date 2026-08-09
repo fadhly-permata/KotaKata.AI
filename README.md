@@ -53,10 +53,25 @@ src/
 │   ├── entities/    # Domain types (Board, BoardCell, dst.)
 │   └── usecases/    # Generator crossword, validator, XP engine, filter word pool
 ├── presentation/    # UI layer
-│   ├── components/  # Komponen reusable (grid, keyboard, popup, dsb.)
+│   ├── components/  # Komponen reusable (common/, icons/, game/, providers/)
 │   ├── stores/      # Zustand stores (gameStore)
 │   └── navigation/  # React Navigation setup
 └── utils/           # Helper (log DB, device identity, board progress, dsb.)
+
+scripts/             # Tooling pengembangan, dikelompokkan per peruntukan
+├── db/              # Operasi database (migrasi, push, query Supabase)
+├── vocab/           # Bangun & perbaiki kosakata (seed KBBI, generate SQL, fix clue)
+├── check/           # Verifikasi & uji kualitas (check-*, verify-*)
+├── kbbi/            # Diagnostik & analisis data KBBI
+└── assets/          # Generator aset (efek suara)
+
+supabase/
+├── migrations/      # SQL migrasi (tabel, RLS, fungsi)
+└── data/            # Data besar (vocabulary.sql)
+
+assets/
+├── images/          # Ikon, splash, favicon
+└── sfx/             # Efek suara
 ```
 
 ## 🚀 Getting Started
@@ -86,18 +101,18 @@ Buat `.env.local` (atau isi lewat tab Keys di Freebuff):
 
 ## 🗄 Database (Supabase)
 
-Migrasi SQL ada di folder `supabase/` (tabel, RLS, fungsi). Jalankan via script:
+Migrasi SQL ada di folder `supabase/migrations/` (tabel, RLS, fungsi); data besar di `supabase/data/`. Jalankan via script:
 
 ```bash
-bun scripts/apply-supabase-migrations.mjs
-bun scripts/supabase-run.mjs "SELECT ..."   # jalankan query ad-hoc
+bun scripts/db/apply-supabase-migrations.mjs
+bun scripts/db/supabase-run.mjs "SELECT ..."   # jalankan query ad-hoc
 ```
 
 Kosakata di-push dari seed lokal (`src/data/vocabulary/`) ke tabel `vocabulary`:
 
 ```bash
-bun scripts/gen-vocab-sql.mjs   # generate SQL dari seed
-bun scripts/push-vocab.mjs      # push kosakata ke Supabase
+bun scripts/vocab/gen-vocab-sql.mjs   # generate SQL dari seed
+bun scripts/db/push-vocab.mjs          # push kosakata ke Supabase
 ```
 
 ## 📝 Revisi & Planning

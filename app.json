@@ -4,7 +4,7 @@
     "slug": "kotakata-ai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "backgroundColor": "#1a1a2e"
@@ -21,7 +21,7 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-audio"
