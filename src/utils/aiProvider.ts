@@ -158,6 +158,7 @@ Aturan ketat:
 2. "clue": petunjuk menarik yang TIDAK boleh memuat kata jawabannya sama sekali (dilarang pola seperti "Kata berawalan X" atau menyebut huruf).
 3. "clue2": petunjuk kedua yang BERBEDA — bisa contoh kalimat TANPA memuat kata jawabannya, sinonim, atau penjelasan lain.
 4. Semua kata harus unik dan mudah ditebak pemain Indonesia.
+5. Jika kata adalah kata serapan dari bahasa asing (Inggris, Belanda, Arab, Sanskerta, Portugis, Tionghoa, Jepang, Persia, Tamil, Hindi, Yunani, dan sebagainya), clue HARUS menyebutkan asal bahasanya dengan awalan "Kata serapan dari bahasa X: " (misal "Kata serapan dari bahasa Inggris: ..."). Untuk kata asli Indonesia, tidak perlu menyebut asal bahasa.
 Jawab HANYA JSON valid tanpa teks lain, format:
 {"words":[{"word":"kata","clue":"petunjuk","clue2":"petunjuk kedua"}]}`;
 

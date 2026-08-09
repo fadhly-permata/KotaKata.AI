@@ -39,7 +39,7 @@ function cleanDef(raw) {
   let d = decode(raw).replace(/<i>.*?<\/i>/g, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   if (/^\?/.test(d)) return "";
   d = d.replace(/^\(\s*\d+\s*\)\s*/, "").replace(/^\d+\s*\)?\s*/, "");
-  d = d.split(/:\s*(?=[a-z;]|$)/)[0];
+  d = d.split(/:\s+(?=[a-zA-Z(])/)[0];
   d = d.replace(/;\s*\S*·.*$/i, "").replace(/;\s*\(\d+|;\s*\d+\)/i, "");
   d = d.replace(/^Berasal dari bahasa [A-Za-z]+\s*/i, ""); // penanda kata serapan KBBI
   d = d.replace(/--\s*$/, "").replace(/:$/, "").replace(/[;,:,.…]+\s*$/g, "").trim();
@@ -182,6 +182,11 @@ for (const c of candidates) {
 
 const same = (a, b) => a.toLowerCase() === b.toLowerCase();
 
+/** Cocokkan kata jawaban sebagai KATA UTUH (bukan substring). Kata seperti
+ *  "elektronik" tidak boleh dianggap bocor oleh definisi yang menyebut
+ *  "elektronika" (kata berbeda) — hanya kata utuh yang bocor. */
+const wb = (w) => new RegExp(`\\b${w}\\b`, "i");
+
 /** Pecah definisi menjadi fragmen-fragmen pendek yang sah untuk clue_2/clue_3.
  *  Bisa dipakai kata hubung ("dan", "atau", "serta") supaya kata berdefinisi
  *  satu kalimat tetap punya bahan clue kedua (gaya tier 1: "jim => huruf Arab...").
@@ -211,6 +216,36 @@ const nearSame = (a, b) => {
   return x === y || (x.length >= 12 && y.length >= 12 && (x.startsWith(y) || y.startsWith(x) || x.slice(0, 40) === y.slice(0, 40)));
 };
 
+/** Ganti kata jawaban dalam contoh pemakaian dengan "…" (hindari bocor jawaban).
+ *  Mengembalikan null jika hasilnya hancur (terlalu pendek). */
+const redactExample = (ex, word) => {
+  if (!ex) return null;
+  const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  const red = ex.replace(re, "…").replace(/\s+/g, " ").trim();
+  if (red === ex) return ex; // tidak memuat kata → aman dipakai apa adanya
+  if (red.length < 6) return null;
+  return red;
+};
+
+/** Infer kelas kata dari morfologi (fallback bila KBBI tidak menyebut kelas). */
+const inferKlass = (word) => {
+  if (/^(me|mem|men|meng|meny|ber|di|ter)[a-z]/.test(word)) return "verba";
+  if (/^(ke|pe|per)[a-z].*an$/.test(word)) return "nomina";
+  if (/[a-z]+(wan|wati|isme|itas|asi|men|er|or)$/.test(word)) return "nomina";
+  if (/^se[a-z].*an$/.test(word)) return null;
+  if (/-an$/.test(word)) return "nomina";
+  return null;
+};
+
+/** Buang trailer "; <kata tunggal>" dari sebuah kalimat (sinonim bawaan KBBI). */
+const trimSynTrail = (s) => {
+  if (!s) return s;
+  const m = s.match(/;\s*[a-z·]{2,16}\s*$/i);
+  if (!m) return s;
+  const head = s.slice(0, m.index).replace(/[;,:]+\s*$/, "").trim();
+  return head.length >= 8 ? head : s;
+};
+
 /** Apakah a terlalu mirip b (duplikat) utk c2/c3 vs c1/def? Fragmen pendek yang
  *  jadi awalan definisi (mis. "perihal salah" vs "perihal salah; kekeliruan...")
  *  TIDAK dianggap duplikat — itu masih petunjuk sah, hanya butuh overlap proporsional.
@@ -238,6 +273,10 @@ function clue3Candidates(c, clue1) {
     const t = cleanCand(String(x)).replace(/·/g, "");
     if (!isWord(t)) return;
     if (same(t, word) || same(t, def) || same(t, clue1)) return;
+    if (/^(sebagainya|dsb|dll|dst|dan\s+lain)$/.test(t)) return; // sisa pola "dan sebagainya"
+    if (t.includes(word) || word.includes(t)) return; // turunan/akar (mengupingi, bercekikikan)
+    if (clue1.toLowerCase().includes(t)) return; // sinonim tidak boleh muncul di clue_1
+    if (!byWordLookup.has(t)) return; // harus kata KBBI asli (tolak "pause", "kasip")
     if (out.sinonims.includes(t)) return;
     out.sinonims.push(t);
   };
@@ -251,7 +290,8 @@ function clue3Candidates(c, clue1) {
     if (isWord(t)) return; // kata tunggal masuk jalur sinonim
     if (same(t, word) || same(t, def) || same(t, clue1)) return;
     if (tooClose(t, def) || tooClose(t, clue1)) return;
-    if (t.toLowerCase().includes(word)) return; // frasa memuat kata jawaban = bocor
+    if (wb(word).test(t)) return; // frasa memuat kata jawaban (utuh) = bocor
+    if (clue1.toLowerCase().includes(t)) return; // deskriptif tidak boleh subset clue_1
     if (out.descriptives.includes(t)) return;
     out.descriptives.push(t);
   };
@@ -264,19 +304,25 @@ function clue3Candidates(c, clue1) {
       if (a2) pushWord("Antonim:" + a2);
     }
   }
-  // 2) sinonim eksplisit dari definisi/sense (kata tunggal)
+  // 2) sinonim eksplisit dari definisi/sense (kata tunggal).
+  //    Sense: ambil seg pertama sebelum ";" — kalau kata tunggal itu sinonim,
+  //    sedangkan seg akhir frasa panjang (mis. "spidometer") bukan sinonim.
   for (const h of c.homographs) {
     pushWord(extractSynonym(h.def, word));
-    for (const sen of h.senses) pushWord(extractSynonym(sen, word));
+    for (const sen of h.senses) {
+      const seg = String(sen).split(";")[0].trim();
+      if (seg) pushWord(extractSynonym(seg, word));
+    }
   }
   // 3) synonymPairs
   const pairs = synonymPairs.get(word);
   if (pairs) for (const s of pairs) pushWord(s);
-  // 4) reverseSyn (hanya kata cukup dikenal)
+  // 4) reverseSyn (kata yang mendefinisikan word sebagai sinonimnya — sudah pasti
+  //    sinonim dua arah dari KBBI, tidak perlu filter frekuensi)
   const rev = reverseSyn.get(word);
   if (rev) {
     for (const s of rev) {
-      if ((freq.get(s) ?? 0) > 0) pushWord(s);
+      pushWord(s);
     }
   }
   // 5) sense/parafrasa pendek → deskriptif polos
@@ -308,7 +354,7 @@ function clue2Candidates(c, clue1) {
   };
   const stripKlass = (s) => cleanCand(s).replace(/^(?:Nomina|Verba|Adjektiva|Adverbia|Numeralia|Pronomina|Partikel|Interjeksi|Konjungsi|Preposisi)\b[^a-z]*/i, "");
   const pushNoLeak = (s) => {
-    if (s && s.toLowerCase().includes(word)) return; // frasa memuat kata jawaban = bocor
+    if (s && wb(word).test(s)) return; // frasa memuat kata jawaban (utuh) = bocor
     push(s);
   };
   for (const h of c.homographs) {
@@ -326,7 +372,10 @@ function clue2Candidates(c, clue1) {
   for (const t of defFragments(def)) {
     if (t.length <= 140 && !/^(Bermakna sama|Merupakan|Contoh:)/i.test(t)) push(t);
   }
-  if (c.example && c.example.length >= 6) push(`Contoh: ${c.example}`);
+  if (c.example && c.example.length >= 6) {
+    const red = redactExample(c.example, word);
+    if (red) push(`Contoh: ${red}`);
+  }
   const syn = clue3Candidates(c, clue1).sinonims[0];
   if (syn && !same(syn, def)) push(`Bermakna sama dengan ${syn}`);
   if (klass && CLASS_NAME[klass]) push(`Merupakan ${CLASS_NAME[klass]}`);
@@ -346,12 +395,18 @@ function pickPair(c, clue1) {
     // diilustrasikan (standar makeClue2 pipeline tier 1-5 & data asli tier 6).
     const plain = c3.replace(/^(Sinonim|Antonim):\s*/i, "");
     const usable = c2s.filter(
-      (c2) => !same(c2, c3) && !nearSame(c2, c3) && (c2.startsWith("Contoh:") || !containsWord(c2, plain)),
+      (c2) =>
+        !same(c2, c3) && !nearSame(c2, c3) &&
+        (c2.startsWith("Contoh:") || !containsWord(c2, plain)) &&
+        !same(c2, clue1) && !tooClose(c2, clue1) &&
+        // c2 tidak boleh substring c1 (hindari issue "c1 memuat c2")
+        (c2.startsWith("Contoh:") || c2.length < 6 || !clue1.toLowerCase().includes(c2.toLowerCase())),
     );
     return usable[0] ?? null;
   };
   // Prioritas c3: antonim → sinonim → deskriptif
-  const fallbackC2 = cls ? `Merupakan ${cls}` : (c.example ? `Contoh: ${c.example}` : `Merupakan kata`);
+  const exRed = c.example ? redactExample(c.example, word) : null;
+  const fallbackC2 = cls ? `Merupakan ${cls}` : (exRed ? `Contoh: ${exRed}` : `Merupakan kata`);
   const ant = cands.sinonims.find((s) => s.startsWith("Antonim:"));
   if (ant) return [pickC2(ant) ?? fallbackC2, ant];
   if (cands.sinonims.length) {
@@ -364,7 +419,7 @@ function pickPair(c, clue1) {
   }
   // Fallback terakhir: homograf lain / parafrasa pendek definisi — TIDAK pernah
   // memakai pola huruf (bocor). Pastikan c2 != c3, c3 != clue1, dan tidak bocor.
-  const notLeak = (t) => !!t && !LEAK_RE.test(t) && !same(t, word) && !/\b(Verba|Nomina|Adjektiva|Adverbia)\b/i.test(t);
+  const notLeak = (t) => !!t && !LEAK_RE.test(t) && !same(t, word) && !wb(word).test(t) && !/\b(Verba|Nomina|Adjektiva|Adverbia)\b/i.test(t);
   const stripKlassFb = (s) => cleanCand(s).replace(/^(?:Nomina|Verba|Adjektiva|Adverbia|Numeralia|Pronomina|Partikel|Interjeksi|Konjungsi|Preposisi)\b[^a-z]*/i, "");
   const altDef = homographs.map((h) => stripKlassFb(h.def)).find((d) => notLeak(d) && !same(d, def) && !same(d, clue1) && !tooClose(d, clue1));
   const defParts = defFragments(def).map(stripKlassFb).filter(notLeak);
@@ -373,11 +428,12 @@ function pickPair(c, clue1) {
   const c3 = altDef ?? shortDef ?? cls3;
   if (!c3) {
     // sangat langka: semua sumber bocor/duplikat clue_1 — pakai kelas kata atau
-    // contoh pemakaian (tidak pernah bocor), jangan pernah duplikat clue_1.
-    const ex = c.example ? `Contoh: ${c.example}` : null;
+    // contoh pemakaian ter-redaksi (tidak pernah bocor), jangan pernah duplikat clue_1.
+    const ex = exRed ? `Contoh: ${exRed}` : null;
     const c3b = cls3 ?? (ex && !tooClose(ex, clue1) ? ex : `Merupakan kata`);
     // c2 HARUS berbeda dari c3 (jangan duplikat) dan berbeda dari clue_1.
-    const c2b = c2s.find((x) => !same(x, c3b) && !nearSame(x, c3b) && !same(x, clue1) && !tooClose(x, clue1))
+    const c2b = c2s.find((x) => !same(x, c3b) && !nearSame(x, c3b) && !same(x, clue1) && !tooClose(x, clue1) &&
+      (x.startsWith("Contoh:") || x.length < 6 || !clue1.toLowerCase().includes(x.toLowerCase())))
       ?? (ex && !nearSame(ex, c3b) && !tooClose(ex, clue1) ? ex : null)
       ?? (c3b === "Merupakan kata" ? "Merupakan kata benda" : "Merupakan kata");
     return [c2b, c3b];
@@ -385,7 +441,7 @@ function pickPair(c, clue1) {
   // c2 HARUS berbeda dari c3 (jangan duplikat "Merupakan kata benda" di keduanya)
   const c2 = c2s.find((x) => !same(x, c3) && !nearSame(x, c3) && !x.toLowerCase().includes(c3.toLowerCase()))
     ?? cands.descriptives.find((d) => !same(d, c3))
-    ?? (cls ? `Merupakan ${cls}` : (defParts.find((d) => !same(d, c3)) ?? (c.example ? `Contoh: ${c.example}` : `Merupakan kata`)));
+    ?? (cls ? `Merupakan ${cls}` : (defParts.find((d) => !same(d, c3)) ?? (exRed ? `Contoh: ${exRed}` : `Merupakan kata`)));
   // c2 tidak boleh sama dengan clue_1 (standar tier 1-5: c1/c2/c3 selalu berbeda)
   const c2ok = same(c2, clue1) || tooClose(c2, clue1) ? `Merupakan kata` : c2;
   return same(c2ok, c3) ? [`Merupakan kata`, c3] : [c2ok, c3];
@@ -394,6 +450,19 @@ function pickPair(c, clue1) {
 // ---------------------------------------------------------------- fix tier 6-10 (pertahankan kata & clue_1)
 const WORD_RE = /^  \["([^"]+)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm;
 const byWordLookup = new Map(candidates.map(c => [c.word, c]));
+
+// Override manual untuk entri KBBI yang RUSAK TOTAL di sumber data (tidak bisa
+// diperbaiki lewat pipeline): clue ditulis tangan, tidak menyebut jawaban, dan
+// c1/c2/c3 saling berbeda.
+const MANUAL = {
+  istirahat: {
+    // KBBI dump: "Verba (kata kerja) , istirahat singkat istirahat dua hari..."
+    // — definisi terpotong, diawali koma, dan memuat kata jawaban.
+    c1: "berhenti sebentar untuk melepaskan lelah; mengaso",
+    c2: "mengaso sejenak untuk memulihkan tenaga",
+    c3: "Sinonim: rehat",
+  },
+};
 
 /** Deteksi clue_1 rusak dari data lama (mulai tanda baca / suku kata bertitik). */
 const isBrokenC1 = (c1) => {
@@ -404,31 +473,61 @@ const isBrokenC1 = (c1) => {
   return false;
 };
 
-const stats = { sinonim: 0, antonim: 0, deskriptif: 0, bocor: 0, contoh2: 0, total: 0, takAda: 0, c2MengandungSinonim: 0, c2SamaC3: 0, c1SamaC3: 0 };
+const stats = { sinonim: 0, antonim: 0, deskriptif: 0, bocor: 0, contoh2: 0, total: 0, takAda: 0, c2MengandungSinonim: 0, c2SamaC3: 0, c1SamaC3: 0, placeholder: 0, c1Bocor: 0 };
 const bocorSamples = [];
 const dupSamples = [];
 
+const tierArg = process.argv.find((a) => /^--tier=\d+$/.test(a));
+const ONLY_TIER = tierArg ? Number(tierArg.split("=")[1]) : null;
+const dumpArg = process.argv.find((a) => a.startsWith("--dump="));
+const DUMP_PATH = dumpArg ? dumpArg.split("=")[1] : null;
 for (let tier = 6; tier <= 10; tier++) {
+  if (ONLY_TIER && tier !== ONLY_TIER) continue;
   const path = `src/data/vocabulary/tier${tier}.ts`;
   const src = readFileSync(path, "utf8");
   const rows = [...src.matchAll(WORD_RE)].map(m => [m[1], m[2], m[3], m[4]]);
   const fixed = rows.map(([word, c1, c2, c3]) => {
     stats.total++;
+    const manual = MANUAL[word];
+    if (manual) return [word, manual.c1, manual.c2, manual.c3];
     const cand = byWordLookup.get(word);
     if (!cand) {
       stats.takAda++;
       return [word, c1, c2, c3];
     }
-    // Perbaiki clue_1 yang rusak dari data lama: (1) sisa penanda KBBI seperti
-    // ") Nomina (kata benda)" / ") Berasal dari bahasa X" yang nyangkut di akhir
-    // kalimat, (2) pola rusak lain → pakai definisi bersih dari KBBI.
-    let c1Use = c1;
-    const kbbiMark = /\)\s*(Berasal dari bahasa|Verba|Nomina|Adjektiva|Adverbia|Numeralia)\b/i;
-    if (kbbiMark.test(c1Use)) {
-      c1Use = cleanCand(c1Use.replace(kbbiMark, ""));
+    // Kata tanpa kelas kata eksplisit di KBBI → infer dari morfologi
+    // (memangkas placeholder "Merupakan kata" yang membingungkan).
+    if (!cand.klass) cand.klass = inferKlass(word);
+    // clue_1 SELALU dari definisi bersih KBBI — data lama tier6 banyak yang rusak
+    // (contoh pemakaian nyangkut, penanda KBBI, atau memuat kata jawaban).
+    const defOk = (s) => s && s.length >= 4 && !LEAK_RE.test(s) && !/^[\s,;:)]/.test(s) && !wb(word).test(s);
+    let c1Use = defOk(cand.def) ? trimSynTrail(cand.def) : null;
+    if (!c1Use) {
+      // definisi utama tidak layak → cari homograf/sense lain yang bersih
+      c1Use = [cand, ...cand.homographs].flatMap(h => [h.def, ...(h.senses ?? [])])
+        .map(s => trimSynTrail(s ?? ""))
+        .find(s => s && s.length >= 8 && !/^[\s,;:)]/.test(s) && !wb(word).test(s)) ?? null;
     }
-    if (isBrokenC1(c1Use) && cand.def && cand.def.length >= 4 && !LEAK_RE.test(cand.def)) c1Use = cand.def;
+    if (!c1Use) {
+      stats.c1Bocor++;
+      c1Use = `Merupakan ${cand.klass && CLASS_NAME[cand.klass] ? CLASS_NAME[cand.klass] : "kata"}`;
+    }
+    // Buang trailer "; <kata tunggal>" dari c1 (sinonim bawaan KBBI) supaya
+    // tidak duplikat dengan clue_3 / tidak memuat jawaban (mis. "; menggendong").
+    c1Use = trimSynTrail(c1Use);
+    if (wb(word).test(c1Use)) {
+      stats.c1Bocor++;
+      const alt = [cand, ...cand.homographs].flatMap(h => [h.def, ...(h.senses ?? [])])
+        .map(s => trimSynTrail(s ?? ""))
+        .find(s => s && s.length >= 8 && !wb(word).test(s));
+      c1Use = alt ?? `Merupakan ${cand.klass && CLASS_NAME[cand.klass] ? CLASS_NAME[cand.klass] : "kata"}`;
+    }
     let [n2, n3] = pickPair(cand, c1Use);
+    // Jaring pengaman bocor: clue TIDAK boleh memuat kata jawaban
+    // (sinonim turunan, definisi yang menyebut kata, dll).
+    const bocorClue = (t) => !!t && !t.startsWith("Contoh:") && wb(word).test(t);
+    if (bocorClue(n2)) n2 = `Kata yang bermakna ${c1Use}`;
+    if (bocorClue(n3)) n3 = `Merupakan ${cand.klass && CLASS_NAME[cand.klass] ? CLASS_NAME[cand.klass] : "kata"}`;
     if (word === "kesalahan" && process.env.TRACE) {
       console.log(`[TRACE kesalahan] pickPair=> n2="${n2}" n3="${n3}"`);
     }
@@ -467,7 +566,7 @@ for (let tier = 6; tier <= 10; tier++) {
       // 1) kalimat contoh pemakaian
       if (cand && cand.example && cand.example.length >= 6) alt = `Contoh: ${cand.example}`;
       // 2) c2 lama dari file tier (jika tidak bocor; contoh diperbolehkan walau memuat kata)
-      if (!okAlt(alt) && c2 && !LEAK_RE.test(c2) && (c2.startsWith("Contoh:") || !c2.toLowerCase().includes(word))) alt = c2;
+      if (!okAlt(alt) && c2 && !LEAK_RE.test(c2) && (c2.startsWith("Contoh:") || !wb(word).test(c2))) alt = c2;
       // 3) deskriptif lain dari kandidat clue_3
       if (!okAlt(alt) && cand) {
         const descs = clue3Candidates(cand, c1).descriptives;
@@ -502,11 +601,38 @@ for (let tier = 6; tier <= 10; tier++) {
     if (word === "kesalahan" && process.env.TRACE) {
       console.log(`[TRACE kesalahan] FINAL=> c1="${c1Use.slice(0, 30)}" c2="${n2}" c3="${n3}"`);
     }
+    // Placeholder polos "Merupakan kata" tidak boleh muncul — ganti dengan frasa
+    // bermakna yang tidak menyebut jawaban (definisi terbalik). Bila clue_1 sendiri
+    // sudah "Merupakan X" (fallback tanpa definisi bersih), pakai kelas lawan.
+    const fill = (t) => {
+      if (t !== "Merupakan kata") return t;
+      if (c1Use.startsWith("Merupakan ")) {
+        return c1Use === "Merupakan kata benda" ? "Merupakan kata kerja" : "Merupakan kata benda";
+      }
+      return `Kata yang bermakna ${c1Use}`;
+    };
+    n2 = fill(n2);
+    n3 = fill(n3);
+    if (same(n2, n3)) {
+      n3 = `Merupakan ${cand.klass && CLASS_NAME[cand.klass] ? CLASS_NAME[cand.klass] : "kata"}`;
+    }
+    if (n2 === "Merupakan kata" || n2 === "Merupakan kata benda") stats.placeholder++;
+    if (n3 === "Merupakan kata" || n3 === "Merupakan kata benda") stats.placeholder++;
     return [word, c1Use, n2, n3];
   });
   if (DRY) {
     console.log(`tier${tier}: ${rows.length} kata (dry-run, tidak ditulis)`);
     console.log("  sample:", fixed.slice(0, 4).map(([w, c1, c2, c3]) => `"${w}" c2="${c2}" c3="${c3}"`).join("\n  "));
+    if (DUMP_PATH) {
+      // dump hasil dalam format tier untuk dianalisis (tanpa menulis file sumber)
+      const esc = (s) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const rowsOut = fixed.map(([word, c1, c2, c3]) =>
+        `  ["${word}", "${esc(c1)}", "${esc(c2)}", "${esc(c3)}"],`,
+      ).join("\n");
+      const out = `// DUMP tier${tier}\nexport const TIER_${tier}_WORDS: [string, string, string, string][] = [\n${rowsOut}\n];\n`;
+      writeFileSync(DUMP_PATH, out);
+      console.log(`tier${tier}: dump ditulis ke ${DUMP_PATH}`);
+    }
   } else {
     // escape backslash dulu, baru quote — supaya `"` yang sudah ada di data lama
     // (dari KBBI) jadi `\\"` (valid TS) dan tetap terbaca ulang oleh WORD_RE.
