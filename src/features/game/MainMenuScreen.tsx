@@ -27,7 +27,9 @@ import { vocabularyRepository } from "../../data/repositories/vocabularyReposito
 import type { VocabularyDoc } from "../../data/models/schemas";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
+import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
@@ -200,6 +202,12 @@ export default function MainMenuScreen() {
   const [magicWord, setMagicWord] = useState<VocabularyDoc | null>(null);
   const [magicClue, setMagicClue] = useState("");
 
+  // ─── "Main Mode AI" state ───
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSetupVisible, setAiSetupVisible] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const aiAbortRef = useRef<AbortController | null>(null);
+
   // Animasi kemunculan popup Kata Ajaib — spring ceria (sedikit memantul).
   const magicAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -250,6 +258,46 @@ export default function MainMenuScreen() {
     reset();
     navigation.navigate("Game");
   };
+
+  // "Main Mode AI": cek provider tersimpan → minta soal dari AI → main.
+  // Belum diatur → dialog ajakan atur; request gagal → dialog error dengan
+  // opsi coba lagi / main mode normal (mode normal tidak pernah rusak).
+  const handlePlayAi = useCallback(async () => {
+    play("tap");
+    try {
+      const cfg = await getAiProviderConfig();
+      if (!cfg) {
+        setAiSetupVisible(true);
+        return;
+      }
+      setAiLoading(true);
+      setAiError(null);
+      aiAbortRef.current?.abort();
+      const controller = new AbortController();
+      aiAbortRef.current = controller;
+      const timer = setTimeout(() => controller.abort(), 35000);
+      try {
+        const words = await requestAiWords(cfg, controller.signal);
+        // Papan AI selalu fresh: reset membersihkan state (termasuk aiWords lama),
+        // lalu kata AI dari provider dipasang sebelum masuk ke layar Game.
+        reset();
+        useGameStore.getState().setAiWords(words);
+        navigation.navigate("Game");
+      } catch (err: any) {
+        if (controller.signal.aborted) {
+          setAiLoading(false);
+          return;
+        }
+        setAiError(err?.message ?? "Gagal memuat soal dari AI.");
+      } finally {
+        clearTimeout(timer);
+        setAiLoading(false);
+      }
+    } catch {
+      // Gagal baca config (mis. storage) — anggap belum diatur.
+      setAiSetupVisible(true);
+    }
+  }, [navigation, reset]);
 
   const heroBg = isDark ? "rgba(42,26,48,0.85)" : "rgba(255,255,255,0.7)";
 
@@ -374,10 +422,10 @@ export default function MainMenuScreen() {
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
             activeOpacity={0.8}
-            onPress={() => play("tap")}
+            onPress={handlePlayAi}
           >
-            <Text style={styles.actionCardIcon}>🏆</Text>
-            <Text style={[styles.actionCardLabel, { color: C.text }]}>Misi Harian</Text>
+            <Text style={styles.actionCardIcon}>🤖</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Main Mode AI</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -524,6 +572,108 @@ export default function MainMenuScreen() {
               </TouchableOpacity>
             </View>
           </Animated.View>
+        </View>
+      </Modal>
+
+      {/* ─── Konfirmasi provider AI belum diatur ─── */}
+      <ConfirmDialog
+        visible={aiSetupVisible}
+        title="Main Mode AI"
+        message="Provider AI belum diatur. Mau diatur dulu sebelum main? Kamu bisa memakai API key dari OpenRouter, HuggingFace, atau URL kustom."
+        confirmText="Atur Sekarang"
+        cancelText="Batal"
+        onConfirm={() => {
+          play("tap");
+          setAiSetupVisible(false);
+          navigation.navigate("AiProvider");
+        }}
+        onCancel={() => setAiSetupVisible(false)}
+        emoji="🤖"
+      />
+
+      {/* ─── Overlay: menyusun soal dari AI ─── */}
+      <Modal
+        visible={aiLoading}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAiLoading(false)}
+      >
+        <View style={styles.aiOverlay}>
+          <View style={[styles.aiCard, { backgroundColor: C.surface }]}>
+            <Text style={styles.aiEmoji}>🤖</Text>
+            <ActivityIndicator color={C.primary} size="large" style={styles.aiSpinner} />
+            <Text style={[styles.aiLoadingTitle, { color: C.text }]}>Menyusun soal dari AI…</Text>
+            <Text style={[styles.aiLoadingHint, { color: C.textSecondary }]}>
+              Provider sedang membuat kata & petunjuk untuk papanku.
+            </Text>
+            <TouchableOpacity
+              style={[styles.aiCancelBtn, { backgroundColor: C.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                play("tap");
+                aiAbortRef.current?.abort();
+                setAiLoading(false);
+              }}
+            >
+              <Text style={[styles.aiCancelText, { color: C.secondary }]}>Batal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Error: soal AI gagal dimuat ─── */}
+      <Modal
+        visible={aiError !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAiError(null)}
+      >
+        <View style={styles.aiOverlay}>
+          <View style={[styles.aiCard, { backgroundColor: C.surface }]}>
+            <Text style={styles.aiEmoji}>😕</Text>
+            <Text style={[styles.aiErrorTitle, { color: C.text }]}>Soal AI Gagal Dimuat</Text>
+            <Text style={[styles.aiErrorMsg, { color: C.textSecondary }]}>{aiError}</Text>
+            <Text style={[styles.aiErrorHint, { color: C.textSecondary }]}>
+              Periksa pengaturan provider, atau main mode normal dulu.
+            </Text>
+            <View style={styles.aiErrorButtons}>
+              <TouchableOpacity
+                style={[styles.aiErrorBtn, { backgroundColor: C.primary }]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  play("tap");
+                  setAiError(null);
+                  void handlePlayAi();
+                }}
+              >
+                <Text style={styles.aiErrorBtnPrimaryText}>🔄 Coba Lagi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.aiErrorBtn, { backgroundColor: C.secondaryContainer }]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  play("tap");
+                  setAiError(null);
+                  reset();
+                  navigation.navigate("Game");
+                }}
+              >
+                <Text style={[styles.aiErrorBtnSecondaryText, { color: C.secondary }]}>
+                  🎮 Main Mode Normal
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.aiErrorBtn, { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border }]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  play("tap");
+                  setAiError(null);
+                }}
+              >
+                <Text style={[styles.aiErrorBtnSecondaryText, { color: C.textSecondary }]}>Tutup</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </ScreenFade>
@@ -774,4 +924,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   magicBtnText: { fontSize: 14, fontWeight: "700" },
+
+  /* ─── Main Mode AI ─── */
+  aiOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  aiCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: "center",
+    gap: 8,
+  },
+  aiEmoji: { fontSize: 40 },
+  aiSpinner: { marginVertical: 10 },
+  aiLoadingTitle: { fontSize: 17, fontWeight: "800", textAlign: "center" },
+  aiLoadingHint: { fontSize: 13, lineHeight: 18, textAlign: "center" },
+  aiCancelBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 999,
+  },
+  aiCancelText: { fontSize: 14, fontWeight: "700" },
+  aiErrorTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
+  aiErrorMsg: { fontSize: 13, lineHeight: 19, textAlign: "center" },
+  aiErrorHint: { fontSize: 12, lineHeight: 17, textAlign: "center" },
+  aiErrorButtons: { gap: 8, width: "100%", marginTop: 6 },
+  aiErrorBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
+  aiErrorBtnPrimaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  aiErrorBtnSecondaryText: { fontSize: 13, fontWeight: "700" },
 });

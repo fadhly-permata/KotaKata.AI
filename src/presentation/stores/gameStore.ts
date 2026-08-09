@@ -36,6 +36,9 @@ interface GameState {
   boardResult: BoardResult | null;
 
   setBoard: (board: Board) => void;
+  /** Kata soal dari AI (Main Mode AI) — dipakai sekali oleh GameScreen, lalu dibersihkan. */
+  aiWords: Array<{ word: string; clue_1: string; clue_2?: string }> | null;
+  setAiWords: (words: Array<{ word: string; clue_1: string; clue_2?: string }> | null) => void;
   selectCell: (row: number, col: number) => void;
   toggleOrientation: () => void;
   inputLetter: (letter: string) => void;
@@ -58,6 +61,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>((set, get) => ({
   board: null,
+  aiWords: null,
   loading: false,
   selectedCell: null,
   selectedWordIndex: null,
@@ -73,6 +77,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   setBoard: (board: Board) => {
     set({ board, loading: false, sessionStartTime: Date.now(), ...(getInitialFocus(board) ?? {}) });
   },
+
+  setAiWords: (aiWords) => set({ aiWords }),
 
   resumeProgress: (progress: BoardProgressState) => {
     set({
@@ -568,6 +574,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   reset: () =>
     set((state) => ({
       board: null,
+      aiWords: null,
       loading: false,
       selectedCell: null,
       selectedWordIndex: null,

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from "react-native";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
@@ -8,6 +8,10 @@ import { useGameStore } from "../../presentation/stores/gameStore";
 import { useAuth } from "../auth/useAuth";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { isSoundEnabled, setSoundEnabled, play } from "../../utils/sound";
+import {
+  getAiProviderConfig,
+  providerLabel,
+} from "../../utils/aiProvider";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 
@@ -22,6 +26,19 @@ export default function SettingsScreen() {
   const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ label: string; model: string } | null>(null);
+
+  // Baca status provider AI tersimpan (BYOK) untuk ditampilkan di pengaturan.
+  useEffect(() => {
+    let cancelled = false;
+    getAiProviderConfig().then((cfg) => {
+      if (cancelled || !cfg) return;
+      setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
 
@@ -77,6 +94,28 @@ export default function SettingsScreen() {
               thumbColor="#fff"
             />
           </View>
+        </View>
+
+        {/* Main Mode AI */}
+        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Main Mode AI</Text>
+          <Text style={[styles.settingHint, { color: theme.colors.textSecondary }]}>
+            {aiStatus
+              ? `Aktif: ${aiStatus.label} · ${aiStatus.model}`
+              : "Main dengan soal yang dibuat AI. Belum ada provider diatur."}
+          </Text>
+          <TouchableOpacity
+            style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={() => {
+              play("tap");
+              navigation.navigate("AiProvider");
+            }}
+          >
+            <Text style={[styles.logOpenBtnText, { color: theme.colors.secondary }]}>
+              🤖 {aiStatus ? "Ubah Provider AI" : "Tambahkan Provider AI"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Akun */}

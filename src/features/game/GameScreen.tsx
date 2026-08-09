@@ -24,7 +24,7 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
 import { calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
-import type { Board, BoardWord } from "../../domain/entities/board";
+import type { Board, BoardWord, WordCandidate } from "../../domain/entities/board";
 import { loggerInfo, loggerWarn } from "../../utils/logger";
 import {
   serializeBoardProgress,
@@ -357,6 +357,39 @@ export default function GameScreen() {
     (async () => {
       setBoardLoadError(false);
       try {
+        const playerTier = calcTier(useGameStore.getState().totalXp);
+
+        // ── Mode AI: kata dibuat provider AI (lewat "Main Mode AI"). Board
+        //    AI selalu fresh — tidak me-resume progres normal. Kata AI tanpa
+        //    word_id tidak dicatat ke "Sejarah Saya" (repository me-resolve
+        //    word_id dari teks kata, jadi kata yang cocok tetap tercatat). ──
+        const aiWords = useGameStore.getState().aiWords;
+        if (aiWords && aiWords.length > 0) {
+          const candidates: WordCandidate[] = aiWords.map((w) => ({
+            word: w.word,
+            clue_1: w.clue_1,
+            clue_2: w.clue_2,
+            clue_3: w.clue_2,
+            tier_level: playerTier,
+          }));
+          let generated: Board | null = null;
+          for (let size = MIN_GRID_SIZE; size <= MAX_GRID_SIZE && !generated; size++) {
+            const attempt = generateBoard(candidates, size, playerTier);
+            if (attempt.words.length >= MIN_WORDS) generated = attempt;
+          }
+          if (!generated) generated = generateBoard(candidates, MAX_GRID_SIZE, playerTier);
+          // Kata AI dipakai SEKALI — sesudahnya kembali ke mode normal supaya
+          // "Main Lagi" / "Mulai Bermain" berikutnya tidak memakai papan AI.
+          useGameStore.getState().setAiWords(null);
+          if (cancelled) return;
+          if (!generated || generated.words.length < MIN_WORDS) {
+            setBoardLoadError(true);
+            return;
+          }
+          setBoard(generated);
+          return;
+        }
+
         // 1) Coba resume board in-progress milik user ini (dari Supabase)
         const {
           data: { user },
@@ -376,7 +409,6 @@ export default function GameScreen() {
         //    SEMUA kata yang pernah ditemukan user ini (lintas tier, dari
         //    word_discoveries) dikecualikan server-side — tidak akan pernah
         //    muncul lagi di papan mana pun.
-        const playerTier = calcTier(useGameStore.getState().totalXp);
         const discoveredWordIds = user
           ? await wordDiscoveryRepository.getDiscoveredWordIds(user.id)
           : [];
