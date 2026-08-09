@@ -15,6 +15,8 @@ export interface BoardProgressState {
   currentXp: number;
   wordsSolved: number;
   totalXp: number;
+  /** True kalau board berasal dari Main Mode AI — XP tidak pernah dihitung. */
+  aiMode?: boolean;
 }
 
 /**
@@ -61,6 +63,7 @@ export function deserializeBoardProgress(json: string): BoardProgressState | nul
       currentXp: parsed.currentXp ?? 0,
       wordsSolved: parsed.wordsSolved ?? 0,
       totalXp: parsed.totalXp ?? 0,
+      aiMode: parsed.aiMode ?? false,
     };
   } catch {
     return null;

@@ -22,9 +22,14 @@ import {
   calcTierProgress,
   TIER_THRESHOLDS,
   TIER_NAMES,
+  TIER_PHILOSOPHIES,
+  TIER_COLORS,
 } from "../../domain/usecases/xpEngine";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
-import type { VocabularyDoc } from "../../data/models/schemas";
+import { userRepository } from "../../data/repositories/userRepository";
+import type { VocabularyDoc, UserDoc } from "../../data/models/schemas";
+import { loggerInfo } from "../../utils/logger";
+import TierChangeToast from "../../presentation/components/common/TierChangeToast";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
@@ -208,6 +213,50 @@ export default function MainMenuScreen() {
   const [aiError, setAiError] = useState<string | null>(null);
   const aiAbortRef = useRef<AbortController | null>(null);
 
+  // ─── Notifikasi perubahan tier (naik/turun) di Main Menu ───
+  // totalXp berubah hanya saat board normal selesai (Mode AI tidak menyentuh
+  // XP), jadi toast muncul pas player naik/turun level dari menu.
+  const [tierToast, setTierToast] = useState<{ tier: number; up: boolean } | null>(null);
+  const prevTierRef = useRef<number | null>(null);
+  useEffect(() => {
+    const t = calcTier(totalXp);
+    const prev = prevTierRef.current;
+    prevTierRef.current = t;
+    if (prev != null && prev !== t) {
+      setTierToast({ tier: t, up: t > prev });
+    }
+  }, [totalXp]);
+
+  // ─── "Daftar Tier" modal state ───
+  const [tierListVisible, setTierListVisible] = useState(false);
+
+  // ─── "Leaderboard" modal state ───
+  const [leaderboardVisible, setLeaderboardVisible] = useState(false);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState(false);
+  const [leaderboardUsers, setLeaderboardUsers] = useState<UserDoc[]>([]);
+
+  const openLeaderboard = useCallback(async () => {
+    play("tap");
+    setLeaderboardVisible(true);
+    setLeaderboardLoading(true);
+    setLeaderboardError(false);
+    try {
+      // RPC get_leaderboard (security definer) — RLS users hanya membolehkan
+      // user membaca barisnya sendiri, jadi baca lintas-user lewat RPC.
+      // Urutan sudah di sisi server: total XP tertinggi dulu; kalau sama,
+      // pemain yang MENCAPAI XP itu lebih dulu (updated_at lebih awal) menang
+      // — "level & waktu kenaikan".
+      const users = await userRepository.getLeaderboard();
+      setLeaderboardUsers(users);
+    } catch {
+      setLeaderboardError(true);
+      setLeaderboardUsers([]);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, []);
+
   // Animasi kemunculan popup Kata Ajaib — spring ceria (sedikit memantul).
   const magicAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -277,12 +326,33 @@ export default function MainMenuScreen() {
       aiAbortRef.current = controller;
       const timer = setTimeout(() => controller.abort(), 35000);
       try {
-        const words = await requestAiWords(cfg, controller.signal);
+        // Soal AI disesuaikan dengan tier pemain (kata di tier rendah mudah,
+        // makin tinggi makin menantang) supaya tetap seru.
+        const playerTier = calcTier(useGameStore.getState().totalXp);
+        const words = await requestAiWords(cfg, playerTier, controller.signal);
         // Papan AI selalu fresh: reset membersihkan state (termasuk aiWords lama),
         // lalu kata AI dari provider dipasang sebelum masuk ke layar Game.
+        // aiMode di-set EKSPLISIT — papan ini tidak akan menghitung XP sama sekali.
         reset();
+        useGameStore.getState().setAiMode(true);
         useGameStore.getState().setAiWords(words);
         navigation.navigate("Game");
+        // Simpan soal AI yang BELUM terdaftar ke database vocabulary (dedup di
+        // server via RPC) supaya kosakata game makin bertambah. Fire-and-forget:
+        // tidak menahan jalannya game kalau jaringan lambat / offline.
+        vocabularyRepository
+          .saveAiWords(
+            words.map((w) => ({
+              word: w.word,
+              clue_1: w.clue_1,
+              clue_2: w.clue_2,
+              tier_level: playerTier,
+            })),
+          )
+          .then((n) => {
+            if (n > 0) loggerInfo(`${n} kata baru dari Main Mode AI tersimpan ke database`);
+          })
+          .catch((err) => loggerInfo("Gagal simpan soal AI ke database", err));
       } catch (err: any) {
         if (controller.signal.aborted) {
           setAiLoading(false);
@@ -435,6 +505,32 @@ export default function MainMenuScreen() {
           >
             <Text style={styles.actionCardIcon}>✨</Text>
             <Text style={[styles.actionCardLabel, { color: C.text }]}>Kata Ajaib</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ═══ Action Grid 2: Daftar Tier + Leaderboard ═══ */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              play("tap");
+              setTierListVisible(true);
+            }}
+          >
+            <Text style={styles.actionCardIcon}>🏆</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Daftar Tier</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              void openLeaderboard();
+            }}
+          >
+            <Text style={styles.actionCardIcon}>🏅</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Leaderboard</Text>
           </TouchableOpacity>
         </View>
 
@@ -676,6 +772,165 @@ export default function MainMenuScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Popup Daftar Tier (highlight tier player) ─── */}
+      <Modal
+        visible={tierListVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTierListVisible(false)}
+      >
+        <View style={styles.tierOverlay}>
+          <View style={[styles.tierModal, { backgroundColor: C.surface }]}>
+            <Text style={[styles.tierModalTitle, { color: C.text }]}>🏆 Daftar Tier</Text>
+            <ScrollView
+              style={styles.tierModalScroll}
+              contentContainerStyle={styles.tierModalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {TIER_THRESHOLDS.map((threshold, i) => {
+                const tierNo = i + 1;
+                const isCurrent = tierNo === currentTier;
+                const color = TIER_COLORS[i];
+                return (
+                  <View
+                    key={tierNo}
+                    style={[
+                      styles.tierRow,
+                      {
+                        backgroundColor: isCurrent ? color + "1A" : C.secondaryContainer,
+                        borderColor: isCurrent ? color : C.border,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.tierDot, { backgroundColor: color }]} />
+                    <View style={styles.tierRowCol}>
+                      <View style={styles.tierRowTop}>
+                        <Text style={[styles.tierRowName, { color: C.text }]} numberOfLines={1}>
+                          Tier {tierNo} · {TIER_NAMES[i]}
+                        </Text>
+                        {isCurrent ? (
+                          <Text style={[styles.tierRowYou, { color }]}>Kamu di sini</Text>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.tierRowXp, { color: C.textSecondary }]}>
+                        {threshold.toLocaleString("id-ID")} XP
+                      </Text>
+                      <Text style={[styles.tierRowPhil, { color: C.textSecondary }]}>
+                        {TIER_PHILOSOPHIES[i]}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.tierModalClose, { backgroundColor: C.primary }]}
+              activeOpacity={0.8}
+              onPress={() => {
+                play("tap");
+                setTierListVisible(false);
+              }}
+            >
+              <Text style={styles.tierModalCloseText}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Popup Leaderboard ─── */}
+      <Modal
+        visible={leaderboardVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLeaderboardVisible(false)}
+      >
+        <View style={styles.tierOverlay}>
+          <View style={[styles.tierModal, { backgroundColor: C.surface }]}>
+            <Text style={[styles.tierModalTitle, { color: C.text }]}>🏅 Leaderboard</Text>
+            <Text style={[styles.lbSubtitle, { color: C.textSecondary }]}>
+              Urutan berdasarkan level (XP) & waktu kenaikan.
+            </Text>
+            {leaderboardLoading ? (
+              <ActivityIndicator color={C.primary} style={styles.lbLoading} />
+            ) : leaderboardError ? (
+              <Text style={[styles.lbError, { color: C.error }]}>
+                Gagal memuat leaderboard. Periksa koneksi lalu coba lagi.
+              </Text>
+            ) : leaderboardUsers.length === 0 ? (
+              <Text style={[styles.lbError, { color: C.textSecondary }]}>
+                Belum ada pemain lain. Ajak temanmu bermain!
+              </Text>
+            ) : (
+              <ScrollView
+                style={styles.tierModalScroll}
+                contentContainerStyle={styles.tierModalContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {leaderboardUsers.map((u, idx) => {
+                  const rank = idx + 1;
+                  const isMe = u.user_id === user?.id;
+                  const tierColor =
+                    TIER_COLORS[
+                      Math.max(0, Math.min(u.current_tier - 1, TIER_COLORS.length - 1))
+                    ];
+                  const tierName =
+                    TIER_NAMES[
+                      Math.max(0, Math.min(u.current_tier - 1, TIER_NAMES.length - 1))
+                    ];
+                  return (
+                    <View
+                      key={u.user_id}
+                      style={[
+                        styles.lbRow,
+                        {
+                          backgroundColor: isMe ? C.primary + "1A" : C.secondaryContainer,
+                          borderColor: isMe ? C.primary : C.border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.lbRankWrap}>
+                        <Text style={[styles.lbRank, { color: rank <= 3 ? "#D4AF37" : C.textSecondary }]}>
+                          {rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : `#${rank}`}
+                        </Text>
+                      </View>
+                      <View style={styles.lbRowCol}>
+                        <Text style={[styles.lbName, { color: C.text }]} numberOfLines={1}>
+                          {u.display_name || "Pemain"}
+                          {isMe ? " (kamu)" : ""}
+                        </Text>
+                        <Text style={[styles.lbTier, { color: tierColor }]} numberOfLines={1}>
+                          Tier {u.current_tier} · {tierName}
+                        </Text>
+                      </View>
+                      <Text style={[styles.lbXp, { color: C.secondary }]}>
+                        {u.total_xp.toLocaleString("id-ID")} XP
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+            <TouchableOpacity
+              style={[styles.tierModalClose, { backgroundColor: C.primary }]}
+              activeOpacity={0.8}
+              onPress={() => {
+                play("tap");
+                setLeaderboardVisible(false);
+              }}
+            >
+              <Text style={styles.tierModalCloseText}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notifikasi naik/turun tier di Main Menu */}
+      <TierChangeToast
+        tier={tierToast?.tier ?? null}
+        up={tierToast?.up ?? true}
+        onHide={() => setTierToast(null)}
+      />
     </ScreenFade>
   );
 }
@@ -959,4 +1214,63 @@ const styles = StyleSheet.create({
   aiErrorBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
   aiErrorBtnPrimaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
   aiErrorBtnSecondaryText: { fontSize: 13, fontWeight: "700" },
+
+  /* ─── Daftar Tier & Leaderboard Modals ─── */
+  tierOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  tierModal: {
+    width: "100%",
+    maxWidth: 380,
+    maxHeight: "85%",
+    borderRadius: 18,
+    padding: 20,
+    gap: 12,
+  },
+  tierModalTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
+  tierModalScroll: { flexGrow: 0 },
+  tierModalContent: { gap: 8, paddingBottom: 4 },
+  tierRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tierDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
+  tierRowCol: { flex: 1, gap: 3 },
+  tierRowTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  tierRowName: { fontSize: 14, fontWeight: "800", flexShrink: 1 },
+  tierRowYou: { fontSize: 11, fontWeight: "800" },
+  tierRowXp: { fontSize: 11, fontWeight: "600" },
+  tierRowPhil: { fontSize: 11, lineHeight: 16 },
+  tierModalClose: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
+  tierModalCloseText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
+  lbSubtitle: { fontSize: 12, textAlign: "center", marginTop: -6 },
+  lbLoading: { marginVertical: 32 },
+  lbError: { fontSize: 13, textAlign: "center", marginVertical: 24, lineHeight: 18 },
+  lbRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  lbRankWrap: { width: 34, alignItems: "center" },
+  lbRank: { fontSize: 16, fontWeight: "900" },
+  lbRowCol: { flex: 1, gap: 2 },
+  lbName: { fontSize: 14, fontWeight: "800" },
+  lbTier: { fontSize: 11, fontWeight: "700" },
+  lbXp: { fontSize: 13, fontWeight: "800" },
 });

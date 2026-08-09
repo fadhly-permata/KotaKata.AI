@@ -39,6 +39,9 @@ interface GameState {
   /** Kata soal dari AI (Main Mode AI) — dipakai sekali oleh GameScreen, lalu dibersihkan. */
   aiWords: Array<{ word: string; clue_1: string; clue_2?: string }> | null;
   setAiWords: (words: Array<{ word: string; clue_1: string; clue_2?: string }> | null) => void;
+  /** True saat papan berasal dari Main Mode AI — XP sama sekali tidak dihitung. */
+  aiMode: boolean;
+  setAiMode: (aiMode: boolean) => void;
   selectCell: (row: number, col: number) => void;
   toggleOrientation: () => void;
   inputLetter: (letter: string) => void;
@@ -62,6 +65,7 @@ interface GameState {
 export const useGameStore = create<GameState>((set, get) => ({
   board: null,
   aiWords: null,
+  aiMode: false,
   loading: false,
   selectedCell: null,
   selectedWordIndex: null,
@@ -78,12 +82,22 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ board, loading: false, sessionStartTime: Date.now(), ...(getInitialFocus(board) ?? {}) });
   },
 
+  // setAiWords HANYA mengisi kata soal — tidak menyentuh aiMode. Mode AI
+  // di-set eksplisit lewat setAiMode(true) di MainMenu saat mulai Main Mode
+  // AI, dan di-clear otomatis oleh reset(). Dengan begitu pembersihan kata
+  // AI di GameScreen (setAiWords(null) setelah board terbentuk) tidak
+  // membalik aiMode jadi false di tengah papan AI.
   setAiWords: (aiWords) => set({ aiWords }),
+
+  setAiMode: (aiMode) => set({ aiMode }),
 
   resumeProgress: (progress: BoardProgressState) => {
     set({
       board: progress.board,
       loading: false,
+      // Papan yang di-resume ikut membawa status mode AI-nya (progres board
+      // AI yang disimpan otomatis tidak berubah jadi mode XP normal).
+      aiMode: progress.aiMode ?? false,
       selectedCell: null,
       selectedWordIndex: null,
       inputOrientation: null,
@@ -444,9 +458,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const fullyRevealed =
       !!hint?.revealedCells?.length &&
       word.cells.every((c) => hint.revealedCells.includes(`${c.row},${c.col}`));
-    const xpGain = fullyRevealed ? 0 : calcXpGain(word.word.length, board.tierLevel);
+    // Mode AI: tidak ada kalkulasi XP sama sekali (tambah maupun kurangi).
+    const xpGain = get().aiMode ? 0 : fullyRevealed ? 0 : calcXpGain(word.word.length, board.tierLevel);
     const newWordsSolved = get().wordsSolved + 1;
-    const newCurrentXp = get().currentXp + xpGain;
+    const newCurrentXp = get().aiMode ? 0 : get().currentXp + xpGain;
 
     // Catatan: totalXp TIDAK ikut ditambah di sini. totalXp adalah XP kumulatif
     // lintas papan — di-update sekali saja saat board selesai (GameScreen) atau
@@ -475,7 +490,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           xpGained: newCurrentXp,
           previousTier,
           newTier,
-          tierChanged: previousTier !== newTier,
+          // Mode AI: tier tidak pernah berubah (tidak ada XP yang dihitung).
+          tierChanged: !get().aiMode && previousTier !== newTier,
           timeElapsed,
         },
       });
@@ -483,7 +499,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   useClue2: (wordIndex: number) => {
-    const { hints, currentXp } = get();
+    const { hints, currentXp, aiMode } = get();
     const alreadyUsed = hints[wordIndex]?.clue2Used ?? false;
     set({
       // Catatan: revealedCells TIDAK di-reset — kalau di-reset, aturan
@@ -491,23 +507,25 @@ export const useGameStore = create<GameState>((set, get) => ({
       // ter-bypass hanya dengan membuka clue.
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue2Used: true } },
       // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
-      currentXp: alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_2,
+      // Mode AI: tidak ada pengurangan XP.
+      currentXp: aiMode ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_2,
     });
   },
 
   useClue3: (wordIndex: number) => {
-    const { hints, currentXp } = get();
+    const { hints, currentXp, aiMode } = get();
     const alreadyUsed = hints[wordIndex]?.clue3Used ?? false;
     set({
       // revealedCells tidak di-reset (lihat komentar di useClue2).
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue3Used: true } },
       // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
-      currentXp: alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_3,
+      // Mode AI: tidak ada pengurangan XP.
+      currentXp: aiMode ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_3,
     });
   },
 
   revealLetter: (wordIndex: number) => {
-    const { board, filledLetters, hints } = get();
+    const { board, filledLetters, hints, aiMode } = get();
     if (!board || !board.words[wordIndex]) return;
 
     const word = board.words[wordIndex];
@@ -526,7 +544,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       filledLetters: { ...filledLetters, [key]: letter },
-      currentXp: get().currentXp - XP_PENALTY_REVEAL,
+      // Mode AI: reveal gratis (tidak ada pengurangan XP).
+      currentXp: aiMode ? get().currentXp : get().currentXp - XP_PENALTY_REVEAL,
       hints: {
         ...hints,
         [wordIndex]: {
@@ -538,7 +557,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   revealWord: (wordIndex: number) => {
-    const { board, filledLetters, hints } = get();
+    const { board, filledLetters, hints, aiMode } = get();
     if (!board || !board.words[wordIndex]) return;
 
     const word = board.words[wordIndex];
@@ -558,7 +577,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       filledLetters: newLetters,
-      currentXp: get().currentXp - XP_PENALTY_REVEAL,
+      // Mode AI: reveal gratis (tidak ada pengurangan XP).
+      currentXp: aiMode ? get().currentXp : get().currentXp - XP_PENALTY_REVEAL,
       hints: {
         ...hints,
         [wordIndex]: {
@@ -575,6 +595,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       board: null,
       aiWords: null,
+      aiMode: false,
       loading: false,
       selectedCell: null,
       selectedWordIndex: null,

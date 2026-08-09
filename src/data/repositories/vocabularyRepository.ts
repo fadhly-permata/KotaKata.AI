@@ -175,4 +175,29 @@ export const vocabularyRepository = {
   clearCloudCache(): void {
     cloudCache.clear();
   },
+
+  /**
+   * Simpan soal-soal hasil generate Main Mode AI ke tabel vocabulary
+   * (RPC insert_ai_vocabulary — security definer). Kata yang sudah terdaftar
+   * (word sama) dilewati; hanya kata baru yang masuk. Tidak memblokir jalannya
+   * game — panggil fire-and-forget setelah kata AI diterima.
+   * @returns jumlah kata BARU yang berhasil disimpan.
+   */
+  async saveAiWords(
+    words: Array<{
+      word: string;
+      clue_1: string;
+      clue_2?: string;
+      tier_level: number;
+    }>,
+  ): Promise<number> {
+    if (words.length === 0) return 0;
+    const { data, error } = await supabase.rpc("insert_ai_vocabulary", {
+      p_words: words,
+    });
+    if (error) {
+      throw new Error(`Gagal simpan soal AI ke database: ${error.message}`);
+    }
+    return (data ?? 0) as number;
+  },
 };

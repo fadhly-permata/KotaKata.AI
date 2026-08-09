@@ -16,12 +16,14 @@ interface BoardResult {
 
 interface Props {
   result: BoardResult;
+  /** Papan dari Main Mode AI — tidak ada kalkulasi XP sama sekali. */
+  aiMode?: boolean;
   onPlayAgain: () => void;
   onViewBoard: () => void;
   onHome: () => void;
 }
 
-export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, onHome }: Props) {
+export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewBoard, onHome }: Props) {
   const { theme } = useTheme();
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -109,14 +111,26 @@ export default function CompletionOverlay({ result, onPlayAgain, onViewBoard, on
           </View>
         )}
 
+        {aiMode && (
+          <View style={[styles.aiNote, { backgroundColor: theme.colors.secondaryContainer }]}>
+            <Text style={[styles.aiNoteText, { color: theme.colors.textSecondary }]}>
+              🤖 Mode AI — tidak ada XP yang dihitung untuk permainan ini.
+            </Text>
+          </View>
+        )}
+
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{result.wordsSolved}</Text>
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Terpecahkan</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>+{result.xpGained}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>XP</Text>
+            <Text style={[styles.statValue, { color: theme.colors.primary }]}>
+              {aiMode ? "—" : `+${result.xpGained}`}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+              {aiMode ? "XP (tak dihitung)" : "XP"}
+            </Text>
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>
@@ -195,6 +209,13 @@ const styles = StyleSheet.create({
   },
   tierLabel: { fontSize: 16, fontWeight: "700" },
   tierPhilosophy: { fontSize: 12, textAlign: "center", lineHeight: 18, fontStyle: "italic" },
+  aiNote: {
+    width: "100%",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  aiNoteText: { fontSize: 12, fontWeight: "600", textAlign: "center", lineHeight: 17 },
   statsGrid: {
     flexDirection: "row",
     justifyContent: "space-around",

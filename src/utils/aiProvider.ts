@@ -163,6 +163,28 @@ Jawab HANYA JSON valid tanpa teks lain, format:
 
 const USER_PROMPT = "Buatkan 16 kata untuk satu papan TTS. Berikan JSON sesuai aturan.";
 
+/**
+ * Panduan tingkat kesulitan per tier untuk soal AI (1 = paling mudah).
+ * Dipakai Main Mode AI supaya kata yang di-generate sesuai level pemain.
+ */
+const TIER_DIFFICULTY: Record<number, string> = {
+  1: "kata-kata super umum sehari-hari (makan, air, rumah, jalan, buku), pendek 3-6 huruf",
+  2: "kata umum sehari-hari yang sedikit lebih bervariasi, 3-7 huruf",
+  3: "kata umum plus kata kerja dasar dan kata sifat sederhana, 4-8 huruf",
+  4: "kata menengah yang lazim di sekolah/rumah, 4-8 huruf",
+  5: "kata menengah (istilah ringan, kata serapan umum), 5-9 huruf",
+  6: "kata menengah-atas (istilah baku, kosakata pasif umum), 5-9 huruf",
+  7: "kata jarang/teknis ringan dan kosa kata baku yang menantang, 6-9 huruf",
+  8: "kata baku yang jarang dipakai sehari-hari, 6-10 huruf",
+  9: "kata langka/istilah khusus yang hanya dikenal pemain mahir, 6-10 huruf",
+  10: "kata paling langka dan sulit, hanya untuk penutur fasih, 6-10 huruf",
+};
+
+function tierPrompt(tier: number): string {
+  const t = Math.max(1, Math.min(10, Math.floor(tier) || 1));
+  return `Pemain berada di Tier ${t}. Pilih kata sesuai tingkat kesulitan tier ini: ${TIER_DIFFICULTY[t] ?? TIER_DIFFICULTY[1]}.`;
+}
+
 /** Ekstrak blok JSON pertama dari teks respons (tahan terhadap fence markdown). */
 function extractJson(text: string): unknown {
   let t = text.trim();
@@ -192,16 +214,18 @@ const WORD_RE = /^[a-z]{3,10}$/;
  * Minta daftar kata + clue dari provider AI. Hasil divalidasi keras:
  * hanya kata huruf kecil 3-10 huruf, clue tidak boleh memuat kata jawaban,
  * tanpa duplikat. Lempar Error kalau hasilnya tidak bisa dipakai.
+ * `playerTier` dipakai supaya kata yang di-generate sesuai level pemain.
  */
 export async function requestAiWords(
   cfg: AiProviderConfig,
+  playerTier: number,
   signal?: AbortSignal,
 ): Promise<AiWord[]> {
   const content = await chatRequest(
     cfg,
     [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: USER_PROMPT },
+      { role: "user", content: `${USER_PROMPT} ${tierPrompt(playerTier)}` },
     ],
     1500,
     signal,

@@ -7,6 +7,7 @@ import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
 import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import TooltipButton from "../../presentation/components/common/TooltipButton";
+import TierChangeToast from "../../presentation/components/common/TierChangeToast";
 import ZoomIcon from "../../presentation/components/icons/ZoomIcon";
 import NextIcon from "../../presentation/components/icons/NextIcon";
 import KeyboardIcon from "../../presentation/components/icons/KeyboardIcon";
@@ -100,6 +101,21 @@ export default function GameScreen() {
   const useClue2 = useGameStore((s) => s.useClue2);
   const useClue3 = useGameStore((s) => s.useClue3);
   const resumeProgress = useGameStore((s) => s.resumeProgress);
+  const aiMode = useGameStore((s) => s.aiMode);
+
+  // ─── Notifikasi perubahan tier (naik/turun) saat bermain ───
+  // Pantau tier = calcTier(totalXp + currentXp). Berubah (karena kata selesai
+  // atau pemakaian clue) → tampilkan toast singkat di atas papan.
+  const [tierToast, setTierToast] = useState<{ tier: number; up: boolean } | null>(null);
+  const prevTierRef = useRef<number | null>(null);
+  useEffect(() => {
+    const tier = calcTier(totalXp + currentXp);
+    const prev = prevTierRef.current;
+    prevTierRef.current = tier;
+    if (prev != null && prev !== tier) {
+      setTierToast({ tier, up: tier > prev });
+    }
+  }, [totalXp, currentXp]);
 
 
 
@@ -310,6 +326,7 @@ export default function GameScreen() {
         currentXp: store.currentXp,
         wordsSolved: store.wordsSolved,
         totalXp: store.totalXp,
+        aiMode: store.aiMode,
       }),
       is_finished: false,
       updated_at: new Date().toISOString(),
@@ -351,6 +368,14 @@ export default function GameScreen() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null;
+      // Re-check DI SAAT FIRE (bukan cuma saat di-schedule). Kalau papan sudah
+      // selesai / boardResult sudah muncul sejak timer dipasang, JANGAN simpan:
+      // kalau tidak, papan yang baru selesai bisa tersimpan LAGI sebagai
+      // in-progress (is_finished=false) SETELAH baris in-progress dihapus di
+      // penyelesaian → "Mulai Bermain" berikutnya me-resume papan yang sudah
+      // tamat (bug: game lama masih nyangkut padahal sudah terjawab semua).
+      const s = useGameStore.getState();
+      if (!s.board || s.boardResult) return;
       lastSavedKeyRef.current = key;
       void saveInProgress().catch((err) =>
         loggerInfo("Auto-simpan progres gagal", err),
@@ -374,9 +399,18 @@ export default function GameScreen() {
     );
   }, [saveInProgress, saveKey]);
 
-  // 1) Auto-simpan (debounce) setiap ada perubahan state game.
+  // 1) Auto-simpan (debounce) setiap ada perubahan state game. Begitu papan
+  //    SELESAI (boardResult terisi), batalkan timer yang masih menggantung —
+  //    mencegah papan tamat tersimpan ulang sebagai in-progress.
   useEffect(() => {
-    if (!board || boardResult) return;
+    if (boardResult) {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      return;
+    }
+    if (!board) return;
     scheduleAutoSave();
   }, [filledLetters, hints, wordsSolved, currentXp, board, boardResult, scheduleAutoSave]);
 
@@ -651,20 +685,24 @@ export default function GameScreen() {
           loggerWarn("Gagal merekam discovery saat board selesai", discoveryErr);
         }
 
-        // 3) XP kumulatif user + tier terbaru
-        const prevUser = await userRepository.getById(user.id);
-        const newTotalXp = (prevUser?.total_xp ?? 0) + boardResult.xpGained;
-        const sessionName = displayNameFromMetadata(user.user_metadata);
-        await userRepository.upsert({
-          user_id: user.id,
-          display_name: prevUser?.display_name ?? sessionName ?? "Pemain",
-          email: prevUser?.email,
-          total_xp: newTotalXp,
-          current_tier: calcTier(newTotalXp),
-          coins: prevUser?.coins ?? 0,
-          updated_at: now,
-        });
-        useGameStore.getState().setTotalXp(newTotalXp);
+        // 3) XP kumulatif user + tier terbaru. DILEWATI total di Main Mode AI:
+        //    mode ini tidak boleh menyentuh XP sama sekali (tambah, kurangi,
+        //    maupun updated_at yang dipakai urutan leaderboard).
+        if (!useGameStore.getState().aiMode) {
+          const prevUser = await userRepository.getById(user.id);
+          const newTotalXp = (prevUser?.total_xp ?? 0) + boardResult.xpGained;
+          const sessionName = displayNameFromMetadata(user.user_metadata);
+          await userRepository.upsert({
+            user_id: user.id,
+            display_name: prevUser?.display_name ?? sessionName ?? "Pemain",
+            email: prevUser?.email,
+            total_xp: newTotalXp,
+            current_tier: calcTier(newTotalXp),
+            coins: prevUser?.coins ?? 0,
+            updated_at: now,
+          });
+          useGameStore.getState().setTotalXp(newTotalXp);
+        }
       } catch (err) {
         loggerInfo("Gagal menyimpan hasil board", err);
       }
@@ -827,8 +865,15 @@ export default function GameScreen() {
             <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={36} />
             <Text style={[styles.appTitle, { color: theme.colors.primary }]}>KotaKata AI</Text>
           </View>
-          <View style={[styles.xpPill, { backgroundColor: "#ffd6ee" }]}>
-            <Text style={[styles.xpPillText, { color: "#a02070" }]}>⭐ {totalXp + currentXp} XP</Text>
+          <View style={styles.topBarRight}>
+            {aiMode && (
+              <View style={[styles.aiModeBadge, { backgroundColor: "#e8f4ff", borderColor: "#0096cc" }]}>
+                <Text style={styles.aiModeBadgeText}>🤖 Mode AI</Text>
+              </View>
+            )}
+            <View style={[styles.xpPill, { backgroundColor: "#ffd6ee" }]}>
+              <Text style={[styles.xpPillText, { color: "#a02070" }]}>⭐ {totalXp + currentXp} XP</Text>
+            </View>
           </View>
         </View>
 
@@ -1016,8 +1061,12 @@ export default function GameScreen() {
                 allCluesOpened
                   ? "Semua petunjuk sudah terbuka"
                   : nextClueToReveal === 2
-                    ? `Petunjuk ke-2 — −${XP_PENALTY_CLUE_2} XP (sekali, lalu gratis)`
-                    : `Petunjuk ke-3 — −${XP_PENALTY_CLUE_3} XP (sekali, lalu gratis)`
+                    ? aiMode
+                      ? "Buka petunjuk ke-2 (gratis — Mode AI tanpa XP)"
+                      : `Petunjuk ke-2 — −${XP_PENALTY_CLUE_2} XP (sekali, lalu gratis)`
+                    : aiMode
+                      ? "Buka petunjuk ke-3 (gratis — Mode AI tanpa XP)"
+                      : `Petunjuk ke-3 — −${XP_PENALTY_CLUE_3} XP (sekali, lalu gratis)`
               }
               icon="📖"
               accessibilityLabel={
@@ -1049,7 +1098,11 @@ export default function GameScreen() {
             </TooltipButton>
             {/* Reveal letter */}
             <TooltipButton
-              tooltip={`Buka satu huruf dari kata terpilih (−${XP_PENALTY_REVEAL} XP)`}
+              tooltip={
+                aiMode
+                  ? "Buka satu huruf dari kata terpilih (gratis — Mode AI tanpa XP)"
+                  : `Buka satu huruf dari kata terpilih (−${XP_PENALTY_REVEAL} XP)`
+              }
               icon="🔍"
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
@@ -1064,7 +1117,11 @@ export default function GameScreen() {
             </TooltipButton>
             {/* Reveal word */}
             <TooltipButton
-              tooltip={`Buka semua huruf kata — −${XP_PENALTY_REVEAL} XP (tanpa XP kata)`}
+              tooltip={
+                aiMode
+                  ? "Buka semua huruf kata (gratis — Mode AI tanpa XP)"
+                  : `Buka semua huruf kata — −${XP_PENALTY_REVEAL} XP (tanpa XP kata)`
+              }
               icon="💡"
               style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
               activeOpacity={0.7}
@@ -1152,9 +1209,13 @@ export default function GameScreen() {
       <ConfirmDialog
         visible={showRevealClueConfirm}
         title={`Buka Petunjuk Ke-${nextClueToReveal}?`}
-        message={`Membuka petunjuk ke-${nextClueToReveal} akan mengurangi XP sebesar ${
-          nextClueToReveal === 2 ? XP_PENALTY_CLUE_2 : XP_PENALTY_CLUE_3
-        }. Lanjutkan?`}
+        message={
+          aiMode
+            ? `Membuka petunjuk ke-${nextClueToReveal}? Mode AI: tidak ada XP yang dihitung.`
+            : `Membuka petunjuk ke-${nextClueToReveal} akan mengurangi XP sebesar ${
+                nextClueToReveal === 2 ? XP_PENALTY_CLUE_2 : XP_PENALTY_CLUE_3
+              }. Lanjutkan?`
+        }
         confirmText="Ya, Buka"
         cancelText="Batal"
         onConfirm={confirmRevealClue}
@@ -1167,7 +1228,11 @@ export default function GameScreen() {
       <ConfirmDialog
         visible={showRevealLetterConfirm}
         title="Buka Satu Huruf?"
-        message={`Menggunakan fitur ini akan mengurangi XP sebesar ${XP_PENALTY_REVEAL}. Lanjutkan?`}
+        message={
+          aiMode
+            ? "Buka satu huruf dari kata terpilih? Mode AI: tidak ada XP yang dihitung."
+            : `Menggunakan fitur ini akan mengurangi XP sebesar ${XP_PENALTY_REVEAL}. Lanjutkan?`
+        }
         confirmText="Ya, Buka"
         cancelText="Batal"
         onConfirm={() => {
@@ -1184,7 +1249,11 @@ export default function GameScreen() {
       <ConfirmDialog
         visible={showRevealWordConfirm}
         title="Buka Semua Huruf?"
-        message={`Menggunakan fitur ini akan mengurangi XP sebesar ${XP_PENALTY_REVEAL} dan kata yang terbuka tidak akan mendapat XP. Lanjutkan?`}
+        message={
+          aiMode
+            ? "Buka semua huruf kata terpilih? Mode AI: tidak ada XP yang dihitung."
+            : `Menggunakan fitur ini akan mengurangi XP sebesar ${XP_PENALTY_REVEAL} dan kata yang terbuka tidak akan mendapat XP. Lanjutkan?`
+        }
         confirmText="Ya, Buka Semua"
         cancelText="Batal"
         onConfirm={() => {
@@ -1209,6 +1278,7 @@ export default function GameScreen() {
         {boardResult && (
           <CompletionOverlay
             result={boardResult}
+            aiMode={aiMode}
             onPlayAgain={reset}
             onViewBoard={dismissResult}
             onHome={() => {
@@ -1228,6 +1298,13 @@ export default function GameScreen() {
           />
         )}
       </Modal>
+
+      {/* Notifikasi naik/turun tier saat bermain */}
+      <TierChangeToast
+        tier={tierToast?.tier ?? null}
+        up={tierToast?.up ?? true}
+        onHide={() => setTierToast(null)}
+      />
     </ScreenFade>
   );
 }
@@ -1249,6 +1326,16 @@ const styles = StyleSheet.create({
   scrollContent: {},
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  topBarRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  aiModeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  aiModeBadgeText: { fontSize: 11, fontWeight: "800", color: "#0096cc" },
   backBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", overflow: "hidden" },
   backBtnText: { fontSize: 18, fontWeight: "600", lineHeight: 32, textAlign: "center" },
   appTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },

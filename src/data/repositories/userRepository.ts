@@ -73,10 +73,17 @@ export const userRepository = {
     await this.upsert({ ...user, total_xp: newXp, current_tier: newTier });
   },
 
-  async getAll(): Promise<UserDoc[]> {
-    const { data, error } = await supabase.from("users").select(USER_COLUMNS);
+  /**
+   * Leaderboard semua pemain, urut total_xp DESC lalu updated_at ASC (pemain
+   * yang MENCAPAI XP yang sama lebih dulu menang). RLS users hanya membolehkan
+   * user melihat barisnya sendiri, jadi baca lintas-user lewat RPC
+   * get_leaderboard (security definer) yang mengembalikan hanya kolom publik
+   * (tanpa email/device_id).
+   */
+  async getLeaderboard(): Promise<UserDoc[]> {
+    const { data, error } = await supabase.rpc("get_leaderboard");
     if (error) {
-      throw new Error(`Gagal ambil profil dari Supabase: ${error.message}`);
+      throw new Error(`Gagal ambil leaderboard dari Supabase: ${error.message}`);
     }
     return (data ?? []) as UserDoc[];
   },

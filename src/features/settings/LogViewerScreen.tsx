@@ -8,7 +8,7 @@ import {
   Platform,
   Share,
 } from "react-native";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
@@ -34,6 +34,9 @@ const FILTERS: { key: LogFilter; label: string }[] = [
   { key: "debug", label: "Debug" },
 ];
 
+/** Pilihan jumlah baris per halaman (bisa di-custom lewat chip di bawah). */
+const PAGE_SIZES = [25, 50, 100, 200];
+
 const LEVEL_LABEL: Record<LogLevel, string> = {
   debug: "Debug",
   info: "Info",
@@ -51,6 +54,21 @@ export default function LogViewerScreen() {
   const [logDbMode, setLogDbMode] = useState<"sqlite" | "fallback" | "loading">("loading");
   const [showClearLogConfirm, setShowClearLogConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // ─── Paging: tampilkan log per halaman (jumlah baris bisa di-custom) ───
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const totalPages = Math.max(1, Math.ceil(logs.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleLogs = useMemo(
+    () => logs.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [logs, currentPage, pageSize],
+  );
+
+  // Ganti filter / jumlah baris per halaman → kembali ke halaman 1.
+  useEffect(() => {
+    setPage(1);
+  }, [filter, pageSize]);
 
   const refreshLogs = useCallback(async () => {
     try {
@@ -88,6 +106,8 @@ export default function LogViewerScreen() {
   }, [refreshLogs]);
 
   const handleCopyLogs = useCallback(async () => {
+    // Salin SEMUA log yang cocok filter (paging hanya untuk tampilan — kalau
+    // user mau mengirim data log, harus lengkap, bukan cuma halaman aktif).
     const text =
       logs
         .map(
@@ -154,6 +174,36 @@ export default function LogViewerScreen() {
           </Text>
         </View>
 
+        {/* Aksi — DI ATAS supaya Muat Ulang / Salin / Hapus tidak perlu di-scroll */}
+        <View style={styles.logActionsRow}>
+          <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={() => {
+              setLogsLoading(true);
+              void refreshLogs();
+            }}
+          >
+            <Text style={[styles.logBtnText, { color: theme.colors.secondary }]}>🔄 Muat Ulang</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            activeOpacity={0.7}
+            onPress={handleCopyLogs}
+          >
+            <Text style={[styles.logBtnText, { color: theme.colors.secondary }]}>
+              {copied ? "✅ Tersalin" : "📋 Salin"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: "rgba(231, 76, 60, 0.1)" }]}
+            activeOpacity={0.7}
+            onPress={() => setShowClearLogConfirm(true)}
+          >
+            <Text style={[styles.logBtnText, { color: theme.colors.error }]}>🗑 Hapus Log</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Filter */}
         <ScrollView
           horizontal
@@ -197,7 +247,7 @@ export default function LogViewerScreen() {
               Belum ada log. Log akan muncul otomatis saat ada error atau warning.
             </Text>
           ) : (
-            logs.map((entry) => {
+            visibleLogs.map((entry) => {
               const color = levelColor[entry.level];
               const expanded = expandedId === entry.id;
               return (
@@ -244,35 +294,81 @@ export default function LogViewerScreen() {
           )}
         </View>
 
-        {/* Aksi */}
-        <View style={styles.logActionsRow}>
-          <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }]}
-            activeOpacity={0.7}
-            onPress={() => {
-              setLogsLoading(true);
-              void refreshLogs();
-            }}
-          >
-            <Text style={[styles.logBtnText, { color: theme.colors.secondary }]}>🔄 Muat Ulang</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }]}
-            activeOpacity={0.7}
-            onPress={handleCopyLogs}
-          >
-            <Text style={[styles.logBtnText, { color: theme.colors.secondary }]}>
-              {copied ? "✅ Tersalin" : "📋 Salin"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: "rgba(231, 76, 60, 0.1)" }]}
-            activeOpacity={0.7}
-            onPress={() => setShowClearLogConfirm(true)}
-          >
-            <Text style={[styles.logBtnText, { color: theme.colors.error }]}>🗑 Hapus Log</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Paging — navigasi halaman + jumlah baris per halaman (custom) */}
+        {logs.length > 0 && (
+          <View style={styles.pagerRow}>
+            <TouchableOpacity
+              style={[
+                styles.pagerBtn,
+                {
+                  backgroundColor: theme.colors.secondaryContainer,
+                  opacity: currentPage <= 1 ? 0.4 : 1,
+                },
+              ]}
+              activeOpacity={0.7}
+              disabled={currentPage <= 1}
+              onPress={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <Text style={[styles.pagerBtnText, { color: theme.colors.secondary }]}>‹</Text>
+            </TouchableOpacity>
+
+            <View style={styles.pagerInfoCol}>
+              <Text style={[styles.pagerInfo, { color: theme.colors.textSecondary }]}>
+                Halaman {currentPage} / {totalPages}
+              </Text>
+              <Text style={[styles.pagerCount, { color: theme.colors.textSecondary }]}>
+                {(currentPage - 1) * pageSize + 1}–
+                {Math.min(currentPage * pageSize, logs.length)} dari {logs.length}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.pagerBtn,
+                {
+                  backgroundColor: theme.colors.secondaryContainer,
+                  opacity: currentPage >= totalPages ? 0.4 : 1,
+                },
+              ]}
+              activeOpacity={0.7}
+              disabled={currentPage >= totalPages}
+              onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <Text style={[styles.pagerBtnText, { color: theme.colors.secondary }]}>›</Text>
+            </TouchableOpacity>
+
+            {/* Jumlah baris per halaman (custom) */}
+            <View style={styles.pageSizeGroup}>
+              {PAGE_SIZES.map((size) => {
+                const active = size === pageSize;
+                return (
+                  <TouchableOpacity
+                    key={size}
+                    style={[
+                      styles.pageSizeChip,
+                      {
+                        backgroundColor: active
+                          ? theme.colors.primary
+                          : theme.colors.secondaryContainer,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => setPageSize(size)}
+                  >
+                    <Text
+                      style={[
+                        styles.pageSizeChipText,
+                        { color: active ? "#fff" : theme.colors.textSecondary },
+                      ]}
+                    >
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <ConfirmDialog
@@ -320,4 +416,19 @@ const styles = StyleSheet.create({
   logActionsRow: { flexDirection: "row", gap: 8 },
   logBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
   logBtnText: { fontSize: 12, fontWeight: "700" },
+  pagerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  pagerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pagerBtnText: { fontSize: 20, fontWeight: "800", lineHeight: 22 },
+  pagerInfoCol: { flex: 1, alignItems: "center", gap: 1 },
+  pagerInfo: { fontSize: 13, fontWeight: "700" },
+  pagerCount: { fontSize: 11, fontWeight: "500" },
+  pageSizeGroup: { flexDirection: "row", gap: 4 },
+  pageSizeChip: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 8 },
+  pageSizeChipText: { fontSize: 11, fontWeight: "700" },
 });
