@@ -117,6 +117,9 @@ bun scripts/db/push-vocab.mjs          # push kosakata ke Supabase
 
 ## 📝 Revisi & Planning
 
+**📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
+(PLAN-001 s/d PLAN-005, semuanya ✅ done) + detail tiap rilis.
+
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
 
@@ -138,6 +141,16 @@ bunx expo export --platform web
 ## 🗺️ Development Status
 
 Progress pembangunan project dilacak di `.agents/checkpoint.json`.
+
+**Status plan revisi** (detail di [RELEASE_NOTES.md](RELEASE_NOTES.md)):
+
+| Plan | Status | Isi |
+| :--- | :--- | :--- |
+| PLAN-001 | ✅ done | Revisi halaman utama & navigasi (22 langkah) |
+| PLAN-002 | ✅ done | Main Mode AI — soal dari provider (BYOK) |
+| PLAN-003 | ✅ done | Kualitas clue tier 1–10: 0 issue / 0 bocor / 0 duplikat |
+| PLAN-004 | ✅ done | Keluar akun ke Profil + hapus akun permanen |
+| PLAN-005 | ✅ done | Mode AI tanpa XP, paging log, leaderboard, notifikasi tier, tag asal bahasa |
 
 ## 📄 Lisensi
 
