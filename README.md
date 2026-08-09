@@ -30,6 +30,48 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 4 | **Untai Aksara** | 9 | **Risalah Langit** |
 | 5 | **Gema Diksi** | 10 | **Keabadian Seloka** |
 
+## 🎮 Cara Main
+
+1. **Mulai Bermain** — papan TTS digenerate prosedural dari ±10.000 kosakata terkurasi (1000 kata × 10 tier, 3 clue per kata). Setiap permainan selalu berbeda.
+2. **Isi sel** — ketuk sel untuk memilih kata, ketuk lagi untuk ganti arah (mendatar/menurun). Ketik huruf via keyboard virtual (mobile) atau keyboard fisik (desktop/web: huruf + panah ⬅➡⬆⬇, ⏎ ganti arah, ⌫ hapus).
+3. **Selesaikan kata** — kata yang terisi penuh divalidasi otomatis: benar → terkunci + bunyi kemenangan + XP; salah → dengung peringatan, boleh dikoreksi.
+4. **Naikkan tier** — setiap kata benar memberi XP (`25 + (panjang kata − 3) × 5`, dikali pengali tier 1×–5×). Saat XP cukup, tier naik (notifikasi + overlay perayaan); tingkat kesulitan soal ikut menyesuaikan.
+
+### 💡 Sistem Clue & Hint
+
+Setiap kata punya 3 clue yang selalu berbeda dan tidak pernah memuat jawaban:
+
+| Hint | Efek | Biaya XP |
+| :--- | :--- | :--- |
+| **Clue 1** | Tampil default di panel soal | Gratis |
+| **Clue 2** | Petunjuk tambahan lebih jelas | −50 XP |
+| **Clue 3** | Petunjuk terjelas (sinonim/deskriptif) | −100 XP |
+| **Reveal Letter** | Membuka 1 huruf acak (sel terkunci) | −75 XP |
+
+> Clue 2/3/Reveal memerlukan konfirmasi sebelum dipakai. Kata serapan asing & kata daerah diberi penanda asal bahasa (mis. "Kata serapan dari bahasa Belanda") di clue pertama.
+
+### 🏆 Fitur Pendukung
+
+- **Daftar Tier** — tombol di halaman utama: 10 tier dengan highlight tier kamu saat ini.
+- **Leaderboard** — lihat posisimu antar pemain (urut total XP, lalu waktu kenaikan); 3 teratas dapat medali.
+- **Kata Ditemukan** — riwayat kata yang pernah kamu selesaikan (lazy-load per 25).
+- **Sejarah Permainan** — daftar papan selesai + viewer read-only (sel hitam, nomor clue, grup Mendatar/Menurun).
+- **Kata Ajaib** — popup kata acak + clue dari seluruh tier (clue Antonim/Sinonim dikecualikan).
+- **Auto-save** — progres board tersimpan otomatis (500 ms setelah perubahan + saat menutup/refresh); board belum selesai bisa dilanjutkan dari "Mulai Bermain".
+- **Guest & Akun** — main tanpa akun (identitas per perangkat) atau login Google/email; progres tersinkronisasi cloud. "Hubungkan Akun" (Profil) menyatukan data guest ke akun permanen.
+
+## 🤖 Mode AI (Main Mode AI)
+
+Main dengan soal yang dibuat AI dari provider pilihanmu (**Bring Your Own Key**):
+
+1. **Atur provider** — Pengaturan → "Tambahkan Provider AI". Pilih preset **OpenRouter**, **HuggingFace**, atau **URL kustom**, isi API key + nama model, lalu **Tes Koneksi** dan **Simpan**.
+2. **Main** — tombol "Main Mode AI" meminta soal ke provider, divalidasi ketat (kata 3–10 huruf, clue tidak memuat jawaban, tanpa duplikat), lalu digenerate menjadi papan seperti biasa. Tingkat kesulitan soal menyesuaikan tier kamu.
+3. **Tanpa XP** — Mode AI tidak menghitung XP sama sekali: tidak menambah XP saat selesai kata, dan tidak mengurangi XP saat memakai clue/reveal (semua gratis). Ada badge "Mode AI" + info di layar selesai.
+4. **Perkaya database** — kata AI yang belum ada di database otomatis disimpan (deduplikasi) supaya bank kosakata terus bertambah.
+5. **Gagal?** — kalau provider error / respons tidak valid, muncul dialog ramah dengan opsi **Coba Lagi** atau **Main Mode Normal** (mode biasa tidak terpengaruh).
+
+> 🔑 **Privasi** — API key milikmu (BYOK) disimpan di perangkat dan di-sync ke profil akunmu (RLS, hanya kamu yang bisa membaca) supaya akun yang sama di perangkat lain tetap bisa Main Mode AI tanpa set ulang. Key tidak pernah dikirim ke pihak lain.
+
 ## 🛠 Tech Stack
 
 - **Framework:** React Native + Expo (TypeScript)
