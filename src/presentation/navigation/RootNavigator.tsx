@@ -6,6 +6,7 @@ import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { userRepository } from "../../data/repositories/userRepository";
 import { getOrCreateDeviceId } from "../../utils/deviceIdentity";
+import { syncAiProviderConfigWithCloud } from "../../utils/aiProvider";
 import { loggerWarn } from "../../utils/logger";
 import { useGameStore } from "../stores/gameStore";
 import AuthScreen from "../../features/auth/AuthScreen";
@@ -49,6 +50,10 @@ export default function RootNavigator() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         useGameStore.getState().reset();
+        // Profil berikutnya (session baru) harus dianggap BELUM siap — kalau
+        // tidak, notifikasi tier di menu bisa salah membandingkan tier sebelum
+        // XP profil sejati dimuat.
+        useGameStore.getState().setProfileReady(false);
         return;
       }
       const uid = session.user.id;
@@ -120,6 +125,16 @@ export default function RootNavigator() {
             });
             if (!disposed) useGameStore.getState().setTotalXp(0);
           }
+          // Sinkronkan config provider AI dari cloud: login akun sama di device
+          // lain tetap bisa Main Mode AI. Gagal sync tidak menghalangi profil.
+          try {
+            await syncAiProviderConfigWithCloud(uid);
+          } catch (err) {
+            loggerWarn("Gagal sinkron config provider AI", err);
+          }
+          // Profil sudah siap — notifikasi tier (main menu & in-game) baru boleh
+          // membandingkan tier sekarang (seed tanpa toast saat pertama kali).
+          if (!disposed) useGameStore.getState().setProfileReady(true);
         } catch (err) {
           loggerWarn("Gagal memuat profil pemain", err);
         }

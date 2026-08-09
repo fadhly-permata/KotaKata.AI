@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Easing,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
@@ -214,18 +214,27 @@ export default function MainMenuScreen() {
   const aiAbortRef = useRef<AbortController | null>(null);
 
   // ─── Notifikasi perubahan tier (naik/turun) di Main Menu ───
-  // totalXp berubah hanya saat board normal selesai (Mode AI tidak menyentuh
-  // XP), jadi toast muncul pas player naik/turun level dari menu.
+  // Deteksi saat MENU kembali di-fokus (mis. pulang dari layar Game, di mana
+  // totalXp diperbarui saat papan selesai). Dua lapis pengaman:
+  //   1. profileReady — jangan bandingkan tier sebelum profil cloud disinkron
+  //      (kalau tidak, toast "Naik ke Tier" palsu muncul saat app dibuka
+  //      karena totalXp naik 0 → XP profil).
+  //   2. Seed pertama tanpa toast — transisi 0 → XP saat fokus pertama hanya
+  //      jadi baseline, bukan dianggap "baru naik tier".
   const [tierToast, setTierToast] = useState<{ tier: number; up: boolean } | null>(null);
   const prevTierRef = useRef<number | null>(null);
-  useEffect(() => {
-    const t = calcTier(totalXp);
-    const prev = prevTierRef.current;
-    prevTierRef.current = t;
-    if (prev != null && prev !== t) {
-      setTierToast({ tier: t, up: t > prev });
-    }
-  }, [totalXp]);
+  const profileReady = useGameStore((s) => s.profileReady);
+  useFocusEffect(
+    useCallback(() => {
+      if (!profileReady) return;
+      const t = calcTier(totalXp);
+      const prev = prevTierRef.current;
+      prevTierRef.current = t;
+      if (prev != null && prev !== t) {
+        setTierToast({ tier: t, up: t > prev });
+      }
+    }, [totalXp, profileReady]),
+  );
 
   // ─── "Daftar Tier" modal state ───
   const [tierListVisible, setTierListVisible] = useState(false);

@@ -1,11 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { userRepository } from "../data/repositories/userRepository";
 
 /**
  * Main Mode AI (BYOK) — integrasi provider AI untuk membuat soal TTS.
  *
  * - Config provider (API key + model + base URL) disimpan LOKAL di
- *   AsyncStorage ("kotakata.aiProvider") — tidak pernah dikirim ke server
- *   KotaKata (Bring Your Own Key).
+ *   AsyncStorage ("kotakata.aiProvider") sebagai cache cepat, dan di-sync ke
+ *   kolom users.ai_provider_config (Supabase) supaya akun yang sama di device
+ *   lain tetap bisa Main Mode AI. Key tetap milik user (Bring Your Own Key);
+ *   hanya baris profil user itu sendiri yang bisa membacanya (RLS).
+ * - Pemilik config lokal ditandai di "kotakata.aiProviderOwner" supaya config
+ *   milik akun lain tidak bocor di device bersama (dan bisa di-backfill ke
+ *   cloud untuk data lama).
  * - Provider yang didukung: OpenRouter, HuggingFace (Inference Providers
  *   router), dan URL kustom — semuanya berbicara API chat-completions gaya
  *   OpenAI, jadi cukup satu implementasi request.
@@ -35,6 +41,9 @@ export interface AiTestResult {
 }
 
 const STORAGE_KEY = "kotakata.aiProvider";
+// Uid Supabase yang config lokalnya milik. Dipakai supaya config tidak bocor
+// antar akun di device yang sama & untuk backfill config lama ke cloud.
+const OWNER_KEY = "kotakata.aiProviderOwner";
 
 interface ProviderPreset {
   label: string;
@@ -87,6 +96,64 @@ export async function saveAiProviderConfig(cfg: AiProviderConfig): Promise<void>
 
 export async function clearAiProviderConfig(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
+}
+
+/** Uid Supabase pemilik config lokal; null kalau belum pernah ditandai. */
+export async function getAiProviderConfigOwner(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function markAiProviderOwner(userId: string): Promise<void> {
+  await AsyncStorage.setItem(OWNER_KEY, userId);
+}
+
+export async function clearAiProviderOwner(): Promise<void> {
+  await AsyncStorage.removeItem(OWNER_KEY);
+}
+
+/**
+ * Sinkronkan config provider AI dari cloud (Supabase) ke perangkat. Dipanggil
+ * setiap session dimuat (login / restore) — user yang memakai akun sama di
+ * device lain tetap bisa Main Mode AI.
+ *
+ * Aturan:
+ *  - cloud punya config → tulis ke lokal, tandai pemilik = uid
+ *  - cloud kosong tapi lokal milik uid ini (atau belum ditandai = data lama)
+ *    → backfill config lokal ke cloud supaya user lama tidak kehilangan apa pun
+ *  - cloud kosong & lokal milik akun LAIN → bersihkan lokal (anti-bocor antar
+ *    akun di device bersama)
+ */
+export async function syncAiProviderConfigWithCloud(userId: string): Promise<void> {
+  const cloudCfg = await userRepository.getAiProviderConfig(userId);
+  const [localCfg, owner] = await Promise.all([
+    getAiProviderConfig(),
+    getAiProviderConfigOwner(),
+  ]);
+
+  if (cloudCfg) {
+    await saveAiProviderConfig(cloudCfg);
+    await markAiProviderOwner(userId);
+    return;
+  }
+
+  // Tidak ada config di cloud: backfill kalau config lokal milik akun ini
+  // (owner null = config lama yang belum pernah ditandai — anggap milik user
+  // pertama yang login, lalu tandai).
+  if (localCfg && (owner === null || owner === userId)) {
+    await userRepository.saveAiProviderConfig(userId, localCfg);
+    await markAiProviderOwner(userId);
+    return;
+  }
+
+  // Config lokal milik akun lain di device yang sama → jangan bocor.
+  if (localCfg && owner && owner !== userId) {
+    await clearAiProviderConfig();
+    await clearAiProviderOwner();
+  }
 }
 
 function chatUrl(cfg: AiProviderConfig): string {

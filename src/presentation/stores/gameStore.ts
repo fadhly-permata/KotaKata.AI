@@ -32,6 +32,11 @@ interface GameState {
   currentXp: number;
   wordsSolved: number;
   totalXp: number; // cumulative XP across games
+  /** True saat profil cloud selesai disinkronkan ke store (RootNavigator).
+   *  Dipakai notifikasi tier: jangan bandingkan tier sebelum data XP sejati
+   *  dimuat — kalau tidak, toast "Naik ke Tier" palsu muncul saat app dibuka
+   *  (totalXp 0 → XP profil). */
+  profileReady: boolean;
   sessionStartTime: number;
   boardResult: BoardResult | null;
 
@@ -42,6 +47,7 @@ interface GameState {
   /** True saat papan berasal dari Main Mode AI — XP sama sekali tidak dihitung. */
   aiMode: boolean;
   setAiMode: (aiMode: boolean) => void;
+  setProfileReady: (ready: boolean) => void;
   selectCell: (row: number, col: number) => void;
   toggleOrientation: () => void;
   inputLetter: (letter: string) => void;
@@ -75,12 +81,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentXp: 0,
   wordsSolved: 0,
   totalXp: 0,
+  profileReady: false,
   sessionStartTime: 0,
   boardResult: null,
 
   setBoard: (board: Board) => {
     set({ board, loading: false, sessionStartTime: Date.now(), ...(getInitialFocus(board) ?? {}) });
   },
+
+  setProfileReady: (profileReady) => set({ profileReady }),
 
   // setAiWords HANYA mengisi kata soal — tidak menyentuh aiMode. Mode AI
   // di-set eksplisit lewat setAiMode(true) di MainMenu saat mulai Main Mode
@@ -487,7 +496,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         boardResult: {
           totalWords: board.words.length,
           wordsSolved: newWordsSolved,
-          xpGained: newCurrentXp,
+          // XP neto sesi di-clamp ≥ 0: pemakaian clue yang lebih besar dari
+          // XP kata tidak boleh membuat total XP pemain menurun (overlay tidak
+          // akan menampilkan "+−50 XP").
+          xpGained: Math.max(0, newCurrentXp),
           previousTier,
           newTier,
           // Mode AI: tier tidak pernah berubah (tidak ada XP yang dihitung).

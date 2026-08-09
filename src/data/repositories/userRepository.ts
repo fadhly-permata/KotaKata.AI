@@ -1,5 +1,6 @@
 import { supabase } from "../sources/supabase";
 import type { UserDoc } from "../models/schemas";
+import type { AiProviderConfig } from "../../utils/aiProvider";
 
 const USER_COLUMNS = "user_id, display_name, email, device_id, total_xp, current_tier, coins, updated_at";
 
@@ -71,6 +72,37 @@ export const userRepository = {
     const newXp = Math.max(0, user.total_xp + delta);
     const newTier = Math.min(10, Math.max(1, Math.floor(newXp / 100) + 1));
     await this.upsert({ ...user, total_xp: newXp, current_tier: newTier });
+  },
+
+  /**
+   * Baca config provider AI yang tersimpan di cloud (kolom users.ai_provider_config).
+   * Dipakai sinkronisasi lintas device: login akun sama di device lain tetap bisa
+   * Main Mode AI. RLS users membatasi akses ke baris pemiliknya sendiri.
+   */
+  async getAiProviderConfig(userId: string): Promise<AiProviderConfig | null> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("ai_provider_config")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Gagal ambil config AI dari Supabase: ${error.message}`);
+    }
+    const raw = (data as any)?.ai_provider_config as AiProviderConfig | null;
+    // Bentuk tidak valid (kolom kosong / korup) dianggap belum diatur.
+    if (!raw?.apiKey || !raw?.model || !raw?.baseUrl) return null;
+    return raw;
+  },
+
+  /** Simpan config provider AI ke cloud; kirim null untuk menghapusnya. */
+  async saveAiProviderConfig(userId: string, cfg: AiProviderConfig | null): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ ai_provider_config: cfg })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan config AI ke Supabase: ${error.message}`);
+    }
   },
 
   /**

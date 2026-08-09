@@ -46,6 +46,10 @@ const GRID_PADDING = 3;
 const MIN_WORDS = 10;
 const MIN_GRID_SIZE = 10;
 const MAX_GRID_SIZE = 14;
+// Mode AI lebih toleran: provider AI kadang mengembalikan < 10 kata valid
+// (validasi keras di requestAiWords menyaring banyak kata). Papan AI minimal
+// 6 kata masih layak dimainkan — lebih baik daripada mode AI batal total.
+const AI_MIN_WORDS = 6;
 
 export default function GameScreen() {
   const { theme } = useTheme();
@@ -64,6 +68,9 @@ export default function GameScreen() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const prevZoomLevel = useRef(1);
   const [boardLoadError, setBoardLoadError] = useState(false);
+  // Papan AI gagal disusun (soal dari provider tidak cukup) — pesan error
+  // berbeda dari gagal muat papan normal (bukan soal koneksi).
+  const [aiBoardFailed, setAiBoardFailed] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const zoomAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef<ScrollView>(null);
@@ -108,14 +115,19 @@ export default function GameScreen() {
   // atau pemakaian clue) → tampilkan toast singkat di atas papan.
   const [tierToast, setTierToast] = useState<{ tier: number; up: boolean } | null>(null);
   const prevTierRef = useRef<number | null>(null);
+  const profileReady = useGameStore((s) => s.profileReady);
   useEffect(() => {
+    // Jangan bandingkan tier sebelum profil cloud selesai disinkron: kalau
+    // totalXp naik 0 → XP profil saat layar Game baru terbuka, toast "Naik
+    // ke Tier" palsu bisa muncul padahal pemain tidak baru naik level.
+    if (!profileReady) return;
     const tier = calcTier(totalXp + currentXp);
     const prev = prevTierRef.current;
     prevTierRef.current = tier;
     if (prev != null && prev !== tier) {
       setTierToast({ tier, up: tier > prev });
     }
-  }, [totalXp, currentXp]);
+  }, [totalXp, currentXp, profileReady]);
 
 
 
@@ -309,6 +321,13 @@ export default function GameScreen() {
   const saveInProgress = useCallback(async () => {
     const store = useGameStore.getState();
     if (!store.board) return;
+    // JANGAN simpan board yang sudah selesai sebagai in-progress. Board tamat
+    // hanya boleh ada di riwayat (is_finished=true). Tanpa guard ini, setelah
+    // user menutup overlay hasil (dismissResult), auto-save bisa menyimpan
+    // snapshot board 100% solved sebagai is_finished=false → "Mulai Bermain"
+    // berikutnya me-resume papan yang sudah tamat (bug: game nyangkut padahal
+    // sudah terjawab semua).
+    if (store.board.words.every((w) => w.solved)) return;
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -473,6 +492,7 @@ export default function GameScreen() {
 
     (async () => {
       setBoardLoadError(false);
+      setAiBoardFailed(false);
       try {
         const playerTier = calcTier(useGameStore.getState().totalXp);
 
@@ -490,17 +510,24 @@ export default function GameScreen() {
             tier_level: playerTier,
           }));
           let generated: Board | null = null;
+          // Papan AI menerima minimal AI_MIN_WORDS kata (lebih kecil dari papan
+          // normal) — provider AI bisa saja mengembalikan sedikit kata valid.
           for (let size = MIN_GRID_SIZE; size <= MAX_GRID_SIZE && !generated; size++) {
             const attempt = generateBoard(candidates, size, playerTier);
-            if (attempt.words.length >= MIN_WORDS) generated = attempt;
+            if (attempt.words.length >= AI_MIN_WORDS) generated = attempt;
           }
           if (!generated) generated = generateBoard(candidates, MAX_GRID_SIZE, playerTier);
           // Kata AI dipakai SEKALI — sesudahnya kembali ke mode normal supaya
           // "Main Lagi" / "Mulai Bermain" berikutnya tidak memakai papan AI.
           useGameStore.getState().setAiWords(null);
           if (cancelled) return;
-          if (!generated || generated.words.length < MIN_WORDS) {
+          if (!generated || generated.words.length < AI_MIN_WORDS) {
+            // Papan AI gagal disusun — mode AI batal. Tanpa reset aiMode, tombol
+            // "Coba Lagi" akan menghasilkan papan NORMAL yang tetap berjalan
+            // dalam Mode AI (XP sama sekali tidak dihitung untuk papan normal).
+            useGameStore.getState().setAiMode(false);
             setBoardLoadError(true);
+            setAiBoardFailed(true);
             return;
           }
           setBoard(generated);
@@ -515,7 +542,14 @@ export default function GameScreen() {
           const saved = await boardRepository.getInProgress(user.id);
           if (saved.length > 0) {
             const resumed = deserializeBoardProgress(saved[0].layout_data);
-            if (resumed && !cancelled) {
+            // Self-heal data lama: kalau snapshot in-progress ternyata sudah
+            // 100% solved (sisa bug lama yang menyimpan papan tamat sebagai
+            // in-progress), jangan di-resume — hapus & buat papan baru.
+            if (resumed && resumed.board.words.every((w) => w.solved)) {
+              await boardRepository.delete(IN_PROGRESS_BOARD_ID(user.id));
+              void recordSolvedDiscoveries();
+              // lanjut ke generate papan baru di bawah
+            } else if (resumed && !cancelled) {
               resumeProgress(resumed);
               return;
             }
@@ -690,7 +724,13 @@ export default function GameScreen() {
         //    maupun updated_at yang dipakai urutan leaderboard).
         if (!useGameStore.getState().aiMode) {
           const prevUser = await userRepository.getById(user.id);
-          const newTotalXp = (prevUser?.total_xp ?? 0) + boardResult.xpGained;
+          // xpGained sudah di-clamp ≥ 0 di store — jaga-jaga tetap tidak
+          // membiarkan total XP turun / negatif (mis. data lama yang
+          // xpGained-nya negatif).
+          const newTotalXp = Math.max(
+            0,
+            (prevUser?.total_xp ?? 0) + Math.max(0, boardResult.xpGained),
+          );
           const sessionName = displayNameFromMetadata(user.user_metadata);
           await userRepository.upsert({
             user_id: user.id,
@@ -813,7 +853,9 @@ export default function GameScreen() {
         <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme.colors.background }]}>
           <Text style={styles.errorEmoji}>⚠️</Text>
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Gagal menyusun papan kata. Periksa koneksi internetmu, lalu coba lagi.
+            {aiBoardFailed
+              ? "Soal dari AI tidak cukup untuk menyusun papan. Coba main mode normal, atau panggil AI lagi dari menu utama."
+              : "Gagal menyusun papan kata. Periksa koneksi internetmu, lalu coba lagi."}
           </Text>
           <TouchableOpacity
             style={[styles.retryBtn, { backgroundColor: theme.colors.primary }]}

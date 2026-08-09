@@ -40,8 +40,14 @@ function cleanDef(raw) {
   if (/^\?/.test(d)) return "";
   d = d.replace(/^\(\s*\d+\s*\)\s*/, "").replace(/^\d+\s*\)?\s*/, "");
   d = d.split(/:\s+(?=[a-zA-Z(])/)[0];
-  d = d.replace(/;\s*\S*·.*$/i, "").replace(/;\s*\(\d+|;\s*\d+\)/i, "");
-  d = d.replace(/^Berasal dari bahasa [A-Za-z]+\s*/i, ""); // penanda kata serapan KBBI
+  d = d.replace(/;\s*\S*·.*$/i, "");
+  // Entri KBBI multi-makna: potong di penanda sense berikutnya ((2), (3), ...) —
+  // clue_1 memakai sense PERTAMA saja. Dulu hanya penanda pertama yang dibuang,
+  // makna lanjutan & penanda asal bahasa nyangkut di clue (mis. "pangkalan",
+  // "mendingin") — potong mulai penanda sense ke-2 sampai akhir.
+  d = d.replace(/;\s*\(\s*\d+\s*\).*$/i, "").replace(/;\s*\d+\s*\).*$/i, "");
+  d = d.replace(/;\s*Berasal dari bahasa\s+[A-Za-z]+.*$/i, ""); // penanda serapan di tengah/akhir
+  d = d.replace(/^Berasal dari bahasa [A-Za-z]+\s*/i, ""); // penanda kata serapan KBBI di awal
   d = d.replace(/--\s*$/, "").replace(/:$/, "").replace(/[;,:,.…]+\s*$/g, "").trim();
   if (!d || d.length < 2) return "";
   return modernize(d);
@@ -116,6 +122,9 @@ function parseEntry(e) {
   let example = null;
   if (colIdx > -1) {
     example = modernize(meaning.slice(colIdx + 1).replace(/\s+/g, " ").trim());
+    // Contoh pemakaian sense pertama saja — sisa sense berikutnya ((2)/(3)) dipotong
+    // (mis. "penyedot", "tambalan" yang contohnya menyambung ke makna lain).
+    example = example.replace(/;\s*\(\s*\d+\s*\).*$/i, "").replace(/;\s*\d+\s*\).*$/i, "").trim();
     if (example.length < 5) example = null;
   }
   return { word, def, senses, example, arti, klass };
@@ -198,6 +207,7 @@ function defFragments(def) {
     if (!t || t.length < 8) return;
     if (/^(dan|atau|serta|yang|dengan|sebagai)\b/i.test(t)) return;
     if (/[():]/.test(t)) return; // fragmen masih punya kurung/titik dua = belum bersih
+    if (/^(sebagainya|dsb|dll|dst|lainnya|semuanya|dan\s+lain)$/i.test(t)) return; // sisa "dan sebagainya"
     out.push(t);
   };
   for (const part of String(def).split(/[;,(]|\s+dan\s+|\s+atau\s+|\s+serta\s+/i)) {
@@ -419,7 +429,7 @@ function pickPair(c, clue1) {
   }
   // Fallback terakhir: homograf lain / parafrasa pendek definisi — TIDAK pernah
   // memakai pola huruf (bocor). Pastikan c2 != c3, c3 != clue1, dan tidak bocor.
-  const notLeak = (t) => !!t && !LEAK_RE.test(t) && !same(t, word) && !wb(word).test(t) && !/\b(Verba|Nomina|Adjektiva|Adverbia)\b/i.test(t);
+  const notLeak = (t) => !!t && !LEAK_RE.test(t) && !same(t, word) && !wb(word).test(t) && !/\b(Verba|Nomina|Adjektiva|Adverbia)\b/i.test(t) && !/^(sebagainya|dsb|dll|dst|lainnya|semuanya|dan\s+lain)$/i.test(t);
   const stripKlassFb = (s) => cleanCand(s).replace(/^(?:Nomina|Verba|Adjektiva|Adverbia|Numeralia|Pronomina|Partikel|Interjeksi|Konjungsi|Preposisi)\b[^a-z]*/i, "");
   const altDef = homographs.map((h) => stripKlassFb(h.def)).find((d) => notLeak(d) && !same(d, def) && !same(d, clue1) && !tooClose(d, clue1));
   const defParts = defFragments(def).map(stripKlassFb).filter(notLeak);
@@ -461,6 +471,34 @@ const MANUAL = {
     c1: "berhenti sebentar untuk melepaskan lelah; mengaso",
     c2: "mengaso sejenak untuk memulihkan tenaga",
     c3: "Sinonim: rehat",
+  },
+  // Entri KBBI yang definisinya bocor memuat kata jawaban / terlalu pendek /
+  // tidak bisa diproses pipeline (parseEntry menolak), sehingga data lama yang
+  // placeholder tetap tertinggal. Clue ditulis tangan — tidak menyebut jawaban.
+  bersenang: {
+    // KBBI: "bersenang diri; bersenang-senang" — memuat kata jawaban.
+    c1: "bersukaria; bergembira ria",
+    c2: "mencari kesenangan dengan bersantai atau bersuka ria",
+    c3: "Sinonim: bergembira",
+  },
+  terhingga: {
+    // KBBI: "ada batasnya; terbatas: bilangan tidak terhingga..." — contoh
+    // memuat kata jawaban (terhingga) yang tidak bisa di-redact pipeline.
+    c1: "ada batasnya; terbatas",
+    c2: "mempunyai batas akhir; dapat dihitung sampai habis",
+    c3: "Sinonim: berhingga",
+  },
+  segalanya: {
+    // KBBI: "semuanya" — definisi terlalu pendek, pipeline jatuh ke placeholder.
+    c1: "semuanya; semua yang ada",
+    c2: "tidak ada yang tertinggal; seluruh hal",
+    c3: "Sinonim: seluruhnya",
+  },
+  mendingin: {
+    // c3 lama "menjadi dingin" menduplikat c1 "menjadi dingin; terasa dingin".
+    c1: "menjadi dingin; terasa dingin",
+    c2: "berangsur turun suhunya hingga tidak panas",
+    c3: "Antonim: memanas",
   },
 };
 

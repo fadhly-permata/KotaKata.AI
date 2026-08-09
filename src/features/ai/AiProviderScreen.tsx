@@ -19,6 +19,8 @@ import {
   getAiProviderConfig,
   saveAiProviderConfig,
   clearAiProviderConfig,
+  markAiProviderOwner,
+  clearAiProviderOwner,
   testAiConnection,
   providerPreset,
   providerLabel,
@@ -26,6 +28,9 @@ import {
   type AiProviderPreset,
   type AiTestResult,
 } from "../../utils/aiProvider";
+import { userRepository } from "../../data/repositories/userRepository";
+import { useAuth } from "../auth/useAuth";
+import { loggerWarn } from "../../utils/logger";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "AiProvider">;
 
@@ -35,6 +40,7 @@ export default function AiProviderScreen() {
   const { theme } = useTheme();
   const C = theme.colors;
   const navigation = useNavigation<Nav>();
+  const { user } = useAuth();
 
   const [provider, setProvider] = useState<AiProviderPreset>("openrouter");
   const [apiKey, setApiKey] = useState("");
@@ -118,7 +124,19 @@ export default function AiProviderScreen() {
     play("tap");
     setSaving(true);
     try {
-      await saveAiProviderConfig(buildConfig());
+      const cfg = buildConfig();
+      await saveAiProviderConfig(cfg);
+      // Sinkronkan ke cloud (kolom users.ai_provider_config) supaya akun yang
+      // sama di device lain ikut punya config ini — Main Mode AI bisa dipakai
+      // lintas perangkat. Gagal sync tidak membatalkan simpan lokal.
+      if (user?.id) {
+        try {
+          await userRepository.saveAiProviderConfig(user.id, cfg);
+          await markAiProviderOwner(user.id);
+        } catch (err) {
+          loggerWarn("Gagal sinkron config AI ke cloud", err);
+        }
+      }
       setTestResult({ ok: true, message: "Pengaturan tersimpan ✓" });
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1600);
@@ -131,6 +149,15 @@ export default function AiProviderScreen() {
   const handleRemove = async () => {
     play("tap");
     await clearAiProviderConfig();
+    await clearAiProviderOwner();
+    // Hapus juga dari cloud supaya tidak "muncul lagi" di device lain.
+    if (user?.id) {
+      try {
+        await userRepository.saveAiProviderConfig(user.id, null);
+      } catch (err) {
+        loggerWarn("Gagal hapus config AI dari cloud", err);
+      }
+    }
     setApiKey("");
     setModel(providerPreset("openrouter").defaultModel);
     setBaseUrl(providerPreset("openrouter").baseUrl);
@@ -146,8 +173,10 @@ export default function AiProviderScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.pageTitle, { color: C.text }]}>Pengaturan Provider AI</Text>
         <Text style={[styles.pageHint, { color: C.textSecondary }]}>
-          Main Mode AI memakai model dari provider yang kamu pilih. API key disimpan
-          hanya di perangkat ini (BYOK) — tidak pernah dikirim ke server KotaKata.
+          Main Mode AI memakai model dari provider yang kamu pilih. Pengaturan
+          tersimpan di perangkat ini dan tersinkron ke akunmu — otomatis tersedia
+          di semua perangkat. API key tetap milikmu (BYOK) dan hanya akunmu yang
+          bisa mengaksesnya.
         </Text>
 
         {/* Pilih provider */}
