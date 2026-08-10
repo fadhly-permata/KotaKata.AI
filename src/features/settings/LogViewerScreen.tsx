@@ -23,6 +23,8 @@ import {
   type LogEntry,
   type LogLevel,
 } from "../../utils/logDb";
+import { logReportRepository } from "../../data/repositories/logReportRepository";
+import { useAuth } from "../auth/useAuth";
 
 type LogFilter = "all" | LogLevel;
 
@@ -54,6 +56,11 @@ export default function LogViewerScreen() {
   const [logDbMode, setLogDbMode] = useState<"sqlite" | "fallback" | "loading">("loading");
   const [showClearLogConfirm, setShowClearLogConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  // ─── Kirim log (error/warning saja) ke Supabase untuk debugging ───
+  const [sendConfirm, setSendConfirm] = useState<{ count: number } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const { user } = useAuth();
 
   // ─── Paging: tampilkan log per halaman (jumlah baris bisa di-custom) ───
   const [page, setPage] = useState(1);
@@ -104,6 +111,57 @@ export default function LogViewerScreen() {
     setShowClearLogConfirm(false);
     await refreshLogs();
   }, [refreshLogs]);
+
+  // Kumpulkan SEMUA entri error/warning (bukan cuma halaman aktif) utk dikirim.
+  const collectReportableLogs = useCallback(async (): Promise<LogEntry[]> => {
+    const [errs, warns] = await Promise.all([
+      getLogs({ level: "error", limit: 500 }),
+      getLogs({ level: "warn", limit: 500 }),
+    ]);
+    return [...errs, ...warns];
+  }, []);
+
+  // Tahap 1: hitung berapa error/warning yang akan dikirim → tampilkan konfirmasi.
+  const handlePrepareSendLogs = useCallback(async () => {
+    if (!user?.id) {
+      setSendStatus({ ok: false, msg: "Masuk dulu agar log bisa dikirim ke server." });
+      return;
+    }
+    setSendStatus(null);
+    try {
+      const entries = await collectReportableLogs();
+      if (entries.length === 0) {
+        setSendStatus({ ok: true, msg: "Tidak ada error/warning untuk dikirim." });
+        return;
+      }
+      setSendConfirm({ count: entries.length });
+    } catch {
+      setSendStatus({ ok: false, msg: "Gagal membaca log untuk dikirim." });
+    }
+  }, [user?.id, collectReportableLogs]);
+
+  // Tahap 2: benar-benar kirim setelah user konfirmasi.
+  const handleSendLogs = useCallback(async () => {
+    if (!user?.id) return;
+    setSending(true);
+    setSendStatus(null);
+    try {
+      const entries = await collectReportableLogs();
+      const sent = await logReportRepository.send(user.id, entries);
+      setSendStatus({
+        ok: true,
+        msg: sent > 0 ? `Berhasil mengirim ${sent} entri log ke server.` : "Tidak ada yang dikirim.",
+      });
+    } catch (err: any) {
+      setSendStatus({
+        ok: false,
+        msg: err?.message ?? "Gagal mengirim log. Periksa koneksi lalu coba lagi.",
+      });
+    } finally {
+      setSending(false);
+      setSendConfirm(null);
+    }
+  }, [user?.id, collectReportableLogs]);
 
   const handleCopyLogs = useCallback(async () => {
     // Salin SEMUA log yang cocok filter (paging hanya untuk tampilan — kalau
@@ -196,6 +254,18 @@ export default function LogViewerScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: theme.colors.tertiaryContainer }]}
+            activeOpacity={0.7}
+            onPress={() => {
+              void handlePrepareSendLogs();
+            }}
+            disabled={sending}
+          >
+            <Text style={[styles.logBtnText, { color: theme.colors.tertiary }]}>
+              {sending ? "⏳ Mengirim…" : "📤 Kirim Log"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.logBtn, { backgroundColor: "rgba(231, 76, 60, 0.1)" }]}
             activeOpacity={0.7}
             onPress={() => setShowClearLogConfirm(true)}
@@ -203,6 +273,19 @@ export default function LogViewerScreen() {
             <Text style={[styles.logBtnText, { color: theme.colors.error }]}>🗑 Hapus Log</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Status kirim log (sukses / gagal / perlu login) */}
+        {sendStatus && (
+          <Text
+            style={[
+              styles.logSendStatus,
+              { color: sendStatus.ok ? theme.colors.secondary : theme.colors.error },
+            ]}
+          >
+            {sendStatus.ok ? "✅ " : "⚠️ "}
+            {sendStatus.msg}
+          </Text>
+        )}
 
         {/* Filter */}
         <ScrollView
@@ -382,6 +465,20 @@ export default function LogViewerScreen() {
         variant="danger"
         emoji="🗑"
       />
+
+      {/* Konfirmasi kirim log ke server */}
+      <ConfirmDialog
+        visible={sendConfirm !== null}
+        title="Kirim Log ke Server"
+        message={`Kirim ${sendConfirm?.count ?? 0} entri error/warning ke server untuk membantu pengembangan? Hanya level error/warning yang dikirim, dan detail teknis (stacktrace) tidak akan ditampilkan di aplikasi.`}
+        confirmText="Kirim"
+        cancelText="Batal"
+        onConfirm={() => {
+          void handleSendLogs();
+        }}
+        onCancel={() => setSendConfirm(null)}
+        emoji="📤"
+      />
     </ScreenFade>
   );
 }
@@ -416,6 +513,7 @@ const styles = StyleSheet.create({
   logActionsRow: { flexDirection: "row", gap: 8 },
   logBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
   logBtnText: { fontSize: 12, fontWeight: "700" },
+  logSendStatus: { fontSize: 12, fontWeight: "600", lineHeight: 17 },
   pagerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   pagerBtn: {
     width: 36,

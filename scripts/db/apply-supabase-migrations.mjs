@@ -122,7 +122,7 @@ for (const f of FILES) {
         );
         continue;
       }
-    } catch (err) {
+    } catch {
       // Kalau cek gagal, biarkan file dicoba — error akan tercatat di bawah.
       console.log(`\n▶ ${f} ... (cek isi vocabulary gagal, mencoba tetap jalan)`);
     }

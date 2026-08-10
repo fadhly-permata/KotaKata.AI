@@ -530,15 +530,6 @@ const MANUAL = {
   },
 };
 
-/** Deteksi clue_1 rusak dari data lama (mulai tanda baca / suku kata bertitik). */
-const isBrokenC1 = (c1) => {
-  if (!c1 || c1.length < 4) return true;
-  if (/^[\s,;:)]/.test(c1)) return true;
-  if (/^Berasal dari bahasa\b/i.test(c1)) return true; // penanda kata serapan KBBI
-  if (/[a-z]\.[a-z]/.test(c1)) return true; // "mem.bom.bar.dir" dsb.
-  return false;
-};
-
 const stats = { sinonim: 0, antonim: 0, deskriptif: 0, bocor: 0, contoh2: 0, total: 0, takAda: 0, c2MengandungSinonim: 0, c2SamaC3: 0, c1SamaC3: 0, placeholder: 0, c1Bocor: 0 };
 const bocorSamples = [];
 const dupSamples = [];
@@ -907,7 +898,7 @@ for (let tier = 6; tier <= 10; tier++) {
   });
   if (DRY) {
     console.log(`tier${tier}: ${rows.length} kata (dry-run, tidak ditulis)`);
-    console.log("  sample:", fixed.slice(0, 4).map(([w, c1, c2, c3]) => `"${w}" c2="${c2}" c3="${c3}"`).join("\n  "));
+    console.log("  sample:", fixed.slice(0, 4).map(([w, , c2, c3]) => `"${w}" c2="${c2}" c3="${c3}"`).join("\n  "));
     if (DUMP_PATH) {
       // dump hasil dalam format tier untuk dianalisis (tanpa menulis file sumber)
       const esc = (s) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');

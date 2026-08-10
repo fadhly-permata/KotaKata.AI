@@ -14,6 +14,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-003** | ✅ done | Perbaiki Kualitas Clue Tier 5–6 | Audit & regenerasi clue tier 1–10: **0 issue / 0 bocor / 0 duplikat**, placeholder 2331→1996, sync ulang ke Supabase |
 | **PLAN-004** | ✅ done | Keluar Akun → Profil + Hapus Akun Permanen | Keluar akun pindah ke Profil, hapus akun 2-level konfirmasi (kode acak 10 huruf) via RPC `delete_user_data()` |
 | **PLAN-005** | ✅ done | Revisi Mode AI, Log, Leaderboard & Notifikasi Tier | 10 langkah: tanpa XP di Mode AI, simpan soal AI ke DB, tier-aware, paging log, Daftar Tier, Leaderboard, notifikasi naik/turun tier, tag asal bahasa |
+| **PLAN-006** | ✅ done | Log Cloud, Kirim Log, Detail Debug, Fix Statistik, Leaderboard Lazy & Dialog Close | 7 langkah: lint 0 warning, tabel `user_log_reports` + kirim log error/warning ke Supabase, stacktrace & inner exception tersimpan (UI tetap ringkas), fix "Kata Terpecahkan" (cloud count), leaderboard lazy-load 25/halaman + posisi user, tombol Tutup → icon [x] + tap di luar |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
@@ -92,6 +93,16 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🔧 `tsconfig.json`: mapping `bun:test` → `bun-types`; `package.json`: script `test` + devDep `@types/bun`
 - 🧹 **Arsip plan lama dikonsolidasi**: `archive/CHECKPOINT.md`, `DESIGN_PLAN.md`, `development-plan.md` (superseded) → satu `archive/README.md` penunjuk sumber resmi
 - ✅ **QA penuh**: qa-logic ALL PASS, verify-all 8500 unik / 0 duplikat, clue quality 0 issue semua tier (script sekali pakai diarsipkan ke `scripts/archive/check/`)
+
+### v0.8.0 — Log Cloud, Kirim Log, Detail Debug, Leaderboard Lazy & Dialog Close (PLAN-006)
+
+- 🧹 **Lint bersih total**: 12 warning `no-unused-vars` dibereskan (import tak terpakai di `qa-logic.mjs`, `catch (err)` → `catch {}`, helper mati di `fix-tier6-10.mjs`) + `scripts/archive/**` di-exclude dari ESLint (tool sekali pakai) → `bun lint` kini **0 errors 0 warnings**
+- ☁️ **Tabel `user_log_reports`** (migrasi SQL + RLS): menyimpan laporan log yang dikirim user (payload jsonb, device_id, platform, app_version, created_at); `delete_user_data` ikut membersihkannya saat hapus akun
+- 📤 **Tombol "Kirim Log"** di Halaman Log: kirim HANYA level error/warning ke Supabase (konfirmasi jumlah entri, feedback sukses/gagal, butuh login)
+- 🐛 **Detail log untuk debugging**: stacktrace penuh + inner exception (`err.cause`) kini tersimpan di kolom `stack` — **UI aplikasi tetap format ringkas sekarang** (detail hanya muncul saat disalin/dikirim)
+- 🔧 **Fix "Kata Terpecahkan" selalu 0** di Profil: sumber data diganti dari state sesi game (`wordsSolved`) ke `wordDiscoveryRepository.countByUser()` cloud (cocok dengan angka di halaman Kata Ditemukan)
+- 🏅 **Leaderboard lazy-load**: paging 25 baris/request + auto-load saat scroll ke bawah; posisi pemain yang login (rank + baris) selalu tampil di atas tombol Tutup tanpa perlu scroll jauh (RPC baru `get_leaderboard_paged` + `get_leaderboard_rank`)
+- ✕ **Dialog tanpa tombol "Tutup"**: popup Leaderboard, Daftar Tier, Kata Ajaib & error Mode AI kini pakai icon [✕] di pojok kanan atas + **tap di luar jendela otomatis menutup** (dialog konfirmasi berbahaya tetap pakai tombol Batal/Lanjutkan)
 
 ---
 

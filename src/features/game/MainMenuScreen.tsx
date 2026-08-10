@@ -239,32 +239,67 @@ export default function MainMenuScreen() {
   // ─── "Daftar Tier" modal state ───
   const [tierListVisible, setTierListVisible] = useState(false);
 
-  // ─── "Leaderboard" modal state ───
+  // ─── "Leaderboard" modal state — lazy-load per 25 baris + posisi user ───
   const [leaderboardVisible, setLeaderboardVisible] = useState(false);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardLoadingMore, setLeaderboardLoadingMore] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState(false);
   const [leaderboardUsers, setLeaderboardUsers] = useState<UserDoc[]>([]);
+  const [leaderboardTotal, setLeaderboardTotal] = useState(0);
+  // Posisi pemain yang login (rank + baris) — ditampilkan di atas tombol Tutup
+  // supaya user posisi jauh (#100) langsung tahu di mana dia berada.
+  const [leaderboardMyRank, setLeaderboardMyRank] = useState<(UserDoc & { rank: number }) | null>(null);
 
   const openLeaderboard = useCallback(async () => {
     play("tap");
     setLeaderboardVisible(true);
     setLeaderboardLoading(true);
     setLeaderboardError(false);
+    setLeaderboardUsers([]);
+    setLeaderboardTotal(0);
+    setLeaderboardMyRank(null);
     try {
-      // RPC get_leaderboard (security definer) — RLS users hanya membolehkan
-      // user membaca barisnya sendiri, jadi baca lintas-user lewat RPC.
-      // Urutan sudah di sisi server: total XP tertinggi dulu; kalau sama,
+      // RPC get_leaderboard_paged (security definer) — RLS users hanya
+      // membolehkan user membaca barisnya sendiri, jadi baca lintas-user lewat
+      // RPC. Urutan sudah di sisi server: total XP tertinggi dulu; kalau sama,
       // pemain yang MENCAPAI XP itu lebih dulu (updated_at lebih awal) menang
-      // — "level & waktu kenaikan".
-      const users = await userRepository.getLeaderboard();
-      setLeaderboardUsers(users);
+      // — "level & waktu kenaikan". Halaman pertama (25) + posisi user.
+      const [page, myRank] = await Promise.all([
+        userRepository.getLeaderboardPage(25, 0),
+        user?.id
+          ? userRepository.getLeaderboardRank(user.id).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      setLeaderboardUsers(page.users);
+      setLeaderboardTotal(page.total);
+      setLeaderboardMyRank(myRank);
     } catch {
       setLeaderboardError(true);
       setLeaderboardUsers([]);
     } finally {
       setLeaderboardLoading(false);
     }
-  }, []);
+  }, [user?.id]);
+
+  // Muat halaman berikutnya saat user scroll ke bawah (lazy-load, 25/request).
+  const loadMoreLeaderboard = useCallback(async () => {
+    if (leaderboardLoadingMore) return;
+    if (leaderboardUsers.length >= leaderboardTotal) return;
+    setLeaderboardLoadingMore(true);
+    try {
+      const page = await userRepository.getLeaderboardPage(25, leaderboardUsers.length);
+      setLeaderboardUsers((prev) => {
+        const seen = new Set(prev.map((u) => u.user_id));
+        const fresh = page.users.filter((u) => !seen.has(u.user_id));
+        return fresh.length > 0 ? [...prev, ...fresh] : prev;
+      });
+      setLeaderboardTotal(page.total);
+    } catch {
+      // Gagal memuat halaman berikutnya — biarkan user scroll lagi.
+    } finally {
+      setLeaderboardLoadingMore(false);
+    }
+  }, [leaderboardLoadingMore, leaderboardUsers.length, leaderboardTotal]);
 
   // Animasi kemunculan popup Kata Ajaib — spring ceria (sedikit memantul).
   const magicAnim = useRef(new Animated.Value(0)).current;
@@ -619,7 +654,11 @@ export default function MainMenuScreen() {
         animationType="fade"
         onRequestClose={() => setMagicVisible(false)}
       >
-        <View style={styles.magicOverlay}>
+        <TouchableOpacity
+          style={styles.magicOverlay}
+          activeOpacity={1}
+          onPress={() => setMagicVisible(false)}
+        >
           <Animated.View
             style={[
               styles.magicCard,
@@ -629,7 +668,19 @@ export default function MainMenuScreen() {
                 transform: [{ scale: magicScale }, { translateY: magicTranslateY }],
               },
             ]}
+            onStartShouldSetResponder={() => true}
           >
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => {
+                play("tap");
+                setMagicVisible(false);
+              }}
+            >
+              <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.magicEmoji}>✨</Text>
             <Text style={[styles.magicTitle, { color: C.primary }]}>Kata Ajaib</Text>
 
@@ -653,7 +704,7 @@ export default function MainMenuScreen() {
 
             <View style={styles.magicButtons}>
               <TouchableOpacity
-                style={[styles.magicBtn, { backgroundColor: C.secondaryContainer }]}
+                style={[styles.magicBtn, { backgroundColor: C.primary }]}
                 activeOpacity={0.7}
                 onPress={() => {
                   play("tap");
@@ -661,23 +712,13 @@ export default function MainMenuScreen() {
                 }}
                 disabled={magicLoading}
               >
-                <Text style={[styles.magicBtnText, { color: C.secondary }]}>
+                <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>
                   {magicLoading ? "Memuat…" : "🔄 Kata Lain"}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.magicBtn, { backgroundColor: C.primary }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  play("tap");
-                  setMagicVisible(false);
-                }}
-              >
-                <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>Tutup</Text>
-              </TouchableOpacity>
             </View>
           </Animated.View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* ─── Konfirmasi provider AI belum diatur ─── */}
@@ -733,8 +774,26 @@ export default function MainMenuScreen() {
         animationType="fade"
         onRequestClose={() => setAiError(null)}
       >
-        <View style={styles.aiOverlay}>
-          <View style={[styles.aiCard, { backgroundColor: C.surface }]}>
+        <TouchableOpacity
+          style={styles.aiOverlay}
+          activeOpacity={1}
+          onPress={() => setAiError(null)}
+        >
+          <View
+            style={[styles.aiCard, { backgroundColor: C.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => {
+                play("tap");
+                setAiError(null);
+              }}
+            >
+              <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.aiEmoji}>😕</Text>
             <Text style={[styles.aiErrorTitle, { color: C.text }]}>Soal AI Gagal Dimuat</Text>
             <Text style={[styles.aiErrorMsg, { color: C.textSecondary }]}>{aiError}</Text>
@@ -767,19 +826,9 @@ export default function MainMenuScreen() {
                   🎮 Main Mode Normal
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.aiErrorBtn, { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border }]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  play("tap");
-                  setAiError(null);
-                }}
-              >
-                <Text style={[styles.aiErrorBtnSecondaryText, { color: C.textSecondary }]}>Tutup</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* ─── Popup Daftar Tier (highlight tier player) ─── */}
@@ -789,9 +838,29 @@ export default function MainMenuScreen() {
         animationType="fade"
         onRequestClose={() => setTierListVisible(false)}
       >
-        <View style={styles.tierOverlay}>
-          <View style={[styles.tierModal, { backgroundColor: C.surface }]}>
-            <Text style={[styles.tierModalTitle, { color: C.text }]}>🏆 Daftar Tier</Text>
+        <TouchableOpacity
+          style={styles.tierOverlay}
+          activeOpacity={1}
+          onPress={() => setTierListVisible(false)}
+        >
+          <View
+            style={[styles.tierModal, { backgroundColor: C.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.tierModalTitle, { color: C.text }]}>🏆 Daftar Tier</Text>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => {
+                  play("tap");
+                  setTierListVisible(false);
+                }}
+              >
+                <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <ScrollView
               style={styles.tierModalScroll}
               contentContainerStyle={styles.tierModalContent}
@@ -833,30 +902,41 @@ export default function MainMenuScreen() {
                 );
               })}
             </ScrollView>
-            <TouchableOpacity
-              style={[styles.tierModalClose, { backgroundColor: C.primary }]}
-              activeOpacity={0.8}
-              onPress={() => {
-                play("tap");
-                setTierListVisible(false);
-              }}
-            >
-              <Text style={styles.tierModalCloseText}>Tutup</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
-      {/* ─── Popup Leaderboard ─── */}
+      {/* ─── Popup Leaderboard — lazy-load 25/halaman, posisi user di atas Tutup ─── */}
       <Modal
         visible={leaderboardVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setLeaderboardVisible(false)}
       >
-        <View style={styles.tierOverlay}>
-          <View style={[styles.tierModal, { backgroundColor: C.surface }]}>
-            <Text style={[styles.tierModalTitle, { color: C.text }]}>🏅 Leaderboard</Text>
+        {/* Tap di luar kartu → tutup modal */}
+        <TouchableOpacity
+          style={styles.tierOverlay}
+          activeOpacity={1}
+          onPress={() => setLeaderboardVisible(false)}
+        >
+          <View
+            style={[styles.tierModal, { backgroundColor: C.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.tierModalTitle, { color: C.text }]}>🏅 Leaderboard</Text>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => {
+                  play("tap");
+                  setLeaderboardVisible(false);
+                }}
+              >
+                <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={[styles.lbSubtitle, { color: C.textSecondary }]}>
               Urutan berdasarkan level (XP) & waktu kenaikan.
             </Text>
@@ -875,6 +955,17 @@ export default function MainMenuScreen() {
                 style={styles.tierModalScroll}
                 contentContainerStyle={styles.tierModalContent}
                 showsVerticalScrollIndicator={false}
+                scrollEventThrottle={200}
+                onScroll={({ nativeEvent }) => {
+                  const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+                  // Mendekati dasar daftar → muat halaman berikutnya.
+                  if (
+                    contentOffset.y + layoutMeasurement.height + 60 >=
+                    contentSize.height
+                  ) {
+                    void loadMoreLeaderboard();
+                  }
+                }}
               >
                 {leaderboardUsers.map((u, idx) => {
                   const rank = idx + 1;
@@ -918,20 +1009,42 @@ export default function MainMenuScreen() {
                     </View>
                   );
                 })}
+                {leaderboardLoadingMore ? (
+                  <ActivityIndicator color={C.primary} style={styles.lbLoadMore} />
+                ) : null}
               </ScrollView>
             )}
-            <TouchableOpacity
-              style={[styles.tierModalClose, { backgroundColor: C.primary }]}
-              activeOpacity={0.8}
-              onPress={() => {
-                play("tap");
-                setLeaderboardVisible(false);
-              }}
-            >
-              <Text style={styles.tierModalCloseText}>Tutup</Text>
-            </TouchableOpacity>
+
+            {/* Posisi pemain yang login — selalu terlihat tanpa perlu scroll jauh */}
+            {leaderboardMyRank && (
+              <View style={[styles.lbMyRankRow, { backgroundColor: C.primary + "14", borderColor: C.primary }]}>
+                <Text style={[styles.lbMyRankLabel, { color: C.textSecondary }]} numberOfLines={1}>
+                  Posisimu sekarang
+                </Text>
+                <View style={styles.lbMyRankContent}>
+                  <View style={styles.lbRankWrap}>
+                    <Text style={[styles.lbRank, { color: "#D4AF37" }]}>#{leaderboardMyRank.rank}</Text>
+                  </View>
+                  <View style={styles.lbRowCol}>
+                    <Text style={[styles.lbName, { color: C.text }]} numberOfLines={1}>
+                      {leaderboardMyRank.display_name || "Pemain"} (kamu)
+                    </Text>
+                    <Text style={[styles.lbTier, { color: C.secondary }]} numberOfLines={1}>
+                      Tier {leaderboardMyRank.current_tier} ·
+                      {" "}
+                      {TIER_NAMES[
+                        Math.max(0, Math.min(leaderboardMyRank.current_tier - 1, TIER_NAMES.length - 1))
+                      ]}
+                    </Text>
+                  </View>
+                  <Text style={[styles.lbXp, { color: C.secondary }]}>
+                    {leaderboardMyRank.total_xp.toLocaleString("id-ID")} XP
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Notifikasi naik/turun tier di Main Menu */}
@@ -1241,8 +1354,34 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   tierModalTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  modalCloseBtn: {
+    position: "absolute",
+    right: 0,
+    top: -2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseIcon: { fontSize: 16, fontWeight: "800", lineHeight: 18 },
   tierModalScroll: { flexGrow: 0 },
   tierModalContent: { gap: 8, paddingBottom: 4 },
+  lbLoadMore: { marginVertical: 10 },
+  lbMyRankRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    gap: 2,
+  },
+  lbMyRankLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8 },
+  lbMyRankContent: { flexDirection: "row", alignItems: "center", gap: 10 },
   tierRow: {
     flexDirection: "row",
     alignItems: "flex-start",

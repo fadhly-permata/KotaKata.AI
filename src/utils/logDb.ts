@@ -11,6 +11,8 @@ export interface LogEntry {
   source: string;
   message: string;
   details?: string;
+  /** Stacktrace penuh + inner exception — disimpan utk debugging, TIDAK ditampilkan di UI. */
+  stack?: string;
   createdAt: number; // epoch ms
 }
 
@@ -73,10 +75,17 @@ async function doInit(): Promise<boolean> {
         source TEXT NOT NULL,
         message TEXT NOT NULL,
         details TEXT,
+        stack TEXT,
         created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at DESC);
     `);
+    // DB lama (sebelum kolom stack ada) — tambahkan kolom secara aman.
+    try {
+      db.run("ALTER TABLE logs ADD COLUMN stack TEXT");
+    } catch {
+      // kolom sudah ada — abaikan
+    }
     trimRows();
     return true;
   } catch (err) {
@@ -145,16 +154,18 @@ export interface WriteLogInput {
   source: string;
   message: string;
   details?: string;
+  /** Stacktrace + inner exception — disimpan utk debugging, TIDAK ditampilkan di UI. */
+  stack?: string;
 }
 
 export async function writeLog(input: WriteLogInput): Promise<void> {
-  const { level, source, message, details } = input;
+  const { level, source, message, details, stack } = input;
   try {
     await initLogDb();
     const createdAt = Date.now();
     const database = isReady();
     if (!database) {
-      fallbackRows.push({ id: fallbackNextId++, level, source, message, details, createdAt });
+      fallbackRows.push({ id: fallbackNextId++, level, source, message, details, stack, createdAt });
       if (fallbackRows.length > MAX_ROWS) {
         fallbackRows = fallbackRows.slice(fallbackRows.length - MAX_ROWS);
       }
@@ -162,8 +173,8 @@ export async function writeLog(input: WriteLogInput): Promise<void> {
       return;
     }
     database.run(
-      "INSERT INTO logs (level, source, message, details, created_at) VALUES (?, ?, ?, ?, ?)",
-      [level, source, message, details ?? null, createdAt],
+      "INSERT INTO logs (level, source, message, details, stack, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      [level, source, message, details ?? null, stack ?? null, createdAt],
     );
     trimRows();
     scheduleSave();
@@ -189,7 +200,7 @@ export async function getLogs(options?: {
     const where = level ? "WHERE level = ?" : "";
     const params: Array<string | number> = level ? [level, limit] : [limit];
     const res = database.exec(
-      `SELECT id, level, source, message, details, created_at FROM logs ${where} ORDER BY id DESC LIMIT ?`,
+      `SELECT id, level, source, message, details, stack, created_at FROM logs ${where} ORDER BY id DESC LIMIT ?`,
       params,
     );
     const entries: LogEntry[] = [];
@@ -202,6 +213,7 @@ export async function getLogs(options?: {
           source: String(row[col("source")] ?? ""),
           message: String(row[col("message")] ?? ""),
           details: row[col("details")] != null ? String(row[col("details")]) : undefined,
+          stack: row[col("stack")] != null ? String(row[col("stack")]) : undefined,
           createdAt: Number(row[col("created_at")]),
         });
       }
@@ -302,6 +314,25 @@ function formatStack(err: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * Ekstrak stacktrace penuh termasuk inner exception (err.cause) untuk
+ * debugging. Sama seperti extractStack di logger.ts — di-duplikasi di sini
+ * karena logDb adalah modul low-level yang tidak boleh import logger
+ * (cycle dependency).
+ */
+function extractFullStack(err: unknown): string | undefined {
+  const chain: string[] = [];
+  let current: unknown = err;
+  const seen = new Set<unknown>();
+  while (current instanceof Error && !seen.has(current)) {
+    seen.add(current);
+    chain.push(current.stack ?? `${current.name}: ${current.message}`);
+    current = current.cause;
+  }
+  if (chain.length === 0) return undefined;
+  return chain.join("\n\nCaused by: ");
+}
+
 let globalLoggingInstalled = false;
 
 /**
@@ -327,7 +358,10 @@ export function setupGlobalLogging(): void {
           level: "error",
           source: "global",
           message: formatError(error),
-          details: formatStack(error) ?? (isFatal ? "Fatal" : undefined),
+          // Format ringkas tetap di details; stack penuh disimpan terpisah
+          // supaya UI tidak berubah, debugging tetap lengkap.
+          details: isFatal ? "Fatal" : undefined,
+          stack: formatStack(error) ?? formatError(error),
         });
         if (typeof previous === "function") {
           previous(error, isFatal);
@@ -346,15 +380,17 @@ export function setupGlobalLogging(): void {
           level: "error",
           source: "window",
           message: event.message || "Uncaught error",
-          details: event.error ? formatStack(event.error) ?? formatError(event.error) : undefined,
+          stack: event.error ? formatStack(event.error) ?? formatError(event.error) : undefined,
         });
       });
       window.addEventListener("unhandledrejection", (event) => {
+        const reason = event.reason;
         void writeLog({
           level: "error",
           source: "promise",
           message: "Unhandled promise rejection",
-          details: formatError(event.reason) ?? "unknown",
+          details: reason instanceof Error ? undefined : formatError(reason),
+          stack: reason instanceof Error ? extractFullStack(reason) : formatError(reason),
         });
       });
       window.addEventListener("pagehide", () => {

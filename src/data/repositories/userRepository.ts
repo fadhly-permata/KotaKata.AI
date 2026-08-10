@@ -106,17 +106,47 @@ export const userRepository = {
   },
 
   /**
-   * Leaderboard semua pemain, urut total_xp DESC lalu updated_at ASC (pemain
+   * Leaderboard satu halaman, urut total_xp DESC lalu updated_at ASC (pemain
    * yang MENCAPAI XP yang sama lebih dulu menang). RLS users hanya membolehkan
    * user melihat barisnya sendiri, jadi baca lintas-user lewat RPC
-   * get_leaderboard (security definer) yang mengembalikan hanya kolom publik
-   * (tanpa email/device_id).
+   * get_leaderboard_paged (security definer) yang mengembalikan hanya kolom
+   * publik (tanpa email/device_id) + total_count utk tahu kapan harus berhenti
+   * lazy-load.
    */
-  async getLeaderboard(): Promise<UserDoc[]> {
-    const { data, error } = await supabase.rpc("get_leaderboard");
+  async getLeaderboardPage(
+    limit: number,
+    offset: number,
+  ): Promise<{ users: UserDoc[]; total: number }> {
+    const { data, error } = await supabase.rpc("get_leaderboard_paged", {
+      p_limit: limit,
+      p_offset: offset,
+    });
     if (error) {
       throw new Error(`Gagal ambil leaderboard dari Supabase: ${error.message}`);
     }
-    return (data ?? []) as UserDoc[];
+    const rows = (data ?? []) as Array<UserDoc & { total_count: number }>;
+    const total = rows.length > 0 ? Number(rows[0].total_count ?? 0) : 0;
+    const users: UserDoc[] = rows.map(({ total_count: _tc, ...u }) => u);
+    return { users, total };
+  },
+
+  /**
+   * Posisi (rank) pemain di leaderboard + barisnya — ditampilkan di atas
+   * tombol Tutup popup Leaderboard supaya user yang posisinya jauh (#100)
+   * tetap langsung tahu di mana dia berada tanpa scroll.
+   */
+  async getLeaderboardRank(
+    userId: string,
+  ): Promise<(UserDoc & { rank: number }) | null> {
+    const { data, error } = await supabase.rpc("get_leaderboard_rank", {
+      p_user_id: userId,
+    });
+    if (error) {
+      throw new Error(`Gagal ambil posisi leaderboard dari Supabase: ${error.message}`);
+    }
+    const rows = (data ?? []) as Array<UserDoc & { rank: number }>;
+    if (rows.length === 0) return null;
+    const { rank, ...u } = rows[0];
+    return { ...u, rank: Number(rank) };
   },
 };

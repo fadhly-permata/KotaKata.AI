@@ -17,9 +17,6 @@ const {
   calcTierProgress,
   calcXpGain,
   TIER_THRESHOLDS,
-  XP_PENALTY_CLUE_2,
-  XP_PENALTY_CLUE_3,
-  XP_PENALTY_REVEAL,
 } = await import("../../src/domain/usecases/xpEngine.ts");
 const { serializeBoardProgress, deserializeBoardProgress } = await import("../../src/utils/boardProgress.ts");
 const { useGameStore } = await import("../../src/presentation/stores/gameStore.ts");
@@ -207,18 +204,6 @@ function runEffect(board, filled, revealed, xpAcc) {
     }
   }
 }
-function typeAll(board, filled, revealed, skipLast) {
-  const lastIdx = board.words.length - 1;
-  for (let i = 0; i < board.words.length; i++) {
-    if (skipLast && i === lastIdx) continue;
-    const w = board.words[i];
-    w.cells.forEach((c) => {
-      filled[`${c.row},${c.col}`] = w.word[c.orientation === "horizontal" ? c.col - w.startCol : c.row - w.startRow];
-    });
-  }
-  runEffect(board, filled, revealed, { total: 0 });
-}
-
 // 5a) Solve penuh normal → XP = jumlah calcXpGain semua kata
 {
   const board = generateBoard(candidates, 10, 1);

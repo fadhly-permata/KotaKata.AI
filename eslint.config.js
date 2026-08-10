@@ -4,7 +4,9 @@ const globals = require("globals");
 module.exports = [
   js.configs.recommended,
   {
-    ignores: ["node_modules/**", "dist/**", ".expo/**"],
+    // scripts/archive/** adalah tool sekali-pakai yang sudah diarsipkan —
+    // tidak di-lint supaya `bun lint` tetap bersih untuk kode aktif.
+    ignores: ["node_modules/**", "dist/**", ".expo/**", "scripts/archive/**"],
   },
   {
     rules: {

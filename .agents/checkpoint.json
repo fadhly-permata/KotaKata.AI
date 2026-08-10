@@ -1,17 +1,18 @@
 {
   "project": "KotaKata.AI",
-  "updated_at": "2026-08-10T14:00:00Z",
+  "updated_at": "2026-08-10T15:00:00Z",
   "current_phase": 19,
   "current_phase_status": "completed",
   "total_phases": 19,
   "auto_update": true,
-  "notes": "Unit test domain logic aktif (bun test, 43 tes: xpEngine, wordValidator, boardValidator, crosswordGenerator) + perbaikan bug orphan detection di boardValidator + arsip plan lama dikonsolidasi ke archive/README.md",
+  "notes": "PLAN-006: lint 0 warning (archive di-ignore + fix no-unused-vars aktif), tabel user_log_reports (kirim log error/warning ke Supabase + RLS), detail log diperkaya (stacktrace + inner exception tersimpan, UI tetap format ringkas), fix statistik Kata Terpecahkan (countByUser cloud), leaderboard lazy-load 25/halaman + posisi user, dialog Tutup diganti icon [x] + tap di luar",
   "revision_plans": {
     "PLAN-001": "done",
     "PLAN-002": "done",
     "PLAN-003": "done — kualitas clue tier 1-10 (0 issue/bocor/duplikat, placeholder 2331→1996, 964 penanda asal bahasa)",
     "PLAN-004": "done",
-    "PLAN-005": "done — termasuk item 1 (tag asal bahasa daerah Nusantara, 15 kata)"
+    "PLAN-005": "done — termasuk item 1 (tag asal bahasa daerah Nusantara, 15 kata)",
+    "PLAN-006": "done — log cloud, kirim log, detail debug, fix statistik, leaderboard lazy, dialog close"
   },
   "instructions": "File ini DIWAJIBKAN di-update oleh agent SETIAP KALI selesai mengerjakan task. Jangan pernah skip update. User tidak perlu mengingat phase terakhir karena ini otomatis terbaca.",
   "phases": [

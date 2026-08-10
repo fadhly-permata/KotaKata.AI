@@ -9,7 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
@@ -20,6 +20,7 @@ import UserAvatar from "../../presentation/components/common/UserAvatar";
 import { useAuth } from "../auth/useAuth";
 import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import { userRepository } from "../../data/repositories/userRepository";
+import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { clearDeviceId } from "../../utils/deviceIdentity";
 import { play } from "../../utils/sound";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
@@ -42,9 +43,42 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<Nav>();
   const totalXp = useGameStore((s) => s.totalXp);
-  const wordsSolved = useGameStore((s) => s.wordsSolved);
   const reset = useGameStore((s) => s.reset);
   const { user, signOut } = useAuth();
+
+  // ─── Jumlah kata terpecahkan: baca dari cloud (countByUser) ───
+  // Dulu memakai useGameStore(wordsSolved) yang hanya menghitung kata di sesi
+  // game aktif → selalu 0 di halaman Profil (padahal "Kata Ditemukan" sudah
+  // menampilkan 404 kata). Sumber kebenaran adalah tabel word_discoveries.
+  const [wordsSolved, setWordsSolved] = useState(0);
+  const [wordsSolvedLoading, setWordsSolvedLoading] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setWordsSolvedLoading(true);
+      if (!user?.id) {
+        setWordsSolved(0);
+        setWordsSolvedLoading(false);
+        return () => {
+          active = false;
+        };
+      }
+      wordDiscoveryRepository
+        .countByUser(user.id)
+        .then((n) => {
+          if (active) setWordsSolved(n);
+        })
+        .catch(() => {
+          // Offline/gagal — biarkan nilai terakhir; tidak mengganggu profil.
+        })
+        .finally(() => {
+          if (active) setWordsSolvedLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }, [user?.id]),
+  );
 
   // ─── Keluar Akun ───
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -132,7 +166,11 @@ export default function ProfileScreen() {
         {/* Stats grid */}
         <View style={[styles.statsGrid, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{wordsSolved}</Text>
+            {wordsSolvedLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.text} />
+            ) : (
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>{wordsSolved}</Text>
+            )}
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Terpecahkan</Text>
           </View>
           <View style={styles.statDivider} />
