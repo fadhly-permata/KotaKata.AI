@@ -42,6 +42,9 @@ jejak audit — bisa dipindah kembali ke folder aktif kalau diperlukan.
 | `find-bad-clues.mjs` / `dump-leaks.mjs` | Audit clue bermasalah / leak jawaban |
 | `count-vocab.mjs` / `clue-stats.mjs` | Statistik jumlah kata / statistik clue |
 | `scan-vocab-quality.mjs` | Scan kualitas vocab menyeluruh |
+| `fill-placeholders.mjs` / `analyze-placeholders.mjs` | Isi placeholder "Merupakan kata X" (pra-PLAN-007, superseded oleh research-clues.mjs) |
+| `list-remaining.mjs` | Daftar kata yang masih bermasalah (pra-PLAN-007) |
+| `_debug-*.mjs` / `_audit-*.mjs` / `_analyze-skips.mjs` / `_categorize*.mjs` / `_merge-backup.mjs` / `_probe-placeholders.mjs` / `_scan-quality.mjs` / `_show-weak.mjs` / `_target-count.mjs` / `_bing-test.mjs` | Diagnostik & audit sekali pakai saat membangun research-clues.mjs (PLAN-007) |
 
 ## Script aktif saat ini
 

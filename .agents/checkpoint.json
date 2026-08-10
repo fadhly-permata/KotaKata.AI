@@ -1,18 +1,19 @@
 {
   "project": "KotaKata.AI",
-  "updated_at": "2026-08-10T15:00:00Z",
+  "updated_at": "2026-08-10T21:00:00Z",
   "current_phase": 19,
   "current_phase_status": "completed",
   "total_phases": 19,
   "auto_update": true,
-  "notes": "PLAN-006: lint 0 warning (archive di-ignore + fix no-unused-vars aktif), tabel user_log_reports (kirim log error/warning ke Supabase + RLS), detail log diperkaya (stacktrace + inner exception tersimpan, UI tetap format ringkas), fix statistik Kata Terpecahkan (countByUser cloud), leaderboard lazy-load 25/halaman + posisi user, dialog Tutup diganti icon [x] + tap di luar",
+  "notes": "PLAN-007 tuntas: research-clues.mjs review semua clue (0 issue QA); penutup fill-remaining.mjs + remaining/*.mjs (kurasi 327 kata ultra-langka) menghapus SEMUA placeholder 'Merupakan kata X' (2472→327→0), c1 truncated ikut diperbaiki, QA 0 issue semua tier, SQL di-regenerate",
   "revision_plans": {
     "PLAN-001": "done",
     "PLAN-002": "done",
     "PLAN-003": "done — kualitas clue tier 1-10 (0 issue/bocor/duplikat, placeholder 2331→1996, 964 penanda asal bahasa)",
     "PLAN-004": "done",
     "PLAN-005": "done — termasuk item 1 (tag asal bahasa daerah Nusantara, 15 kata)",
-    "PLAN-006": "done — log cloud, kirim log, detail debug, fix statistik, leaderboard lazy, dialog close"
+    "PLAN-006": "done — log cloud, kirim log, detail debug, fix statistik, leaderboard lazy, dialog close",
+    "PLAN-007": "done — review semua clue via script riset KBBI: 0 issue QA; penutup: placeholder 'Merupakan kata X' dihapus tuntas 327→0 via fill-remaining.mjs + map kurasi remaining/*.mjs, SQL di-regenerate"
   },
   "instructions": "File ini DIWAJIBKAN di-update oleh agent SETIAP KALI selesai mengerjakan task. Jangan pernah skip update. User tidak perlu mengingat phase terakhir karena ini otomatis terbaca.",
   "phases": [

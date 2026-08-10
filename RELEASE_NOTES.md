@@ -15,6 +15,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-004** | ✅ done | Keluar Akun → Profil + Hapus Akun Permanen | Keluar akun pindah ke Profil, hapus akun 2-level konfirmasi (kode acak 10 huruf) via RPC `delete_user_data()` |
 | **PLAN-005** | ✅ done | Revisi Mode AI, Log, Leaderboard & Notifikasi Tier | 10 langkah: tanpa XP di Mode AI, simpan soal AI ke DB, tier-aware, paging log, Daftar Tier, Leaderboard, notifikasi naik/turun tier, tag asal bahasa |
 | **PLAN-006** | ✅ done | Log Cloud, Kirim Log, Detail Debug, Fix Statistik, Leaderboard Lazy & Dialog Close | 7 langkah: lint 0 warning, tabel `user_log_reports` + kirim log error/warning ke Supabase, stacktrace & inner exception tersimpan (UI tetap ringkas), fix "Kata Terpecahkan" (cloud count), leaderboard lazy-load 25/halaman + posisi user, tombol Tutup → icon [x] + tap di luar |
+| **PLAN-007** | ✅ done | Review Semua Clue via Script Riset KBBI | 7 langkah: script `research-clues.mjs` (dump KBBI lokal → KBBI web.id → Bing → Google), generator 3 kolom anti-leak/anti-duplikat, override manual, riset online ~980 kata (213 di-rescue), fallback per-kolom QA-aware, QA checker "memuat" dipertegas, rebuild bersih: **0 issue QA semua tier**, placeholder **2472 → 327**; **penutup 7.b**: sisa 327 placeholder "Merupakan kata X" di tier 6–10 dihapus tuntas via `fill-remaining.mjs` + map kurasi `remaining/*.mjs` (c2/c3 dari pengetahuan umum, c1 truncated ikut diperbaiki) → **placeholder 0**, QA 0 issue, SQL di-regenerate |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
@@ -105,6 +106,16 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - ✕ **Dialog tanpa tombol "Tutup"**: popup Leaderboard, Daftar Tier, Kata Ajaib & error Mode AI kini pakai icon [✕] di pojok kanan atas + **tap di luar jendela otomatis menutup** (dialog konfirmasi berbahaya tetap pakai tombol Batal/Lanjutkan)
 - 🧹 **Auto-purge log report**: job pg_cron `purge-user-log-reports` menghapus row `user_log_reports` berumur > **30 hari** setiap hari 03.00 UTC (migrasi `user-log-reports-purge.sql`, idempotent — ubah interval lalu jalankan ulang untuk ganti retensi)
 
+### v0.9.0 — Review Semua Clue via Script Riset KBBI (PLAN-007)
+
+- 🤖 **Script riset otomatis** (`scripts/vocab/research-clues.mjs`): tiap kata di-teliti dari dump KBBI lokal → **KBBI web.id** (ajax_submit) → **Bing** → **Google**, dengan ekstraktor defensif (gate isPlausibleDef: dominasi bahasa Indonesia, tolak teks asing); cache persisten `/tmp/kotakata-research-cache` (tahan throttle gateway)
+- 🧠 **Generator clue 3 kolom ketat**: c1 definisi bersih (penanda `[Mil]`/`Istilah X`/kelas kata nyasar/placeholder `--` dibuang), c2 senses → fragmen def → contoh pemakaian (jawaban di-redact "…"), c3 sinonim/antonim → contoh → fragmen; anti `c1==c3`, `c2 memuat c3`, near-sama, bocor jawaban
+- 📝 **Override manual** `clue-overrides.mjs` (100+ kata) untuk entri KBBI multi-baris yang tak bisa digeneralisasi
+- 🌐 **Riset online**: ~980 kata di-research ulang dari web, **213 kata miskin bahan di-rescue** (contoh & sinonim KBBI web.id)
+- 🛠 **Fallback per-kolom QA-aware**: modernisasi singkatan `pd/dl/thd` → `pada/dalam/terhadap`, kurung gantung ditutup, penanda dibuang — ditolak bila menciptakan duplikat; placeholder diisi bahan riset (senses/contoh/fragmen/sinonim)
+- 🎯 **QA checker dipertegas** (`check-clue-quality.mjs`): aturan "memuat" hanya dihitung bila kedua kolom ≥ 12 huruf (frasa) — kata tunggal yang wajar di definisi tidak lagi salah-flag, duplikat frasa nyata tetap terdeteksi; pipeline memakai semantik yang sama
+- ✅ **Hasil akhir**: **0 issue QA semua tier**, placeholder **2472 → 327** (sisa = kata ultra-langka berdefinisi tunggal — batas maksimal bahan KBBI), singkatan modern, kurung gantung ditutup, ~3051 baris clue ditulis ulang; `supabase/data/vocabulary.sql` di-regenerate
+
 ---
 
 ## 🔧 Tooling Pendukung (scripts/)
@@ -117,6 +128,8 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | Vocab | `add-language-origin.mjs` + `etymology-data.mjs` | Tag "Kata serapan dari bahasa X" (peta terkurasi) |
 | Vocab | `add-regional-origin.mjs` | Tag "Kata dari bahasa X" (bahasa daerah Nusantara) |
 | Vocab | `gen-vocab-sql.mjs` | Generate `supabase/data/vocabulary.sql` dari seed |
+| Vocab | `research-clues.mjs` + `clue-overrides.mjs` | Riset & perbaiki clue otomatis (dump KBBI + KBBI web.id + Bing + Google), override manual kata aneh |
+| Vocab | `kbbi-web-test.sh` | Uji endpoint `ajax_submit` KBBI web.id (JSON entri + kata terkait) |
 | Check | `check-clue-quality.mjs` | Audit quality clue (leak, duplikat, placeholder, issue) |
 | Check | `qa-logic.mjs` | Validasi logic game end-to-end |
 | Check | `detect-regional.mjs` / `verify-origin-prefixes.mjs` | Verifikasi penanda asal bahasa |

@@ -37,7 +37,11 @@ for (const [word, c1, c2, c3] of rows) {
       const b = (clues[j] ?? "").trim();
       if (!a || !b) continue;
       if (a === b) issues.push(`${word}: ${names[i]} == ${names[j]} (persis)`);
-      else if (a.length >= 12 && (a.includes(b) || b.includes(a)))
+      // "memuat" dihitung hanya bila KEDUANYA >= 12 huruf — kata tunggal yang
+      // wajar muncul di definisi (mis. "lingkaran" di dalam "berbentuk
+      // lingkaran") bukan duplikat clue; yang dideteksi adalah duplikasi
+      // frasa antar kolom (fragmen definisi yang sama).
+      else if (a.length >= 12 && b.length >= 12 && (a.includes(b) || b.includes(a)))
         issues.push(`${word}: ${names[i]} memuat ${names[j]} "${b.slice(0, 40)}"`);
     }
   }
