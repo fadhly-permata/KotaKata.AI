@@ -2,7 +2,6 @@
 
 **Teka-Teki Silang Puitis — Dynamic Crossword Game (Cross-Platform)**
 
-[![Build](https://img.shields.io/github/actions/workflow/status/fadhly-permata/KotaKata.AI/ci.yml?branch=main&label=build)](https://github.com/fadhly-permata/KotaKata.AI/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg)](https://www.typescriptlang.org/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-8A2BE2.svg)]()
