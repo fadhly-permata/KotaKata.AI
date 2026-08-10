@@ -2,7 +2,7 @@
 
 **Teka-Teki Silang Puitis — Dynamic Crossword Game (Cross-Platform)**
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg)](https://www.typescriptlang.org/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-8A2BE2.svg)]()
 [![Expo](https://img.shields.io/badge/Expo-React%20Native-000000.svg)](https://expo.dev/)
@@ -230,4 +230,4 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 
 ## 📄 Lisensi
 
-MIT — built with ❤️ by Fadhly Permata
+MIT — built with ❤️ by Fadhly Permata — lihat [LICENSE](LICENSE).
