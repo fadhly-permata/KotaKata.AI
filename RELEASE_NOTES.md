@@ -85,6 +85,14 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🧹 `restore_guest_identity` ikut menyalin config provider saat guest di-link ke akun permanen
 - 📦 Koreksi clue tier 6–10 ikut di-commit dalam rilis ini
 
+### v0.7.0 — Unit Test Otomatis + QA & Bersih-bersih Arsip
+
+- 🧪 **Unit test domain logic** (`bun test`, 43 tes): `xpEngine` (XP, tier, progress, penalti), `wordValidator`, `boardValidator`, `crosswordGenerator` — runner Bun bawaan, preload `tests/setup.ts` (mock logger + `__DEV__`)
+- 🐛 **Fix bug orphan detection di `boardValidator`**: logika lama hanya mendeteksi persilangan di sel pertama kata lawan sehingga semua board hasil generator dilaporkan "Orphan words" (validator tidak dipakai di app, tapi sekarang benar)
+- 🔧 `tsconfig.json`: mapping `bun:test` → `bun-types`; `package.json`: script `test` + devDep `@types/bun`
+- 🧹 **Arsip plan lama dikonsolidasi**: `archive/CHECKPOINT.md`, `DESIGN_PLAN.md`, `development-plan.md` (superseded) → satu `archive/README.md` penunjuk sumber resmi
+- ✅ **QA penuh**: qa-logic ALL PASS, verify-all 8500 unik / 0 duplikat, clue quality 0 issue semua tier
+
 ---
 
 ## 🔧 Tooling Pendukung (scripts/)

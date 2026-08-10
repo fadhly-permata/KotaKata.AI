@@ -30,48 +30,34 @@ export function validateBoard(board: Board): ValidationResult {
     }
   }
 
-  // Check 2: No orphan words - each word must intersect at least 1 other
+  // Check 2: No orphan words - each word must intersect at least 1 other.
+  // Sebuah kata bersilangan dengan kata lain bila ada sel-nya yang juga
+  // merupakan sel kata lain dengan orientasi tegak lurus. Deteksi cukup
+  // lewat tetangga tegak lurus yang terisi (bukan hanya sel pertama kata).
   for (let wi = 0; wi < board.words.length; wi++) {
     const word = board.words[wi];
     let intersections = 0;
 
     for (const cell of word.cells) {
-      // Check if this cell is also part of another word (perpendicular)
-      if (word.orientation === "horizontal") {
-        if (cell.row > 0 && !board.grid[cell.row - 1][cell.col].isBlocked) continue;
-        if (cell.row < board.size - 1 && !board.grid[cell.row + 1][cell.col].isBlocked) {
-          // Cell has vertical neighbor = intersection possible
-          for (const otherWord of board.words) {
-            if (otherWord === word) continue;
-            if (otherWord.orientation === "vertical") {
-              for (const oc of otherWord.cells) {
-                if (oc.row === cell.row && oc.col === cell.col) {
-                  intersections++;
-                  break;
-                }
-              }
-            }
-            if (intersections > 0) break;
-          }
-        }
-      } else {
-        if (cell.col > 0 && !board.grid[cell.row][cell.col - 1].isBlocked) continue;
-        if (cell.col < board.size - 1 && !board.grid[cell.row][cell.col + 1].isBlocked) {
-          for (const otherWord of board.words) {
-            if (otherWord === word) continue;
-            if (otherWord.orientation === "horizontal") {
-              for (const oc of otherWord.cells) {
-                if (oc.row === cell.row && oc.col === cell.col) {
-                  intersections++;
-                  break;
-                }
-              }
-            }
-            if (intersections > 0) break;
-          }
+      const hasPerpendicularNeighbor =
+        word.orientation === "horizontal"
+          ? (cell.row > 0 && !board.grid[cell.row - 1][cell.col].isBlocked) ||
+            (cell.row < board.size - 1 && !board.grid[cell.row + 1][cell.col].isBlocked)
+          : (cell.col > 0 && !board.grid[cell.row][cell.col - 1].isBlocked) ||
+            (cell.col < board.size - 1 && !board.grid[cell.row][cell.col + 1].isBlocked);
+
+      if (hasPerpendicularNeighbor) {
+        const crossed = board.words.some(
+          (other) =>
+            other !== word &&
+            other.orientation !== word.orientation &&
+            other.cells.some((oc) => oc.row === cell.row && oc.col === cell.col),
+        );
+        if (crossed) {
+          intersections++;
+          break;
         }
       }
-      if (intersections > 0) break;
     }
 
     if (intersections === 0 && board.words.length > 1) {
