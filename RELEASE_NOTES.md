@@ -91,7 +91,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🐛 **Fix bug orphan detection di `boardValidator`**: logika lama hanya mendeteksi persilangan di sel pertama kata lawan sehingga semua board hasil generator dilaporkan "Orphan words" (validator tidak dipakai di app, tapi sekarang benar)
 - 🔧 `tsconfig.json`: mapping `bun:test` → `bun-types`; `package.json`: script `test` + devDep `@types/bun`
 - 🧹 **Arsip plan lama dikonsolidasi**: `archive/CHECKPOINT.md`, `DESIGN_PLAN.md`, `development-plan.md` (superseded) → satu `archive/README.md` penunjuk sumber resmi
-- ✅ **QA penuh**: qa-logic ALL PASS, verify-all 8500 unik / 0 duplikat, clue quality 0 issue semua tier
+- ✅ **QA penuh**: qa-logic ALL PASS, verify-all 8500 unik / 0 duplikat, clue quality 0 issue semua tier (script sekali pakai diarsipkan ke `scripts/archive/check/`)
 
 ---
 

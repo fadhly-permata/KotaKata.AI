@@ -16,7 +16,7 @@
 - [x] **3. Halaman "Pengaturan Provider AI" (entry sederhana)** — pilih provider preset: **OpenRouter**, **HuggingFace**, atau **URL kustom**; isi API key + nama model; tombol **Tes Koneksi** dan **Simpan**. Key disimpan lokal di AsyncStorage (BYOK — tidak pernah dikirim ke cloud KotaKata).
 - [x] **4. Tombol "Tambahkan Provider AI" di Pengaturan** — di `SettingsScreen.tsx` ada tombol baru yang membuka halaman entry provider; tampilkan juga status provider yang sudah tersimpan (aktif / belum).
 - [x] **5. Alur main mode AI** — jika provider tersimpan, request soal ke provider: prompt meminta daftar kata Bahasa Indonesia + clue (format JSON), hasil di-parse lalu di-generate menjadi papan lewat `crosswordGenerator` yang sudah ada, dan dimainkan seperti biasa. Kalau request gagal / respons tidak valid → **pesan error ramah + tawarkan bermain mode normal** (opsi "Main Mode Normal" dan "Coba Lagi"), tanpa merusak mode normal.
-- [x] **6. Validasi** — `bun tsc --noEmit` bersih dan script cek (check-nav-lock / check-variety) tetap jalan.
+- [x] **6. Validasi** — `bun tsc --noEmit` bersih dan script cek (check-nav-lock / check-variety) tetap jalan (kini diarsipkan di `scripts/archive/check/`).
 
 ## Catatan Revisi
 

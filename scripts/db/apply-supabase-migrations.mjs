@@ -114,7 +114,9 @@ for (const f of FILES) {
         try {
           const dr = await q("select count(*) as n from public.word_discoveries");
           discCount = dr?.[0]?.n ?? 0;
-        } catch {}
+        } catch {
+          // tabel mungkin belum dibuat di project baru — biarkan default 0
+        }
         console.log(
           `\n▶ ${f} ... SKIP (vocabulary sudah berisi ${n} kata — seed deterministik, tidak perlu reload; ${discCount} baris riwayat pemain terlindungi)`,
         );

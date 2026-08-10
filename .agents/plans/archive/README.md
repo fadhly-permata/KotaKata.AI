@@ -11,6 +11,7 @@ digantikan oleh sistem perencanaan resmi. Semua informasi di bawah sudah
 | `development-plan.md` | Rencana 19 fase awal pembangunan | `.agents/checkpoint.json` (19 phase, status per fase) |
 | `CHECKPOINT.md` | Checkpoint progres awal + bug tracker manual | `.agents/checkpoint.json` + plan revisi + `scripts/check/*` |
 | `DESIGN_PLAN.md` | Wishlist redesign UI awal (32 item unchecked) | PLAN-001 (semua redesign sudah dieksekusi) |
+| `designs/` (LoginScreen/MainMenu/InGame `.html` + `design-color.md`) | Mockup desain awal sebelum PLAN-001 | Semua redesign sudah dieksekusi; mockup disimpan di `designs/` |
 
 ## Sumber resmi saat ini
 
