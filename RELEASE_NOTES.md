@@ -103,6 +103,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🔧 **Fix "Kata Terpecahkan" selalu 0** di Profil: sumber data diganti dari state sesi game (`wordsSolved`) ke `wordDiscoveryRepository.countByUser()` cloud (cocok dengan angka di halaman Kata Ditemukan)
 - 🏅 **Leaderboard lazy-load**: paging 25 baris/request + auto-load saat scroll ke bawah; posisi pemain yang login (rank + baris) selalu tampil di atas tombol Tutup tanpa perlu scroll jauh (RPC baru `get_leaderboard_paged` + `get_leaderboard_rank`)
 - ✕ **Dialog tanpa tombol "Tutup"**: popup Leaderboard, Daftar Tier, Kata Ajaib & error Mode AI kini pakai icon [✕] di pojok kanan atas + **tap di luar jendela otomatis menutup** (dialog konfirmasi berbahaya tetap pakai tombol Batal/Lanjutkan)
+- 🧹 **Auto-purge log report**: job pg_cron `purge-user-log-reports` menghapus row `user_log_reports` berumur > **30 hari** setiap hari 03.00 UTC (migrasi `user-log-reports-purge.sql`, idempotent — ubah interval lalu jalankan ulang untuk ganti retensi)
 
 ---
 

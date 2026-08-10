@@ -120,6 +120,11 @@ node scripts/db/supabase-run.mjs "DELETE FROM public.user_log_reports WHERE id =
 
 - **Satu row per sesi triase.** Kalau ada banyak row, kerjakan satu, selesaikan,
   lalu tanya/lanjut ke berikutnya — jangan menumpuk fix.
+- **Auto-purge otomatis (pg_cron).** Job `purge-user-log-reports` di Supabase
+  menghapus row `user_log_reports` berumur > 30 hari setiap hari 03.00 UTC
+  (migrasi `supabase/migrations/user-log-reports-purge.sql`). Karena itu triase
+  sebaiknya dilakukan sebelum umur row lewat 30 hari — row yang sudah terhapus
+  cron TIDAK bisa di-recover (tidak perlu dicari/di-rollback).
 - **Delete HANYA setelah fix terbukti.** Row adalah bukti error; menghapus sebelum
   fix = menutup mata, bukan memperbaiki.
 - Jangan pernah mencetak/membaca secret dari `.env*`; `supabase-run.mjs` mengelola
