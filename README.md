@@ -2,7 +2,17 @@
 
 **Teka-Teki Silang Puitis — Dynamic Crossword Game (Cross-Platform)**
 
+[![Build](https://img.shields.io/github/actions/workflow/status/fadhly-permata/KotaKata.AI/ci.yml?branch=main&label=build)](https://github.com/fadhly-permata/KotaKata.AI/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg)](https://www.typescriptlang.org/)
+[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-8A2BE2.svg)]()
+[![Expo](https://img.shields.io/badge/Expo-React%20Native-000000.svg)](https://expo.dev/)
+
 KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat puitis 10 tier. Papan permainan digenerate secara prosedural dari kosakata Bahasa Indonesia yang telah dikurasi, dan setiap permainan selalu berbeda. Satu basis kode untuk Android, iOS, Windows, Linux, dan Web.
+
+## 🎮 Panduan Pemain
+
+**📖 [GUIDE.md](GUIDE.md)** — panduan lengkap cara main: kontrol, sistem clue & hint, XP & tier, Mode AI, akun & data, FAQ, dan tips strategi.
 
 ## ✨ Fitur
 
@@ -193,6 +203,31 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-003 | ✅ done | Kualitas clue tier 1–10: 0 issue / 0 bocor / 0 duplikat |
 | PLAN-004 | ✅ done | Keluar akun ke Profil + hapus akun permanen |
 | PLAN-005 | ✅ done | Mode AI tanpa XP, paging log, leaderboard, notifikasi tier, tag asal bahasa |
+
+## ❓ FAQ
+
+**Akun & Data**
+
+- **Apakah data hilang saat login?** Tidak. Login tidak menghapus data guest. Untuk menggabungkan progres guest ke akun, gunakan **Profil → Hubungkan Akun** (guest anonim menyatukan XP, riwayat, dan board ke akun Google/email).
+- **Bagaimana cara keluar akun?** Profil → **Keluar Akun** (hanya tampil untuk user yang login; guest cukup menutup sesi).
+- **Bagaimana cara menghapus akun?** Profil → **Hapus Akun (Permanen)** — konfirmasi 2 level: peringatan, lalu ketik **kode acak 10 huruf** (case-insensitive). Menghapus seluruh data cloud + lokal secara permanen.
+- **Apakah progres tersimpan otomatis?** Ya. Board disimpan 500 ms setelah perubahan + saat menutup/refresh tab. Board yang belum selesai bisa dilanjutkan dari "Mulai Bermain".
+
+**XP & Tier**
+
+- **Bisakah total XP berkurang karena hint?** Tidak. Penalti clue/reveal hanya memotong XP sesi papan itu (neto di-clamp ≥ 0); XP kumulatif akun tidak pernah turun karena hint.
+- **Kata yang semua hurufnya di-reveal dapat XP?** Tidak — full-reveal dianggap selesai (papan tidak macet) tapi tidak memberi XP.
+- **Kenapa soal di papan baru terasa lebih sulit?** Kamu mungkin baru naik tier. Papan mengambil kosakata sesuai tier aktif (1000 kata per tier, 10 tier).
+- **Kenapa ada clue berawalan "Kata serapan dari bahasa …"?** Itu penanda asal bahasa (serapan asing / bahasa daerah Nusantara) yang terverifikasi dari KBBI.
+
+**Mode AI**
+
+- **Kenapa Mode AI tidak memberi XP?** Keputusan desain: mode ini soal tak terbatas dari AI, jadi tidak menghitung XP sama sekali (tidak tambah, tidak kurangi — semua hint gratis) agar tidak disalahgunakan untuk mencuci XP. Naik tier hanya dari Mode Normal.
+- **Apakah API key aman?** Ya — BYOK: key disimpan di perangkat + di-sync ke profil akunmu (RLS, hanya kamu yang bisa membaca) supaya bisa dipakai lintas device. Tidak pernah dikirim ke pihak lain.
+- **Apakah soal AI tersimpan?** Kata AI yang belum ada di database otomatis disimpan (deduplikasi) untuk memperkaya bank kosakata KotaKata.
+- **Provider gagal / error?** Muncul dialog ramah dengan opsi **Coba Lagi** atau **Main Mode Normal** — mode normal tidak terpengaruh.
+
+> FAQ lengkap + tips strategi ada di **[GUIDE.md](GUIDE.md)**.
 
 ## 📄 Lisensi
 
