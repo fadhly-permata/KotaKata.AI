@@ -59,9 +59,6 @@ const WITH_SQL = flag("sql");
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-// ---------------------------------------------------------------- row regex
-const ROW_RE = /^  \[\"([^\"]+)\",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\],$/gm;
-
 // ---------------------------------------------------------------- weak patterns
 const WEAK_RES = [
   /^merupakan kata/i,
@@ -92,10 +89,7 @@ const needsRepair = (c1, c2, c3) => {
   return false;
 };
 
-const isWeak = (c1, c2, c3) => [c1, c2, c3].some((c) => WEAK_RES.some((re) => re.test(c ?? "")));
-
 // ---------------------------------------------------------------- KBBI dump (parser sama dgn build-kbbi-seed / fill-placeholders)
-const MAX_LEN = 10;
 const FUNCTION_CLASSES = new Set(["p", "pron", "konj", "prep"]);
 const FUNCTION_CLASSES_ID = new Set(["partikel", "pronomina", "konjungsi", "preposisi"]);
 const AFFIX_RE = /bentuk terikat|singkatan|akronim|kependekan|lambang/i;
@@ -231,7 +225,6 @@ function hasUnbalancedParen(t) {
 function parseEntry(artiRaw) {
   const arti = decode(artiRaw ?? "");
   if (!arti || arti.includes(" ? ")) return null;
-  const word = null; // parseEntry di sini dipakai per-arti (word sudah diketahui pemanggil)
   if (arti.includes("<b>")) {
     const m = arti.match(/^<b>(?:<sup>\d+<\/sup>)?[^<]*<\/b>\s*(?:\/[^/]*\/)?\s*((?:(?:<b>\d+<\/b>|<i>[^<]*<\/i>)\s*)*)(.*)$/s);
     if (!m) return null;
@@ -367,7 +360,7 @@ async function searchGoogle(word) {
   return { url, html };
 }
 
-function extractGoogle(html, word) {
+function extractGoogle(html) {
   const out = [];
   const push = (t) => {
     const c = cleanDef(t);
@@ -393,7 +386,7 @@ async function searchBing(word) {
   return { url, html };
 }
 
-function extractBing(html, word) {
+function extractBing(html) {
   const out = [];
   const push = (t) => {
     const c = cleanDef(t);
@@ -454,7 +447,7 @@ function isPlausibleDef(t) {
   if (JUNK_HTML_RE.test(t)) return false;
   // Teks bahasa asing (Turki/Portugis/Jerman dsb) sarat huruf non-ASCII;
   // definisi Indonesia hampir selalu ASCII murni.
-  const nonAscii = (t.match(/[^\x00-\x7F]/g) ?? []).length;
+  const nonAscii = [...t].filter((ch) => (ch.codePointAt(0) ?? 0) > 127).length;
   if (nonAscii >= 3 && nonAscii > t.length * 0.04) return false;
   const en = (t.match(EN_WORDS) ?? []).length;
   const idn = (t.match(IDN_WORDS) ?? []).length;
@@ -558,18 +551,6 @@ function qaDup(a, b) {
   return false;
 }
 
-/** Pasangan kolom yang bertabrakan (overlap / nyaris sama) — dipakai fallback
- *  minimal repair: tabrakan yang SUDAH ADA di data lama ditoleransi (perbaikan
- *  mekanik tidak memperburuknya), tabrakan yang BARU diciptakan ditolak. */
-function overlapPairs(cols) {
-  const p = [];
-  for (let i = 0; i < 3; i++)
-    for (let j = i + 1; j < 3; j++) {
-      if (containsOverlap(cols[i], cols[j]) || nearSame(cols[i], cols[j])) p.push(`${i}${j}`);
-    }
-  return p;
-}
-
 function redactExample(ex, word) {
   if (!ex) return null;
   const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
@@ -578,7 +559,7 @@ function redactExample(ex, word) {
   return red;
 }
 
-function goodExample(ex, word) {
+function goodExample(ex) {
   if (!ex) return false;
   const t = ex.trim();
   if (t.length < 6) return false;

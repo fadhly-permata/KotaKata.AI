@@ -146,7 +146,7 @@ for (const f of tierFiles) {
 const report = { total: 0, ok: 0, skipped: 0, issues: [], changes: [] };
 const tierNum = (f) => Number(f.match(/^tier(\d+)/)[1]);
 
-for (const [f, { src, rows }] of rowsByFile) {
+for (const [f, { rows }] of rowsByFile) {
   if (TIER_FILTER && tierNum(f) !== Number(TIER_FILTER)) continue;
   for (const r of rows) {
     const override = ALL[r.word];
@@ -154,8 +154,8 @@ for (const [f, { src, rows }] of rowsByFile) {
     report.total++;
 
     let c1 = r.c1;
-    let c2 = r.c2;
-    let c3 = r.c3;
+    let c2;
+    let c3;
     if (override.length === 3) {
       [c1, c2, c3] = override;
     } else if (override.length === 2) {
