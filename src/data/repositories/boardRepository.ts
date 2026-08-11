@@ -47,19 +47,38 @@ export const boardRepository = {
     return (data ?? []).map(toDoc);
   },
 
-  /** Ambil daftar board yang sudah selesai (is_finished = true) milik user. */
-  async getFinished(userId: string): Promise<SavedBoardDoc[]> {
+  /** Ambil daftar board yang sudah selesai (is_finished = true) milik user,
+   *  dengan paging (limit/offset). Default 25 per halaman. */
+  async getFinished(
+    userId: string,
+    opts: { limit?: number; offset?: number } = {},
+  ): Promise<SavedBoardDoc[]> {
+    const limit = opts.limit ?? 25;
+    const offset = opts.offset ?? 0;
     const { data, error } = await supabase
       .from("saved_boards")
       .select(BOARD_COLUMNS)
       .eq("user_id", userId)
       .eq("is_finished", true)
       .order("updated_at", { ascending: false })
-      .limit(100);
+      .range(offset, offset + limit - 1);
     if (error) {
       throw new Error(`Gagal ambil board selesai dari Supabase: ${error.message}`);
     }
     return (data ?? []).map(toDoc);
+  },
+
+  /** Hitung total board yang sudah selesai milik user (label paging). */
+  async countFinished(userId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from("saved_boards")
+      .select("board_id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_finished", true);
+    if (error) {
+      throw new Error(`Gagal menghitung board selesai dari Supabase: ${error.message}`);
+    }
+    return count ?? 0;
   },
 
   async getInProgress(userId: string): Promise<SavedBoardDoc[]> {

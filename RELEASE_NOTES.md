@@ -16,6 +16,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-005** | ✅ done | Revisi Mode AI, Log, Leaderboard & Notifikasi Tier | 10 langkah: tanpa XP di Mode AI, simpan soal AI ke DB, tier-aware, paging log, Daftar Tier, Leaderboard, notifikasi naik/turun tier, tag asal bahasa |
 | **PLAN-006** | ✅ done | Log Cloud, Kirim Log, Detail Debug, Fix Statistik, Leaderboard Lazy & Dialog Close | 7 langkah: lint 0 warning, tabel `user_log_reports` + kirim log error/warning ke Supabase, stacktrace & inner exception tersimpan (UI tetap ringkas), fix "Kata Terpecahkan" (cloud count), leaderboard lazy-load 25/halaman + posisi user, tombol Tutup → icon [x] + tap di luar |
 | **PLAN-007** | ✅ done | Review Semua Clue via Script Riset KBBI | 7 langkah: script `research-clues.mjs` (dump KBBI lokal → KBBI web.id → Bing → Google), generator 3 kolom anti-leak/anti-duplikat, override manual, riset online ~980 kata (213 di-rescue), fallback per-kolom QA-aware, QA checker "memuat" dipertegas, rebuild bersih: **0 issue QA semua tier**, placeholder **2472 → 327**; **penutup 7.b**: sisa 327 placeholder "Merupakan kata X" di tier 6–10 dihapus tuntas via `fill-remaining.mjs` + map kurasi `remaining/*.mjs` (c2/c3 dari pengetahuan umum, c1 truncated ikut diperbaiki) → **placeholder 0**, QA 0 issue, SQL di-regenerate |
+| **PLAN-008** | ✅ done | Sejarah Permainan Lazy-Load (paging saat scroll) | 3 langkah: `boardRepository.getFinished` dukung paging `{limit, offset}` via `range()` (default 25) + `countFinished()` untuk label total; `GameHistoryScreen` refactor ScrollView → **FlatList lazy-load** (paging 25, `onEndReached` + `onScroll` fallback, guard refs + token anti-basi, footer spinner / tombol manual / "— Akhir riwayat —", header total, empty/error + tombol Coba lagi) — pola sama dengan halaman Kata Ditemukan; verifikasi tsc + 43 tes + lint lolos |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
@@ -115,6 +116,13 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🛠 **Fallback per-kolom QA-aware**: modernisasi singkatan `pd/dl/thd` → `pada/dalam/terhadap`, kurung gantung ditutup, penanda dibuang — ditolak bila menciptakan duplikat; placeholder diisi bahan riset (senses/contoh/fragmen/sinonim)
 - 🎯 **QA checker dipertegas** (`check-clue-quality.mjs`): aturan "memuat" hanya dihitung bila kedua kolom ≥ 12 huruf (frasa) — kata tunggal yang wajar di definisi tidak lagi salah-flag, duplikat frasa nyata tetap terdeteksi; pipeline memakai semantik yang sama
 - ✅ **Hasil akhir**: **0 issue QA semua tier**, placeholder **2472 → 327** (sisa = kata ultra-langka berdefinisi tunggal — batas maksimal bahan KBBI), singkatan modern, kurung gantung ditutup, ~3051 baris clue ditulis ulang; `supabase/data/vocabulary.sql` di-regenerate
+
+### v0.10.0 — Sejarah Permainan Lazy-Load (PLAN-008)
+
+- 📜 **Halaman "Sejarah Permainan" kini lazy-load**: `GameHistoryScreen` refactor dari `ScrollView` (muat semua board sekaligus, cap 100) ke **FlatList berpaging** — 25 riwayat per request, auto-load saat scroll ke bawah (`onEndReached` + fallback `onScroll` jarak < 600px), tombol "Muat lebih banyak" sebagai jaring pengaman, label "— Akhir riwayat —" saat habis
+- 🔢 **Header total**: label "{n} permainan selesai" dari `countFinished()` (gagal menghitung tidak menggagalkan list)
+- 🛡 **Guard anti-tumpuk & anti-basi**: refs `loadingMore/hasMore` cegah request ganda; token reset membuang response lama saat focus ulang/ganti user; error state + tombol **Coba lagi**; pola identik dengan halaman Kata Ditemukan
+- 🗄 `boardRepository.getFinished(userId, { limit, offset })` memakai `range()` (default 25) — pemanggil lain aman
 
 ---
 

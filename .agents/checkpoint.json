@@ -13,7 +13,8 @@
     "PLAN-004": "done",
     "PLAN-005": "done — termasuk item 1 (tag asal bahasa daerah Nusantara, 15 kata)",
     "PLAN-006": "done — log cloud, kirim log, detail debug, fix statistik, leaderboard lazy, dialog close",
-    "PLAN-007": "done — review semua clue via script riset KBBI: 0 issue QA; penutup: placeholder 'Merupakan kata X' dihapus tuntas 327→0 via fill-remaining.mjs + map kurasi remaining/*.mjs, SQL di-regenerate"
+    "PLAN-007": "done — review semua clue via script riset KBBI: 0 issue QA; penutup: placeholder 'Merupakan kata X' dihapus tuntas 327→0 via fill-remaining.mjs + map kurasi remaining/*.mjs, SQL di-regenerate",
+    "PLAN-008": "done — Sejarah Permainan lazy-load: boardRepository.getFinished paging {limit,offset} via range() + countFinished; GameHistoryScreen refactor ScrollView→FlatList paging 25 (onEndReached + onScroll fallback, guard refs + token anti-basi, footer spinner/tombol manual/akhir riwayat, header total, empty/error + Coba lagi); tsc+43 tes+lint lolos"
   },
   "instructions": "File ini DIWAJIBKAN di-update oleh agent SETIAP KALI selesai mengerjakan task. Jangan pernah skip update. User tidak perlu mengingat phase terakhir karena ini otomatis terbaca.",
   "phases": [
