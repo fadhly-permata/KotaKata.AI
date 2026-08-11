@@ -5,7 +5,7 @@
   "current_phase_status": "completed",
   "total_phases": 19,
   "auto_update": true,
-  "notes": "PLAN-007 tuntas: research-clues.mjs review semua clue (0 issue QA); penutup fill-remaining.mjs + remaining/*.mjs (kurasi 327 kata ultra-langka) menghapus SEMUA placeholder 'Merupakan kata X' (2472→327→0), c1 truncated ikut diperbaiki, QA 0 issue semua tier, SQL di-regenerate",
+  "notes": "PLAN-007 tuntas: research-clues.mjs review semua clue (0 issue QA); penutup fill-remaining.mjs + remaining/*.mjs (kurasi 327 kata ultra-langka) menghapus SEMUA placeholder 'Merupakan kata X' (2472→327→0), c1 truncated ikut diperbaiki, QA 0 issue semua tier, SQL di-regenerate. Lanjutan: lint script tooling PLAN-007 dibersihkan (3 error + 9 warning → 0), smoke test fill-remaining dry-run 327/327 valid, tsc + 43 tes + QA lolos, preview command terkonfigurasi (expo web :8081)",
   "revision_plans": {
     "PLAN-001": "done",
     "PLAN-002": "done",
