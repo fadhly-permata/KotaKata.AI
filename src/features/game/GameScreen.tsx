@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator, Modal, PanResponder, AppState } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Modal, PanResponder, AppState, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -7,7 +7,6 @@ import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
 import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import TooltipButton from "../../presentation/components/common/TooltipButton";
-import TierChangeToast from "../../presentation/components/common/TierChangeToast";
 import ZoomIcon from "../../presentation/components/icons/ZoomIcon";
 import NextIcon from "../../presentation/components/icons/NextIcon";
 import KeyboardIcon from "../../presentation/components/icons/KeyboardIcon";
@@ -55,6 +54,9 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { user } = useAuth();
+  // Lebar jendela — dipakai layout responsif panel aksi (baris wrap saat sempit).
+  const { width: winW, height: winH } = useWindowDimensions();
+  const compactBar = winW < 400;
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
@@ -109,27 +111,6 @@ export default function GameScreen() {
   const useClue3 = useGameStore((s) => s.useClue3);
   const resumeProgress = useGameStore((s) => s.resumeProgress);
   const aiMode = useGameStore((s) => s.aiMode);
-
-  // ─── Notifikasi perubahan tier (naik/turun) saat bermain ───
-  // Pantau tier = calcTier(totalXp + currentXp). Berubah (karena kata selesai
-  // atau pemakaian clue) → tampilkan toast singkat di atas papan.
-  const [tierToast, setTierToast] = useState<{ tier: number; up: boolean } | null>(null);
-  const prevTierRef = useRef<number | null>(null);
-  const profileReady = useGameStore((s) => s.profileReady);
-  useEffect(() => {
-    // Jangan bandingkan tier sebelum profil cloud selesai disinkron: kalau
-    // totalXp naik 0 → XP profil saat layar Game baru terbuka, toast "Naik
-    // ke Tier" palsu bisa muncul padahal pemain tidak baru naik level.
-    if (!profileReady) return;
-    const tier = calcTier(totalXp + currentXp);
-    const prev = prevTierRef.current;
-    prevTierRef.current = tier;
-    if (prev != null && prev !== tier) {
-      setTierToast({ tier, up: tier > prev });
-    }
-  }, [totalXp, currentXp, profileReady]);
-
-
 
   // Show keyboard on first tap to a cell
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -199,7 +180,8 @@ export default function GameScreen() {
     if (prevSelectedCell.current?.row === selectedCell.row && prevSelectedCell.current?.col === selectedCell.col) return;
     prevSelectedCell.current = selectedCell;
 
-    const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+    const screenWidth = winW;
+    const screenHeight = winH;
     const outerMargin = 8;
     const availableWidth = screenWidth - outerMargin;
     const gapsTotal = CELL_GAP * (board.size - 1);
@@ -228,7 +210,7 @@ export default function GameScreen() {
     const targetY = Math.max(0, cellYInContent - viewport / 2);
     const maxScroll = Math.max(0, gridOffsetY + cellSize * board.size + CELL_GAP * (board.size - 1) + GRID_PADDING * 2 - viewport);
     outerScrollRef.current.scrollTo({ y: Math.min(targetY, maxScroll), animated: true });
-  }, [selectedCell, zoomLevel, board, gridOffsetY, outerViewportH]);
+  }, [selectedCell, zoomLevel, board, gridOffsetY, outerViewportH, winW, winH]);
 
   useEffect(() => {
     if (zoomLevel > 1) {
@@ -1037,19 +1019,19 @@ export default function GameScreen() {
             <NumberSquareIcon number={shownClueLevel} size={20} color="#FFF" />
           </TooltipButton>
 
-          {/* Isi clue */}
+          {/* Isi clue — teks utuh (tanpa numberOfLines) supaya tidak pernah
+              terpotong; tinggi pill mengikuti panjang teks. */}
           <View style={styles.clueContent}>
             <View style={styles.clueTextWrap}>
               <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
-              <Text style={styles.clueMain} numberOfLines={2}>
-                {clueLevelText}
-              </Text>
+              <Text style={styles.clueMain}>{clueLevelText}</Text>
             </View>
           </View>
         </View>
 
-        {/* Action Bar + Zoom */}
-        <View style={[styles.actionBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {/* Action Bar + Zoom — flexWrap supaya baris turun (bukan overlap)
+            saat layar sempit; label & divider disembunyikan di mode compact. */}
+        <View style={[styles.actionBar, { flexWrap: "wrap", rowGap: 10 }, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           {/* Zoom Controls (Left) — kaca pembesar + / − */}
           <View style={styles.zoomGroup}>
             <TooltipButton
@@ -1091,11 +1073,15 @@ export default function GameScreen() {
           </View>
 
           {/* Divider */}
-          <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
+          {!compactBar && (
+            <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
+          )}
 
           {/* Reveal Actions (Center) — label statis + 3 tombol icon */}
-          <View style={styles.revealGroup}>
-            <Text style={[styles.clueLabelText, { color: theme.colors.textSecondary }]}>Petunjuk</Text>
+          <View style={[styles.revealGroup, compactBar ? styles.revealGroupCompact : null]}>
+            {!compactBar && (
+              <Text style={[styles.clueLabelText, { color: theme.colors.textSecondary }]}>Petunjuk</Text>
+            )}
 
             {/* Reveal petunjuk — buka clue 2 dulu, lalu 3 (XP potong sekali) */}
             <TooltipButton
@@ -1341,12 +1327,6 @@ export default function GameScreen() {
         )}
       </Modal>
 
-      {/* Notifikasi naik/turun tier saat bermain */}
-      <TierChangeToast
-        tier={tierToast?.tier ?? null}
-        up={tierToast?.up ?? true}
-        onHide={() => setTierToast(null)}
-      />
     </ScreenFade>
   );
 }
@@ -1401,6 +1381,7 @@ const styles = StyleSheet.create({
   zoomLabel: { fontSize: 12, fontWeight: "700", minWidth: 36, textAlign: "center" },
   actionDivider: { width: 1, height: 24, marginHorizontal: 8 },
   revealGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
+  revealGroupCompact: { flexGrow: 1, justifyContent: "space-between" },
   gridOuterWrapper: { marginBottom: 8, borderRadius: 12 },
   gridOuterCentered: { flexGrow: 1, justifyContent: "center" },
   gridScroll: { flexGrow: 0 },

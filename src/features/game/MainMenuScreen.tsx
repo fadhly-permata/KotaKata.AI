@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   Easing,
+  useWindowDimensions,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -29,7 +30,8 @@ import { vocabularyRepository } from "../../data/repositories/vocabularyReposito
 import { userRepository } from "../../data/repositories/userRepository";
 import type { VocabularyDoc, UserDoc } from "../../data/models/schemas";
 import { loggerInfo } from "../../utils/logger";
-import TierChangeToast from "../../presentation/components/common/TierChangeToast";
+import AppModal from "../../presentation/components/common/AppModal";
+import Confetti from "../../presentation/components/common/Confetti";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
@@ -53,6 +55,7 @@ function pickMagicClue(word: VocabularyDoc): string {
 export default function MainMenuScreen() {
   const { theme, isDark } = useTheme();
   const C = theme.colors;
+  const { height: winH } = useWindowDimensions();
   const navigation = useNavigation<Nav>();
   const totalXp = useGameStore((s) => s.totalXp);
   const reset = useGameStore((s) => s.reset);
@@ -213,15 +216,15 @@ export default function MainMenuScreen() {
   const [aiError, setAiError] = useState<string | null>(null);
   const aiAbortRef = useRef<AbortController | null>(null);
 
-  // ─── Notifikasi perubahan tier (naik/turun) di Main Menu ───
+  // ─── Dialog perubahan tier (naik/turun) — HANYA di Main Menu ───
   // Deteksi saat MENU kembali di-fokus (mis. pulang dari layar Game, di mana
   // totalXp diperbarui saat papan selesai). Dua lapis pengaman:
   //   1. profileReady — jangan bandingkan tier sebelum profil cloud disinkron
-  //      (kalau tidak, toast "Naik ke Tier" palsu muncul saat app dibuka
+  //      (kalau tidak, dialog "Naik ke Tier" palsu muncul saat app dibuka
   //      karena totalXp naik 0 → XP profil).
-  //   2. Seed pertama tanpa toast — transisi 0 → XP saat fokus pertama hanya
+  //   2. Seed pertama tanpa dialog — transisi 0 → XP saat fokus pertama hanya
   //      jadi baseline, bukan dianggap "baru naik tier".
-  const [tierToast, setTierToast] = useState<{ tier: number; up: boolean } | null>(null);
+  const [tierDialog, setTierDialog] = useState<{ tier: number; up: boolean } | null>(null);
   const prevTierRef = useRef<number | null>(null);
   const profileReady = useGameStore((s) => s.profileReady);
   useFocusEffect(
@@ -231,10 +234,22 @@ export default function MainMenuScreen() {
       const prev = prevTierRef.current;
       prevTierRef.current = t;
       if (prev != null && prev !== t) {
-        setTierToast({ tier: t, up: t > prev });
+        setTierDialog({ tier: t, up: t > prev });
       }
     }, [totalXp, profileReady]),
   );
+
+  // Informasi visual tier untuk dialog (warna, nama, filosofi) — aman dari
+  // tier di luar rentang (mis. 0/11) dengan clamp.
+  const tierDialogInfo = useMemo(() => {
+    if (!tierDialog) return null;
+    const idx = Math.max(0, Math.min(tierDialog.tier - 1, TIER_COLORS.length - 1));
+    return {
+      color: TIER_COLORS[idx],
+      name: TIER_NAMES[idx],
+      philosophy: TIER_PHILOSOPHIES[idx],
+    };
+  }, [tierDialog]);
 
   // ─── "Daftar Tier" modal state ───
   const [tierListVisible, setTierListVisible] = useState(false);
@@ -300,22 +315,6 @@ export default function MainMenuScreen() {
       setLeaderboardLoadingMore(false);
     }
   }, [leaderboardLoadingMore, leaderboardUsers.length, leaderboardTotal]);
-
-  // Animasi kemunculan popup Kata Ajaib — spring ceria (sedikit memantul).
-  const magicAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (magicVisible) {
-      magicAnim.setValue(0);
-      Animated.spring(magicAnim, {
-        toValue: 1,
-        friction: 7,
-        tension: 90,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [magicVisible, magicAnim]);
-  const magicScale = magicAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
-  const magicTranslateY = magicAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
 
   const loadMagicWord = useCallback(async () => {
     setMagicLoading(true);
@@ -414,6 +413,11 @@ export default function MainMenuScreen() {
   }, [navigation, reset]);
 
   const heroBg = isDark ? "rgba(42,26,48,0.85)" : "rgba(255,255,255,0.7)";
+
+  // Tinggi kartu bento proporsional terhadap layar (layar pendek tidak
+  // membuat konten terpotong / terlalu berjarak).
+  const bentoLargeH = Math.max(120, Math.min(180, winH * 0.24));
+  const bentoSmallH = Math.max(60, Math.min(84, winH * 0.115));
 
   return (
     <ScreenFade style={[styles.root, { backgroundColor: C.background }]}>
@@ -585,7 +589,10 @@ export default function MainMenuScreen() {
             {/* Kolom kiri: Profil (besar) + Pengaturan (kecil) */}
             <View style={styles.bentoCol}>
               <TouchableOpacity
-                style={[styles.bentoLargeCard, { backgroundColor: "#FF8A65" }]}
+                style={[
+                  styles.bentoLargeCard,
+                  { backgroundColor: "#FF8A65", height: bentoLargeH },
+                ]}
                 activeOpacity={0.8}
                 onPress={() => {
                   play("tap");
@@ -599,7 +606,10 @@ export default function MainMenuScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.bentoSmallCard, { backgroundColor: "#74B9FF" }]}
+                style={[
+                  styles.bentoSmallCard,
+                  { backgroundColor: "#74B9FF", height: bentoSmallH },
+                ]}
                 activeOpacity={0.8}
                 onPress={() => {
                   play("tap");
@@ -616,7 +626,10 @@ export default function MainMenuScreen() {
             {/* Kolom kanan: Kata Ditemukan (kecil) + Sejarah Permainan (besar) */}
             <View style={styles.bentoCol}>
               <TouchableOpacity
-                style={[styles.bentoSmallCard, { backgroundColor: "#00B894" }]}
+                style={[
+                  styles.bentoSmallCard,
+                  { backgroundColor: "#00B894", height: bentoSmallH },
+                ]}
                 activeOpacity={0.8}
                 onPress={() => {
                   play("tap");
@@ -630,7 +643,10 @@ export default function MainMenuScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.bentoLargeCard, { backgroundColor: "#8E6CC9" }]}
+                style={[
+                  styles.bentoLargeCard,
+                  { backgroundColor: "#8E6CC9", height: bentoLargeH },
+                ]}
                 activeOpacity={0.8}
                 onPress={() => {
                   play("tap");
@@ -648,78 +664,45 @@ export default function MainMenuScreen() {
       </ScrollView>
 
       {/* ─── Popup "Kata Ajaib" ─── */}
-      <Modal
+      <AppModal
         visible={magicVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMagicVisible(false)}
+        title="✨ Kata Ajaib"
+        onClose={() => setMagicVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.magicOverlay}
-          activeOpacity={1}
-          onPress={() => setMagicVisible(false)}
-        >
-          <Animated.View
-            style={[
-              styles.magicCard,
-              {
-                backgroundColor: C.surface,
-                opacity: magicAnim,
-                transform: [{ scale: magicScale }, { translateY: magicTranslateY }],
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
-            <TouchableOpacity
-              style={styles.modalCloseBtn}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => {
-                play("tap");
-                setMagicVisible(false);
-              }}
-            >
-              <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.magicEmoji}>✨</Text>
-            <Text style={[styles.magicTitle, { color: C.primary }]}>Kata Ajaib</Text>
-
-            {magicLoading ? (
-              <ActivityIndicator color={C.primary} style={styles.magicLoading} />
-            ) : magicError ? (
-              <Text style={[styles.magicError, { color: C.error }]}>
-                Gagal mengambil kata. Periksa koneksi lalu coba lagi.
-              </Text>
-            ) : magicWord ? (
-              <>
-                <Text style={[styles.magicWord, { color: C.text }]}>{magicWord.word}</Text>
-                <Text style={[styles.magicTier, { color: C.textSecondary }]}>
-                  Tier {magicWord.tier_level}
-                </Text>
-                <View style={[styles.magicClueBox, { backgroundColor: C.secondaryContainer }]}>
-                  <Text style={[styles.magicClue, { color: C.text }]}>{magicClue}</Text>
-                </View>
-              </>
-            ) : null}
-
-            <View style={styles.magicButtons}>
-              <TouchableOpacity
-                style={[styles.magicBtn, { backgroundColor: C.primary }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  play("tap");
-                  void loadMagicWord();
-                }}
-                disabled={magicLoading}
-              >
-                <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>
-                  {magicLoading ? "Memuat…" : "🔄 Kata Lain"}
-                </Text>
-              </TouchableOpacity>
+        {magicLoading ? (
+          <ActivityIndicator color={C.primary} style={styles.magicLoading} />
+        ) : magicError ? (
+          <Text style={[styles.magicError, { color: C.error }]}>
+            Gagal mengambil kata. Periksa koneksi lalu coba lagi.
+          </Text>
+        ) : magicWord ? (
+          <>
+            <Text style={[styles.magicWord, { color: C.text }]}>{magicWord.word}</Text>
+            <Text style={[styles.magicTier, { color: C.textSecondary }]}>
+              Tier {magicWord.tier_level}
+            </Text>
+            <View style={[styles.magicClueBox, { backgroundColor: C.secondaryContainer }]}>
+              <Text style={[styles.magicClue, { color: C.text }]}>{magicClue}</Text>
             </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
+          </>
+        ) : null}
+
+        <View style={styles.magicButtons}>
+          <TouchableOpacity
+            style={[styles.magicBtn, { backgroundColor: C.primary }]}
+            activeOpacity={0.7}
+            onPress={() => {
+              play("tap");
+              void loadMagicWord();
+            }}
+            disabled={magicLoading}
+          >
+            <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>
+              {magicLoading ? "Memuat…" : "🔄 Kata Lain"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </AppModal>
 
       {/* ─── Konfirmasi provider AI belum diatur ─── */}
       <ConfirmDialog
@@ -768,178 +751,102 @@ export default function MainMenuScreen() {
       </Modal>
 
       {/* ─── Error: soal AI gagal dimuat ─── */}
-      <Modal
+      <AppModal
         visible={aiError !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAiError(null)}
+        title="😕 Soal AI Gagal Dimuat"
+        onClose={() => setAiError(null)}
       >
-        <TouchableOpacity
-          style={styles.aiOverlay}
-          activeOpacity={1}
-          onPress={() => setAiError(null)}
-        >
-          <View
-            style={[styles.aiCard, { backgroundColor: C.surface }]}
-            onStartShouldSetResponder={() => true}
+        <Text style={[styles.aiErrorMsg, { color: C.textSecondary }]}>{aiError}</Text>
+        <Text style={[styles.aiErrorHint, { color: C.textSecondary }]}>
+          Periksa pengaturan provider, atau main mode normal dulu.
+        </Text>
+        <View style={styles.aiErrorButtons}>
+          <TouchableOpacity
+            style={[styles.aiErrorBtn, { backgroundColor: C.primary }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              play("tap");
+              setAiError(null);
+              void handlePlayAi();
+            }}
           >
-            <TouchableOpacity
-              style={styles.modalCloseBtn}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => {
-                play("tap");
-                setAiError(null);
-              }}
-            >
-              <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.aiEmoji}>😕</Text>
-            <Text style={[styles.aiErrorTitle, { color: C.text }]}>Soal AI Gagal Dimuat</Text>
-            <Text style={[styles.aiErrorMsg, { color: C.textSecondary }]}>{aiError}</Text>
-            <Text style={[styles.aiErrorHint, { color: C.textSecondary }]}>
-              Periksa pengaturan provider, atau main mode normal dulu.
+            <Text style={styles.aiErrorBtnPrimaryText}>🔄 Coba Lagi</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.aiErrorBtn, { backgroundColor: C.secondaryContainer }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              play("tap");
+              setAiError(null);
+              reset();
+              navigation.navigate("Game");
+            }}
+          >
+            <Text style={[styles.aiErrorBtnSecondaryText, { color: C.secondary }]}>
+              🎮 Main Mode Normal
             </Text>
-            <View style={styles.aiErrorButtons}>
-              <TouchableOpacity
-                style={[styles.aiErrorBtn, { backgroundColor: C.primary }]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  play("tap");
-                  setAiError(null);
-                  void handlePlayAi();
-                }}
-              >
-                <Text style={styles.aiErrorBtnPrimaryText}>🔄 Coba Lagi</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.aiErrorBtn, { backgroundColor: C.secondaryContainer }]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  play("tap");
-                  setAiError(null);
-                  reset();
-                  navigation.navigate("Game");
-                }}
-              >
-                <Text style={[styles.aiErrorBtnSecondaryText, { color: C.secondary }]}>
-                  🎮 Main Mode Normal
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          </TouchableOpacity>
+        </View>
+      </AppModal>
 
       {/* ─── Popup Daftar Tier (highlight tier player) ─── */}
-      <Modal
+      <AppModal
         visible={tierListVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTierListVisible(false)}
+        title="🏆 Daftar Tier"
+        onClose={() => setTierListVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.tierOverlay}
-          activeOpacity={1}
-          onPress={() => setTierListVisible(false)}
+        <ScrollView
+          style={styles.tierModalScroll}
+          contentContainerStyle={styles.tierModalContent}
+          showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[styles.tierModal, { backgroundColor: C.surface }]}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.modalHeaderRow}>
-              <Text style={[styles.tierModalTitle, { color: C.text }]}>🏆 Daftar Tier</Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => {
-                  play("tap");
-                  setTierListVisible(false);
-                }}
+          {TIER_THRESHOLDS.map((threshold, i) => {
+            const tierNo = i + 1;
+            const isCurrent = tierNo === currentTier;
+            const color = TIER_COLORS[i];
+            return (
+              <View
+                key={tierNo}
+                style={[
+                  styles.tierRow,
+                  {
+                    backgroundColor: isCurrent ? color + "1A" : C.secondaryContainer,
+                    borderColor: isCurrent ? color : C.border,
+                  },
+                ]}
               >
-                <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.tierModalScroll}
-              contentContainerStyle={styles.tierModalContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {TIER_THRESHOLDS.map((threshold, i) => {
-                const tierNo = i + 1;
-                const isCurrent = tierNo === currentTier;
-                const color = TIER_COLORS[i];
-                return (
-                  <View
-                    key={tierNo}
-                    style={[
-                      styles.tierRow,
-                      {
-                        backgroundColor: isCurrent ? color + "1A" : C.secondaryContainer,
-                        borderColor: isCurrent ? color : C.border,
-                      },
-                    ]}
-                  >
-                    <View style={[styles.tierDot, { backgroundColor: color }]} />
-                    <View style={styles.tierRowCol}>
-                      <View style={styles.tierRowTop}>
-                        <Text style={[styles.tierRowName, { color: C.text }]} numberOfLines={1}>
-                          Tier {tierNo} · {TIER_NAMES[i]}
-                        </Text>
-                        {isCurrent ? (
-                          <Text style={[styles.tierRowYou, { color }]}>Kamu di sini</Text>
-                        ) : null}
-                      </View>
-                      <Text style={[styles.tierRowXp, { color: C.textSecondary }]}>
-                        {threshold.toLocaleString("id-ID")} XP
-                      </Text>
-                      <Text style={[styles.tierRowPhil, { color: C.textSecondary }]}>
-                        {TIER_PHILOSOPHIES[i]}
-                      </Text>
-                    </View>
+                <View style={[styles.tierDot, { backgroundColor: color }]} />
+                <View style={styles.tierRowCol}>
+                  <View style={styles.tierRowTop}>
+                    <Text style={[styles.tierRowName, { color: C.text }]} numberOfLines={1}>
+                      Tier {tierNo} · {TIER_NAMES[i]}
+                    </Text>
+                    {isCurrent ? (
+                      <Text style={[styles.tierRowYou, { color }]}>Kamu di sini</Text>
+                    ) : null}
                   </View>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                  <Text style={[styles.tierRowXp, { color: C.textSecondary }]}>
+                    {threshold.toLocaleString("id-ID")} XP
+                  </Text>
+                  <Text style={[styles.tierRowPhil, { color: C.textSecondary }]}>
+                    {TIER_PHILOSOPHIES[i]}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </AppModal>
 
       {/* ─── Popup Leaderboard — lazy-load 25/halaman, posisi user di atas Tutup ─── */}
-      <Modal
+      <AppModal
         visible={leaderboardVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLeaderboardVisible(false)}
+        title="🏅 Leaderboard"
+        onClose={() => setLeaderboardVisible(false)}
       >
-        {/* Tap di luar kartu → tutup modal */}
-        <TouchableOpacity
-          style={styles.tierOverlay}
-          activeOpacity={1}
-          onPress={() => setLeaderboardVisible(false)}
-        >
-          <View
-            style={[styles.tierModal, { backgroundColor: C.surface }]}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.modalHeaderRow}>
-              <Text style={[styles.tierModalTitle, { color: C.text }]}>🏅 Leaderboard</Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => {
-                  play("tap");
-                  setLeaderboardVisible(false);
-                }}
-              >
-                <Text style={[styles.modalCloseIcon, { color: C.textSecondary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.lbSubtitle, { color: C.textSecondary }]}>
-              Urutan berdasarkan level (XP) & waktu kenaikan.
-            </Text>
+        <Text style={[styles.lbSubtitle, { color: C.textSecondary }]}>
+          Urutan berdasarkan level (XP) & waktu kenaikan.
+        </Text>
             {leaderboardLoading ? (
               <ActivityIndicator color={C.primary} style={styles.lbLoading} />
             ) : leaderboardError ? (
@@ -1043,16 +950,34 @@ export default function MainMenuScreen() {
                 </View>
               </View>
             )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </AppModal>
 
-      {/* Notifikasi naik/turun tier di Main Menu */}
-      <TierChangeToast
-        tier={tierToast?.tier ?? null}
-        up={tierToast?.up ?? true}
-        onHide={() => setTierToast(null)}
-      />
+      {/* ─── Dialog perubahan tier — HANYA di Main Menu ───
+          Naik: konfeti 🎉. Turun: hujan murung 🌧️. Notifikasi tier tidak
+          lagi muncul di layar Game / dialog permainan selesai. */}
+      {tierDialog && tierDialogInfo && (
+        <AppModal
+          visible
+          title={tierDialog.up ? "🎉 TIER UP!" : "Tier Turun"}
+          onClose={() => setTierDialog(null)}
+        >
+          {tierDialog.up ? <Confetti /> : <Confetti sad count={36} duration={3400} />}
+          <View style={styles.tierDialogBody}>
+            <Text style={styles.tierDialogEmoji}>{tierDialog.up ? "🏆" : "🌧️"}</Text>
+            <Text style={[styles.tierDialogName, { color: tierDialogInfo.color }]}>
+              Tier {tierDialog.tier} — {tierDialogInfo.name}
+            </Text>
+            <Text style={[styles.tierDialogPhil, { color: C.textSecondary }]}>
+              {tierDialogInfo.philosophy}
+            </Text>
+            <Text style={[styles.tierDialogMsg, { color: C.textSecondary }]}>
+              {tierDialog.up
+                ? "Selamat! Levelmu naik — lanjutkan mengukir kata-kata indah. 🏆"
+                : "XP kamu berkurang, level turun. Jangan menyerah — tetap ukir kata-kata indah."}
+            </Text>
+          </View>
+        </AppModal>
+      )}
     </ScreenFade>
   );
 }
@@ -1260,23 +1185,6 @@ const styles = StyleSheet.create({
   bentoSmallLabel: { fontSize: 13, fontWeight: "700" },
 
   /* ─── Popup Kata Ajaib ─── */
-  magicOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  magicCard: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 18,
-    padding: 24,
-    alignItems: "center",
-    gap: 10,
-  },
-  magicEmoji: { fontSize: 40 },
-  magicTitle: { fontSize: 18, fontWeight: "800" },
   magicLoading: { marginVertical: 24 },
   magicError: { fontSize: 13, textAlign: "center", marginVertical: 12 },
   magicWord: { fontSize: 34, fontWeight: "900", letterSpacing: -0.5, textAlign: "center" },
@@ -1329,7 +1237,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   aiCancelText: { fontSize: 14, fontWeight: "700" },
-  aiErrorTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
   aiErrorMsg: { fontSize: 13, lineHeight: 19, textAlign: "center" },
   aiErrorHint: { fontSize: 12, lineHeight: 17, textAlign: "center" },
   aiErrorButtons: { gap: 8, width: "100%", marginTop: 6 },
@@ -1338,39 +1245,6 @@ const styles = StyleSheet.create({
   aiErrorBtnSecondaryText: { fontSize: 13, fontWeight: "700" },
 
   /* ─── Daftar Tier & Leaderboard Modals ─── */
-  tierOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  tierModal: {
-    width: "100%",
-    maxWidth: 380,
-    maxHeight: "85%",
-    borderRadius: 18,
-    padding: 20,
-    gap: 12,
-  },
-  tierModalTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
-  modalHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  modalCloseBtn: {
-    position: "absolute",
-    right: 0,
-    top: -2,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalCloseIcon: { fontSize: 16, fontWeight: "800", lineHeight: 18 },
   tierModalScroll: { flexGrow: 0 },
   tierModalContent: { gap: 8, paddingBottom: 4 },
   lbLoadMore: { marginVertical: 10 },
@@ -1421,4 +1295,11 @@ const styles = StyleSheet.create({
   lbName: { fontSize: 14, fontWeight: "800" },
   lbTier: { fontSize: 11, fontWeight: "700" },
   lbXp: { fontSize: 13, fontWeight: "800" },
+
+  /* ─── Dialog perubahan tier ─── */
+  tierDialogBody: { alignItems: "center", gap: 8, paddingVertical: 4 },
+  tierDialogEmoji: { fontSize: 48 },
+  tierDialogName: { fontSize: 18, fontWeight: "900", textAlign: "center" },
+  tierDialogPhil: { fontSize: 12, lineHeight: 18, textAlign: "center", fontStyle: "italic" },
+  tierDialogMsg: { fontSize: 13, lineHeight: 19, textAlign: "center" },
 });

@@ -8,7 +8,7 @@ import {
   FlatList,
   Modal,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -39,6 +39,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 
 export default function HistoryScreen() {
   const { theme } = useTheme();
+  const { height: winH } = useWindowDimensions();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -299,7 +300,12 @@ export default function HistoryScreen() {
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} onPress={() => setSelected(null)} />
-          <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: theme.colors.surface, maxHeight: winH * 0.6 },
+            ]}
+          >
             {selected && (
               <ScrollView contentContainerStyle={styles.sheetContent}>
                 <View style={styles.sheetHeader}>
@@ -390,7 +396,6 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: Dimensions.get("window").height * 0.6,
     paddingBottom: 32,
   },
   sheetContent: { padding: 24, gap: 12 },

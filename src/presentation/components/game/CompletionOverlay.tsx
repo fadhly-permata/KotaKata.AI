@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { TIER_NAMES, TIER_PHILOSOPHIES, TIER_COLORS } from "../../../domain/usecases/xpEngine";
+import Confetti from "../common/Confetti";
 
 interface BoardResult {
   totalWords: number;
@@ -67,9 +67,6 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
     return () => floatLoop.stop();
   }, []);
 
-  const tierColor = TIER_COLORS[Math.max(0, result.newTier - 1)];
-  const tierName = TIER_NAMES[Math.max(0, result.newTier - 1)];
-  const tierPhilosophy = TIER_PHILOSOPHIES[Math.max(0, result.newTier - 1)];
   const minutes = Math.floor(result.timeElapsed / 60000);
   const seconds = Math.floor((result.timeElapsed % 60000) / 1000);
 
@@ -77,6 +74,8 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
 
   return (
     <View style={styles.wrapper}>
+      {/* Konfeti perayaan di belakang dialog (tidak menghalangi tap tombol). */}
+      <Confetti />
       {/* Backdrop memudar masuk pelan. */}
       <Animated.View
         style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropAnim }]}
@@ -94,22 +93,11 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
         <Animated.Text
           style={[styles.emoji, { transform: [{ translateY: floatTranslate }] }]}
         >
-          {result.tierChanged ? "🌟" : "✨"}
+          ✨
         </Animated.Text>
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          {result.tierChanged ? "TIER UP!" : "Papan Selesai!"}
+          Papan Selesai!
         </Text>
-
-        {result.tierChanged && (
-          <View style={[styles.tierBadge, { backgroundColor: tierColor + "20" }]}>
-            <Text style={[styles.tierLabel, { color: tierColor }]}>
-              Tier {result.newTier}: {tierName}
-            </Text>
-            <Text style={[styles.tierPhilosophy, { color: theme.colors.textSecondary }]}>
-              {tierPhilosophy}
-            </Text>
-          </View>
-        )}
 
         {aiMode && (
           <View style={[styles.aiNote, { backgroundColor: theme.colors.secondaryContainer }]}>
@@ -200,15 +188,6 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 48 },
   title: { fontSize: 24, fontWeight: "800", letterSpacing: 1 },
-  tierBadge: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    gap: 8,
-    width: "100%",
-  },
-  tierLabel: { fontSize: 16, fontWeight: "700" },
-  tierPhilosophy: { fontSize: 12, textAlign: "center", lineHeight: 18, fontStyle: "italic" },
   aiNote: {
     width: "100%",
     paddingHorizontal: 12,

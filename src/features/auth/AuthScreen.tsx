@@ -10,7 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Dimensions,
+  Easing,
+  useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -20,8 +21,6 @@ import type { RootStackParamList } from "../../presentation/navigation/RootNavig
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type AuthMode = "select" | "email";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // LoginScreen.html inspired palette
 const AUTH_LIGHT = {
@@ -93,27 +92,88 @@ export default function AuthScreen() {
   ]).current;
   const footerOpacity = useRef(new Animated.Value(0)).current;
 
-  // Orb animations
-  const orb1Anim = useRef(new Animated.Value(0)).current;
-  const orb2Anim = useRef(new Animated.Value(0)).current;
+  const { width: winW, height: winH } = useWindowDimensions();
+  // Parallax orb saat scroll — sama seperti main menu (Animated.event).
+  const scrollY = useRef(new Animated.Value(0)).current;
 
+  // Orb animations — idle bounce dengan fase & durasi berbeda supaya terlihat
+  // hidup (dulu hanya float 12–15s yang nyaris tidak terasa).
+  const orbBounce = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
   useEffect(() => {
-    // Orb floating animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(orb1Anim, { toValue: 1, duration: 12000, useNativeDriver: true }),
-        Animated.timing(orb1Anim, { toValue: 0, duration: 12000, useNativeDriver: true }),
-      ]),
-    ).start();
+    const loops = orbBounce.map((anim, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 1600 + i * 400,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 1600 + i * 400,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    );
+    const starts = loops.map((loop, i) => setTimeout(() => loop.start(), i * 500));
+    return () => {
+      loops.forEach((l) => l.stop());
+      starts.forEach(clearTimeout);
+    };
+  }, [orbBounce]);
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(orb2Anim, { toValue: 1, duration: 15000, useNativeDriver: true }),
-        Animated.timing(orb2Anim, { toValue: 0, duration: 15000, useNativeDriver: true }),
-      ]),
-    ).start();
+  // Ukuran orb proporsional terhadap layar (HP kecil s/d tablet/web lebar).
+  const orbSize = (base: number) =>
+    Math.min(base, Math.max(88, Math.min(winW, winH) * 0.32));
+  const orbSpecs = [
+    {
+      size: orbSize(180),
+      color: C.orbPink,
+      top: -64,
+      left: -64,
+      bounce: [0, -16],
+      parallax: [0, -70],
+      opacity: 0.55,
+    },
+    {
+      size: orbSize(220),
+      color: C.orbBlue,
+      bottom: -80,
+      right: -64,
+      bounce: [0, 14],
+      parallax: [0, -100],
+      opacity: 0.5,
+    },
+    {
+      size: orbSize(120),
+      color: C.orbPurple,
+      top: "36%",
+      right: "-8%",
+      bounce: [0, -10],
+      parallax: [0, -50],
+      opacity: 0.45,
+    },
+    {
+      size: orbSize(84),
+      color: C.orbPink,
+      top: "58%",
+      left: "-4%",
+      bounce: [0, 9],
+      parallax: [0, -40],
+      opacity: 0.4,
+    },
+  ];
 
-    // Entrance stagger
+  // Entrance animations — logo, judul, tombol, dan footer muncul bertahap.
+  useEffect(() => {
     Animated.stagger(180, [
       Animated.parallel([
         Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
@@ -193,64 +253,55 @@ export default function AuthScreen() {
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-      {/* Floating decorative orbs */}
-      <Animated.View
-        style={[
-          styles.orb,
-          {
-            width: 180,
-            height: 180,
-            backgroundColor: C.orbPink,
-            top: -60,
-            left: -60,
-            transform: [
+      {/* Floating decorative orbs — parallax + idle bounce (tidak menghalangi tap) */}
+      <View style={styles.orbLayer} pointerEvents="none">
+        {orbSpecs.map((spec, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              styles.orb,
               {
-                translateY: orb1Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -40],
-                }),
+                width: spec.size,
+                height: spec.size,
+                backgroundColor: spec.color,
+                opacity: spec.opacity,
+                top: spec.top as any,
+                left: spec.left as any,
+                right: spec.right as any,
+                bottom: spec.bottom as any,
+                transform: [
+                  {
+                    translateY: scrollY.interpolate({
+                      inputRange: [0, 300],
+                      outputRange: spec.parallax,
+                      extrapolate: "clamp",
+                    }),
+                  },
+                  {
+                    translateY: orbBounce[i].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: spec.bounce,
+                    }),
+                  },
+                ],
               },
-              {
-                scale: orb1Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 1.3],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.orb,
-          {
-            width: 220,
-            height: 220,
-            backgroundColor: C.orbBlue,
-            bottom: -80,
-            right: -60,
-            transform: [
-              {
-                translateY: orb2Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 40],
-                }),
-              },
-              {
-                scale: orb2Anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 1.2],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
+            ]}
+          />
+        ))}
+      </View>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingVertical: winH < 700 ? 24 : 48 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+        scrollEventThrottle={16}
       >
         {/* ── Logo & Branding ── */}
         <Animated.View
@@ -489,10 +540,14 @@ const styles = StyleSheet.create({
   },
 
   // Floating orbs
+  orbLayer: {
+    ...StyleSheet.absoluteFill,
+    overflow: "hidden",
+    zIndex: 0,
+  },
   orb: {
     position: "absolute",
     borderRadius: 999,
-    opacity: 0.5,
   },
 
   // Splash

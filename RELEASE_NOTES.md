@@ -17,6 +17,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-006** | ✅ done | Log Cloud, Kirim Log, Detail Debug, Fix Statistik, Leaderboard Lazy & Dialog Close | 7 langkah: lint 0 warning, tabel `user_log_reports` + kirim log error/warning ke Supabase, stacktrace & inner exception tersimpan (UI tetap ringkas), fix "Kata Terpecahkan" (cloud count), leaderboard lazy-load 25/halaman + posisi user, tombol Tutup → icon [x] + tap di luar |
 | **PLAN-007** | ✅ done | Review Semua Clue via Script Riset KBBI | 7 langkah: script `research-clues.mjs` (dump KBBI lokal → KBBI web.id → Bing → Google), generator 3 kolom anti-leak/anti-duplikat, override manual, riset online ~980 kata (213 di-rescue), fallback per-kolom QA-aware, QA checker "memuat" dipertegas, rebuild bersih: **0 issue QA semua tier**, placeholder **2472 → 327**; **penutup 7.b**: sisa 327 placeholder "Merupakan kata X" di tier 6–10 dihapus tuntas via `fill-remaining.mjs` + map kurasi `remaining/*.mjs` (c2/c3 dari pengetahuan umum, c1 truncated ikut diperbaiki) → **placeholder 0**, QA 0 issue, SQL di-regenerate |
 | **PLAN-008** | ✅ done | Sejarah Permainan Lazy-Load (paging saat scroll) | 3 langkah: `boardRepository.getFinished` dukung paging `{limit, offset}` via `range()` (default 25) + `countFinished()` untuk label total; `GameHistoryScreen` refactor ScrollView → **FlatList lazy-load** (paging 25, `onEndReached` + `onScroll` fallback, guard refs + token anti-basi, footer spinner / tombol manual / "— Akhir riwayat —", header total, empty/error + tombol Coba lagi) — pola sama dengan halaman Kata Ditemukan; verifikasi tsc + 43 tes + lint lolos |
+| **PLAN-009** | ✅ done | Responsif UI + Orb Login + In-Game + Dialog Seragam + Konfeti + Dialog Tier | 9 langkah: responsivitas lintas resolusi (`useWindowDimensions` di Auth/History/Game/MainMenu; orb, bento, padding proporsional), **orb login animated** (4 orb bounce + parallax scroll), **clue in-game terbaca penuh** (tanpa `numberOfLines`), **action bar responsif** (flexWrap + mode compact <400px), komponen **`AppModal`** seragam (header + tombol ✕ + tap di luar tutup) dipakai semua popup, **konfeti ringan** (Animated, web-safe) di dialog permainan selesai, **hapus semua notifikasi tier** (toast + "TIER UP!"), **dialog perubahan tier baru HANYA di main menu** (naik = konfeti 🎉, turun = hujan murung 🌧️); verifikasi tsc + 43 tes + lint lolos |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
@@ -116,6 +117,17 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🛠 **Fallback per-kolom QA-aware**: modernisasi singkatan `pd/dl/thd` → `pada/dalam/terhadap`, kurung gantung ditutup, penanda dibuang — ditolak bila menciptakan duplikat; placeholder diisi bahan riset (senses/contoh/fragmen/sinonim)
 - 🎯 **QA checker dipertegas** (`check-clue-quality.mjs`): aturan "memuat" hanya dihitung bila kedua kolom ≥ 12 huruf (frasa) — kata tunggal yang wajar di definisi tidak lagi salah-flag, duplikat frasa nyata tetap terdeteksi; pipeline memakai semantik yang sama
 - ✅ **Hasil akhir**: **0 issue QA semua tier**, placeholder **2472 → 327** (sisa = kata ultra-langka berdefinisi tunggal — batas maksimal bahan KBBI), singkatan modern, kurung gantung ditutup, ~3051 baris clue ditulis ulang; `supabase/data/vocabulary.sql` di-regenerate
+
+### v0.11.0 — Responsif UI, Orb Login, Dialog Seragam & Konfeti (PLAN-009)
+
+- 📐 **Responsivitas lintas resolusi**: `Dimensions.get()` di scope modul diganti `useWindowDimensions()` (reactive) di halaman Auth, History, dan In-Game; ukuran orb login, kartu bento main menu, dan padding halaman menyesuaikan tinggi/lebar layar (HP kecil s/d tablet/web lebar) — tidak ada lagi konten terpotong/overlap
+- 🟣 **Orb login animated**: 4 orb dekoratif dengan idle bounce (fase & durasi berbeda, Easing) + parallax saat scroll — tidak lagi terasa statis seperti dulu
+- 📖 **Clue In-Game terbaca lengkap**: `numberOfLines={2}` dihapus — teks clue panjang tidak lagi terpotong (tinggi panel soal mengikuti teks, halaman tetap bisa scroll)
+- 🔍 **Action bar responsif**: panel zoom/reveal/reset/keyboard kini `flexWrap` + mode compact (lebar < 400px) — komponen tidak lagi overlap/terpotong di layar sempit
+- 🗂 **Dialog seragam (`AppModal`)**: satu komponen modal bersama (header + tombol [✕] konsisten + tap di luar menutup) dipakai popup Kata Ajaib, Daftar Tier, Leaderboard, error Mode AI, dan dialog tier — menghapus gaya close yang berbeda-beda antar jendela
+- 🎊 **Konfeti**: efek partikel ringan (Animated murni, tanpa dependency baru, jalan di web) pada dialog **Permainan Selesai** dan popup tier naik
+- 🔕 **Notifikasi tier dibersihkan**: toast `TierChangeToast` (Main Menu & Game) dan blok "TIER UP!" di dialog selesai dihapus — informasi naik/turun tier dipusatkan ke satu tempat
+- 🏆 **Dialog perubahan tier (hanya Main Menu)**: popup baru saat tier berubah setelah kembali ke menu — **naik**: judul "TIER UP! 🎉" + konfeti + nama/filosofi tier; **turun**: hujan murung 🌧️ + pesan penyemangat
 
 ### v0.10.0 — Sejarah Permainan Lazy-Load (PLAN-008)
 
