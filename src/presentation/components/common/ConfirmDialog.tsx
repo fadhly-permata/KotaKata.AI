@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
+import { useEscapeClose } from "./useEscapeClose";
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -31,6 +32,9 @@ export default function ConfirmDialog({
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(18)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+
+  // ESC (web) = Batal — membatalkan dialog konfirmasi tanpa aksi berbahaya.
+  useEscapeClose(visible, onCancel);
 
   useEffect(() => {
     if (visible) {

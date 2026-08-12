@@ -58,6 +58,9 @@ KBBI ("Verba kata kerja"). Diminta dibuat **script** yang meneliti tiap kata
   bahan KBBI), singkatan modern, kurung ditutup. Sisa ~312 flag audit =
   abbrev di kolom kata 1-material (modernisasi akan menciptakan duplikat
   persis — dibiarkan demi QA 0).
+- **7a.** 2026-08-12: **Singkatan kuno (`pd/dl/krn/dgn/yg/dll/…`) DIABAIKAN di
+  plan ini** — ditunda & ditindaklanjuti di **PLAN-011** (bersihkan singkatan
+  kuno di semua clue tier). Audit DB saat itu: ±233–276 row masih memuatnya.
 - **6.** 2026-08-10: Aturan `memuat` di-checker & pipeline disamakan
   (`a.length>=12 && b.length>=12`); kata tunggal yang wajar di definisi tidak
   lagi salah-flag, duplikat frasa nyata tetap terdeteksi.

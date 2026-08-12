@@ -214,7 +214,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 
 **XP & Tier**
 
-- **Bisakah total XP berkurang karena hint?** Tidak. Penalti clue/reveal hanya memotong XP sesi papan itu (neto di-clamp ≥ 0); XP kumulatif akun tidak pernah turun karena hint.
+- **Bisakah total XP berkurang karena hint?** Ya, jika penaltinya nyata. Clue 2/3, reveal huruf, dan reveal kata memotong XP secara permanen dari total akun (neto sesi papan — XP kata dikurangi penalti — dihitung saat papan selesai dan di-clamp agar tidak negatif). Pakai hint berlebihan bisa menurunkan tier; gunakan bijak.
 - **Kata yang semua hurufnya di-reveal dapat XP?** Tidak — full-reveal dianggap selesai (papan tidak macet) tapi tidak memberi XP.
 - **Kenapa soal di papan baru terasa lebih sulit?** Kamu mungkin baru naik tier. Papan mengambil kosakata sesuai tier aktif (1000 kata per tier, 10 tier).
 - **Kenapa ada clue berawalan "Kata serapan dari bahasa …"?** Itu penanda asal bahasa (serapan asing / bahasa daerah Nusantara) yang terverifikasi dari KBBI.

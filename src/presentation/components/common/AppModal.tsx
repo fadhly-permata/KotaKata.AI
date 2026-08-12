@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
+import Confetti from "./Confetti";
+import { useEscapeClose } from "./useEscapeClose";
 
 interface AppModalProps {
   visible: boolean;
@@ -21,6 +23,8 @@ interface AppModalProps {
   dismissable?: boolean;
   /** Lebar maksimal kartu (default 380). */
   maxWidth?: number;
+  /** Efek konfeti/hujan SELURUH LAYAR di belakang dialog (tidak menghalangi tap). */
+  confetti?: "celebrate" | "sad";
 }
 
 /**
@@ -38,6 +42,7 @@ export default function AppModal({
   children,
   dismissable = true,
   maxWidth = 380,
+  confetti,
 }: AppModalProps) {
   const { theme } = useTheme();
   const C = theme.colors;
@@ -62,6 +67,9 @@ export default function AppModal({
     ]).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // ESC (web) menutup dialog — sama seperti tap di luar / tombol [✕].
+  useEscapeClose(visible && dismissable, onClose);
 
   const cardWidth = Math.min(maxWidth, winW - 40);
 
@@ -106,6 +114,10 @@ export default function AppModal({
           {children}
         </Animated.View>
       </TouchableOpacity>
+      {/* Konfeti/hujan SELURUH LAYAR — dirender PALING ATAS (di atas backdrop
+          & kartu) supaya meriah, pointerEvents none di dalam Confetti jadi
+          tidak menghalangi tap tombol dialog. */}
+      {confetti && <Confetti sad={confetti === "sad"} />}
     </Modal>
   );
 }

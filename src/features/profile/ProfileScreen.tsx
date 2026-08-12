@@ -21,6 +21,7 @@ import { useAuth } from "../auth/useAuth";
 import { calcTier, TIER_NAMES } from "../../domain/usecases/xpEngine";
 import { userRepository } from "../../data/repositories/userRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
+import { boardRepository } from "../../data/repositories/boardRepository";
 import { clearDeviceId } from "../../utils/deviceIdentity";
 import { play } from "../../utils/sound";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
@@ -52,13 +53,19 @@ export default function ProfileScreen() {
   // menampilkan 404 kata). Sumber kebenaran adalah tabel word_discoveries.
   const [wordsSolved, setWordsSolved] = useState(0);
   const [wordsSolvedLoading, setWordsSolvedLoading] = useState(true);
+  // ─── Jumlah papan selesai (label "Sejarah Permainan") dari saved_boards ───
+  const [finishedBoards, setFinishedBoards] = useState(0);
+  const [finishedBoardsLoading, setFinishedBoardsLoading] = useState(true);
   useFocusEffect(
     useCallback(() => {
       let active = true;
       setWordsSolvedLoading(true);
+      setFinishedBoardsLoading(true);
       if (!user?.id) {
         setWordsSolved(0);
+        setFinishedBoards(0);
         setWordsSolvedLoading(false);
+        setFinishedBoardsLoading(false);
         return () => {
           active = false;
         };
@@ -73,6 +80,17 @@ export default function ProfileScreen() {
         })
         .finally(() => {
           if (active) setWordsSolvedLoading(false);
+        });
+      boardRepository
+        .countFinished(user.id)
+        .then((n) => {
+          if (active) setFinishedBoards(n);
+        })
+        .catch(() => {
+          // Offline/gagal — biarkan nilai terakhir.
+        })
+        .finally(() => {
+          if (active) setFinishedBoardsLoading(false);
         });
       return () => {
         active = false;
@@ -163,16 +181,40 @@ export default function ProfileScreen() {
         {/* Tier badge with XP progress */}
         <TierBadge totalXp={totalXp} />
 
-        {/* Stats grid */}
+        {/* Stats grid — Kata Ditemukan & Sejarah Permainan bisa di-tap untuk
+            pindah ke halamannya masing-masing. */}
         <View style={[styles.statsGrid, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.statItem}>
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.6}
+            onPress={() => {
+              play("tap");
+              navigation.navigate("History");
+            }}
+          >
             {wordsSolvedLoading ? (
               <ActivityIndicator size="small" color={theme.colors.text} />
             ) : (
               <Text style={[styles.statValue, { color: theme.colors.text }]}>{wordsSolved}</Text>
             )}
-            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Terpecahkan</Text>
-          </View>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Ditemukan</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.6}
+            onPress={() => {
+              play("tap");
+              navigation.navigate("GameHistory");
+            }}
+          >
+            {finishedBoardsLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.text} />
+            ) : (
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>{finishedBoards}</Text>
+            )}
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Sejarah Permainan</Text>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{totalXp}</Text>
@@ -349,9 +391,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "space-around",
   },
-  statItem: { alignItems: "center", gap: 4 },
-  statValue: { fontSize: 24, fontWeight: "800" },
-  statLabel: { fontSize: 12, fontWeight: "500" },
+  statItem: { alignItems: "center", gap: 4, paddingHorizontal: 4 },
+  statValue: { fontSize: 22, fontWeight: "800" },
+  statLabel: { fontSize: 11, fontWeight: "600", textAlign: "center" },
   statDivider: { width: 1, backgroundColor: "rgba(0,0,0,0.1)" },
   actions: { borderRadius: 12, overflow: "hidden" },
   actionRow: { padding: 16 },

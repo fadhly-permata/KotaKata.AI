@@ -65,7 +65,7 @@ Di atas tombol-tombol ada **kartu status** yang menampilkan tier saat ini, progr
 3. **Selesaikan kata** — begitu semua sel terisi, kata divalidasi otomatis:
    - ✅ **Benar** → huruf terkunci (tidak bisa diubah lagi), bunyi kemenangan, dan kamu dapat **XP**.
    - ❌ **Salah** → bunyi peringatan; kamu bebas menghapus dan mengoreksi.
-4. **Selesaikan papan** — semua kata terjawab → overlay hasil: total kata, XP neto sesi, waktu bermain, dan perubahan tier (jika naik).
+4. **Selesaikan papan** — semua kata terjawab → overlay hasil: total kata, XP neto sesi (bisa minus kalau penalti hint besar), waktu bermain, dan perubahan tier (naik atau turun).
 
 > 💡 Kata yang **semua hurufnya dibuka lewat Reveal** tetap dihitung selesai (papan tidak macet) tetapi **tidak memberi XP**.
 
@@ -114,7 +114,7 @@ Setiap kata punya 3 clue yang **selalu berbeda** dan **tidak pernah memuat jawab
 | **Reveal Letter** | Membuka **1 huruf acak** dan menguncinya | **−75 XP** | Huruf yang di-reveal tidak bisa diedit |
 
 - Semua hint berbayar memerlukan **konfirmasi** sebelum dipakai.
-- **XP neto sesi tidak pernah negatif**: pemakaian clue tidak bisa menurunkan total XP kumulatifmu.
+- **Penalti hint bersifat permanen**: XP neto sesi (XP kata − penalti, bisa negatif) dihitung saat papan selesai dan mengurangi total XP akun (di-clamp ≥ 0). Pakai hint berlebihan bisa **menurunkan tier**.
 - Kata yang **full-reveal** (semua huruf dibuka via Reveal) tidak memberi XP.
 
 ---
@@ -263,7 +263,7 @@ Tap tombol, pop huruf, "ding-ding" kata benar, dengung kata salah, fanfare menan
 A: Validasi otomatis hanya mengunci kata yang **benar**. Kata salah bebas dikoreksi; tombol navigasi ◀▶ tetap bisa memfokus kata itu supaya mudah diperbaiki.
 
 **Q: Apakah total XP bisa berkurang karena pakai clue?**
-A: Tidak. Penalti clue/reveal memotong **XP sesi** papan itu saja, dan neto sesi di-clamp ≥ 0. XP kumulatif akun tidak pernah turun karena hint.
+A: Ya — penalti clue/reveal itu **nyata**. Neto sesi (XP kata dikurangi penalti) dihitung saat papan selesai dan memotong total XP akun (di-clamp ≥ 0). Hint berlebihan bisa menurunkan tier, jadi pakai sesuai kebutuhan.
 
 **Q: Kenapa ada kata yang clue-nya diawali "Kata serapan dari bahasa …"?**
 A: Itu penanda **asal bahasa** — kata serapan asing (Belanda, Inggris, Arab, Sanskerta, dll.) atau kata dari bahasa daerah Nusantara (Jawa, Sunda, Minangkabau, dll.) yang terverifikasi dari KBBI. Menambah wawasan etimologi sambil bermain.

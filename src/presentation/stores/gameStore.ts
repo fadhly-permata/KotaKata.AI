@@ -496,10 +496,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         boardResult: {
           totalWords: board.words.length,
           wordsSolved: newWordsSolved,
-          // XP neto sesi di-clamp ≥ 0: pemakaian clue yang lebih besar dari
-          // XP kata tidak boleh membuat total XP pemain menurun (overlay tidak
-          // akan menampilkan "+−50 XP").
-          xpGained: Math.max(0, newCurrentXp),
+          // XP neto sesi BISA negatif: penalti clue/reveal adalah penalti nyata
+          // yang mengurangi total XP akun saat papan selesai (di-clamp ≥ 0 di
+          // GameScreen). Overlay menampilkan "−N XP" untuk neto negatif, dan
+          // tier bisa turun (dialog "murung" muncul di main menu).
+          xpGained: newCurrentXp,
           previousTier,
           newTier,
           // Mode AI: tier tidak pernah berubah (tidak ada XP yang dihitung).
@@ -520,6 +521,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue2Used: true } },
       // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
       // Mode AI: tidak ada pengurangan XP.
+      // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
+      // currentXp boleh negatif: penalti adalah PENALTI NYATA — neto sesi
+      // (bisa minus) dipakai menghitung XP akun saat papan selesai, sehingga
+      // pemakaian clue/reveal benar-benar mengurangi XP (dan bisa menurunkan
+      // tier). Kalau di-clamp di sini, penalti jadi tidak terlihat sama sekali.
       currentXp: aiMode ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_2,
     });
   },

@@ -54,9 +54,13 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { user } = useAuth();
-  // Lebar jendela — dipakai layout responsif panel aksi (baris wrap saat sempit).
+  // Lebar jendela — dipakai layout responsif panel aksi: di layar ponsel baris
+  // kedua (Reset + Keyboard) bisa di-expand/collapse supaya tidak memakan banyak
+  // layar; tablet/desktop tetap satu baris. Ambang 480px: semua HP (360–430px)
+  // dapat 2 baris; tablet/desktop ≥ 480px satu baris.
   const { width: winW, height: winH } = useWindowDimensions();
-  const compactBar = winW < 400;
+  const compactBar = winW < 480;
+  const [toolsExpanded, setToolsExpanded] = useState(true);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
@@ -706,13 +710,11 @@ export default function GameScreen() {
         //    maupun updated_at yang dipakai urutan leaderboard).
         if (!useGameStore.getState().aiMode) {
           const prevUser = await userRepository.getById(user.id);
-          // xpGained sudah di-clamp ≥ 0 di store — jaga-jaga tetap tidak
-          // membiarkan total XP turun / negatif (mis. data lama yang
-          // xpGained-nya negatif).
-          const newTotalXp = Math.max(
-            0,
-            (prevUser?.total_xp ?? 0) + Math.max(0, boardResult.xpGained),
-          );
+          // xpGained adalah XP neto sesi — BISA negatif kalau penalti
+          // clue/reveal lebih besar dari XP kata. Penalti ini NYATA: total XP
+          // akun ikut berkurang (hanya di-clamp agar tidak negatif, dan kata
+          // full-reveal tidak memberi XP).
+          const newTotalXp = Math.max(0, (prevUser?.total_xp ?? 0) + boardResult.xpGained);
           const sessionName = displayNameFromMetadata(user.user_metadata);
           await userRepository.upsert({
             user_id: user.id,
@@ -1030,7 +1032,8 @@ export default function GameScreen() {
         </View>
 
         {/* Action Bar + Zoom — flexWrap supaya baris turun (bukan overlap)
-            saat layar sempit; label & divider disembunyikan di mode compact. */}
+            saat layar sempit. Di layar ponsel tombol keyboard turun sendiri ke
+            baris kedua (pojok kanan); tablet/desktop tetap satu baris. */}
         <View style={[styles.actionBar, { flexWrap: "wrap", rowGap: 10 }, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           {/* Zoom Controls (Left) — kaca pembesar + / − */}
           <View style={styles.zoomGroup}>
@@ -1072,7 +1075,7 @@ export default function GameScreen() {
             </TooltipButton>
           </View>
 
-          {/* Divider */}
+          {/* Divider — hanya ditampilkan di layar lebar */}
           {!compactBar && (
             <View style={[styles.actionDivider, { backgroundColor: theme.colors.border }]} />
           )}
@@ -1167,37 +1170,75 @@ export default function GameScreen() {
           {/* Spacer */}
           <View style={{ flex: 1 }} />
 
-          {/* Reset (Right) — pindahan dari panel atas, di samping tombol keyboard */}
-          <TooltipButton
-            tooltip="Reset papan — kosongkan jawaban & XP"
-            icon="🔄"
-            style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
-            activeOpacity={0.7}
-            onPress={() => {
-              play("tap");
-              setShowResetConfirm(true);
-            }}
-          >
-            <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
-          </TooltipButton>
+          {/* Expand/Collapse — menggantikan posisi tombol Reset di baris pertama
+              (khusus layar ponsel). Reset + Keyboard pindah ke baris kedua yang
+              bisa di-collapse supaya panel tidak memakan banyak layar. */}
+          {compactBar && (
+            <TooltipButton
+              tooltip={
+                toolsExpanded
+                  ? "Sembunyikan panel alat (Reset & Keyboard)"
+                  : "Tampilkan panel alat (Reset & Keyboard)"
+              }
+              icon="⚙️"
+              accessibilityLabel={toolsExpanded ? "Sembunyikan panel alat" : "Tampilkan panel alat"}
+              style={[styles.rstBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                play("tap");
+                setToolsExpanded((v) => !v);
+              }}
+            >
+              <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>
+                {toolsExpanded ? "▲" : "▼"}
+              </Text>
+            </TooltipButton>
+          )}
 
-          {/* Keyboard Toggle (Right) — border bulat biar konsisten dengan tombol lain */}
-          <TooltipButton
-            tooltip={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
-            icon="⌨️"
-            accessibilityLabel={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
-            style={[
-              styles.actionItem,
-              { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
-            ]}
-            activeOpacity={0.7}
-            onPress={() => {
-              play("tap");
-              setKeyboardVisible((v) => !v);
-            }}
-          >
-            <KeyboardIcon size={24} />
-          </TooltipButton>
+          {/* Reset + Keyboard — SATU grup utuh (flex row + gap) supaya keduanya
+              selalu berdampingan, tidak pernah terpisah baris saat wrap di layar
+              lebar sempit (480–560px). Di layar ponsel grup ini jadi baris kedua
+              (collapsible, rata kanan); di tablet/desktop inline satu baris. */}
+          {(!compactBar || toolsExpanded) && (
+            <View
+              style={
+                compactBar
+                  ? [styles.kbRowMobile, { gap: 6, alignItems: "center" }]
+                  : { flexDirection: "row", alignItems: "center", gap: 6, marginLeft: "auto" }
+              }
+            >
+              {/* actionItem (40×40) sama dengan tombol keyboard supaya sejajar */}
+              <TooltipButton
+                tooltip="Reset papan — kosongkan jawaban & XP"
+                icon="🔄"
+                style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  play("tap");
+                  setShowResetConfirm(true);
+                }}
+              >
+                <Text style={[styles.rstBtnText, { color: theme.colors.secondary }]}>🔄</Text>
+              </TooltipButton>
+
+              <TooltipButton
+                tooltip={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
+                icon="⌨️"
+                accessibilityLabel={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
+                style={[
+                  styles.actionItem,
+                  { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+                ]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  play("tap");
+                  setKeyboardVisible((v) => !v);
+                }}
+              >
+                <KeyboardIcon size={24} />
+              </TooltipButton>
+            </View>
+          )}
         </View>
       </View>
 
@@ -1384,6 +1425,9 @@ const styles = StyleSheet.create({
   revealGroupCompact: { flexGrow: 1, justifyContent: "space-between" },
   gridOuterWrapper: { marginBottom: 8, borderRadius: 12 },
   gridOuterCentered: { flexGrow: 1, justifyContent: "center" },
+  // Di layar ponsel: baris penuh sehingga tombol keyboard turun ke baris kedua,
+  // rata kanan (pojok kanan panel). Di tablet/desktop wrapper ini tidak dipakai.
+  kbRowMobile: { width: "100%", flexDirection: "row", justifyContent: "flex-end" },
   gridScroll: { flexGrow: 0 },
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },

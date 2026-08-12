@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
 import Confetti from "../common/Confetti";
+import { useEscapeClose } from "../common/useEscapeClose";
 
 interface BoardResult {
   totalWords: number;
@@ -67,6 +68,10 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
     return () => floatLoop.stop();
   }, []);
 
+  // ESC (web) = kembali ke halaman game untuk me-review soal & jawaban
+  // (bukan menutup app). Komponen hanya di-mount saat overlay terbuka.
+  useEscapeClose(true, onViewBoard);
+
   const minutes = Math.floor(result.timeElapsed / 60000);
   const seconds = Math.floor((result.timeElapsed % 60000) / 1000);
 
@@ -74,8 +79,6 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
 
   return (
     <View style={styles.wrapper}>
-      {/* Konfeti perayaan di belakang dialog (tidak menghalangi tap tombol). */}
-      <Confetti />
       {/* Backdrop memudar masuk pelan. */}
       <Animated.View
         style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropAnim }]}
@@ -113,8 +116,13 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Terpecahkan</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>
-              {aiMode ? "—" : `+${result.xpGained}`}
+            <Text
+              style={[
+                styles.statValue,
+                { color: result.xpGained < 0 ? theme.colors.error : theme.colors.primary },
+              ]}
+            >
+              {aiMode ? "—" : result.xpGained > 0 ? `+${result.xpGained}` : `${result.xpGained}`}
             </Text>
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
               {aiMode ? "XP (tak dihitung)" : "XP"}
@@ -164,6 +172,10 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* Konfeti perayaan SELURUH LAYAR — dirender paling atas (pointerEvents
+          none, jadi tidak menghalangi tap tombol dialog). */}
+      <Confetti />
     </View>
   );
 }

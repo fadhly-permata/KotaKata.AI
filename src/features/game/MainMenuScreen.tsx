@@ -31,7 +31,6 @@ import { userRepository } from "../../data/repositories/userRepository";
 import type { VocabularyDoc, UserDoc } from "../../data/models/schemas";
 import { loggerInfo } from "../../utils/logger";
 import AppModal from "../../presentation/components/common/AppModal";
-import Confetti from "../../presentation/components/common/Confetti";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
@@ -960,8 +959,8 @@ export default function MainMenuScreen() {
           visible
           title={tierDialog.up ? "🎉 TIER UP!" : "Tier Turun"}
           onClose={() => setTierDialog(null)}
+          confetti={tierDialog.up ? "celebrate" : "sad"}
         >
-          {tierDialog.up ? <Confetti /> : <Confetti sad count={36} duration={3400} />}
           <View style={styles.tierDialogBody}>
             <Text style={styles.tierDialogEmoji}>{tierDialog.up ? "🏆" : "🌧️"}</Text>
             <Text style={[styles.tierDialogName, { color: tierDialogInfo.color }]}>

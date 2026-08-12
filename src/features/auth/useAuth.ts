@@ -108,6 +108,14 @@ export function useAuth() {
           if (session) {
             setUser(mapSession(session));
             clearInterval(timer);
+            // Tutup popup bila belum menutup diri sendiri (lihat supabase.ts) —
+            // mencegah popup tertinggal sebagai "jendela game" kedua.
+            try {
+              popup?.close();
+            } catch {
+              // Popup lintas-origin (masih di Google) tidak bisa ditutup dari sini;
+              // popup akan menutup dirinya sendiri setelah callback selesai.
+            }
             return;
           }
           if (Date.now() > deadline || popup.closed) {
