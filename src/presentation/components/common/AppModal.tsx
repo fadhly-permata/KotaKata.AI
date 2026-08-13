@@ -111,7 +111,12 @@ export default function AppModal({
               )}
             </View>
           ) : null}
-          {children}
+          {/* Body dibungkus View flexShrink:1 — saat kartu dibatasi maxHeight,
+              area ini menyusut sehingga ScrollView di dalamnya punya tinggi
+              terbatas dan bisa di-scroll dengan jari di HP (tanpa ini, daftar
+              panjang seperti Daftar Tier / Leaderboard hanya bisa di-scroll
+              dengan mouse di web, bukan swipe di ponsel). */}
+          <View style={styles.body}>{children}</View>
         </Animated.View>
       </TouchableOpacity>
       {/* Konfeti/hujan SELURUH LAYAR — dirender PALING ATAS (di atas backdrop
@@ -134,6 +139,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 20,
     gap: 12,
+    overflow: "hidden",
+  },
+  body: {
+    flexShrink: 1,
+    width: "100%",
   },
   header: {
     flexDirection: "row",

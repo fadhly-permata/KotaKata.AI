@@ -794,10 +794,14 @@ export default function MainMenuScreen() {
         title="🏆 Daftar Tier"
         onClose={() => setTierListVisible(false)}
       >
+        {/* nestedScrollEnabled (Android) + flexShrink (dari tierModalScroll)
+            supaya daftar bisa di-swipe dengan jari di HP — bukan hanya scroll
+            mouse di web. */}
         <ScrollView
           style={styles.tierModalScroll}
           contentContainerStyle={styles.tierModalContent}
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
         >
           {TIER_THRESHOLDS.map((threshold, i) => {
             const tierNo = i + 1;
@@ -861,6 +865,7 @@ export default function MainMenuScreen() {
                 style={styles.tierModalScroll}
                 contentContainerStyle={styles.tierModalContent}
                 showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
                 scrollEventThrottle={200}
                 onScroll={({ nativeEvent }) => {
                   const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
@@ -1244,7 +1249,10 @@ const styles = StyleSheet.create({
   aiErrorBtnSecondaryText: { fontSize: 13, fontWeight: "700" },
 
   /* ─── Daftar Tier & Leaderboard Modals ─── */
-  tierModalScroll: { flexGrow: 0 },
+  // flexShrink: 1 — dalam AppModal (kartu dibatasi maxHeight), ScrollView
+  // menyusut ke tinggi kartu sehingga bisa di-scroll (swipe) di HP. Tanpa ini
+  // tinggi ScrollView = isi penuh → tidak bisa digeser di perangkat seluler.
+  tierModalScroll: { flexShrink: 1 },
   tierModalContent: { gap: 8, paddingBottom: 4 },
   lbLoadMore: { marginVertical: 10 },
   lbMyRankRow: {

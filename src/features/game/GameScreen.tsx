@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Modal, PanResponder, AppState, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
@@ -54,6 +55,11 @@ export default function GameScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { user } = useAuth();
+  // Safe-area inset (status bar & navigation bar Android) — edge-to-edge wajib
+  // di Android 15+, jadi konten game diberi padding inset supaya tidak tampak
+  // "fullscreen" (masuk ke balik status bar / gesture bar) dan terlihat seperti
+  // aplikasi umum. Web melaporkan insets 0, jadi tidak mengubah tampilan web.
+  const insets = useSafeAreaInsets();
   // Lebar jendela — dipakai layout responsif panel aksi: di layar ponsel baris
   // kedua (Reset + Keyboard) bisa di-expand/collapse supaya tidak memakan banyak
   // layar; tablet/desktop tetap satu baris. Ambang 480px: semua HP (360–430px)
@@ -873,8 +879,17 @@ export default function GameScreen() {
         keyboardShouldPersistTaps="handled"
         onLayout={(e) => setOuterViewportH(e.nativeEvent.layout.height)}
       >
-        {/* Top Bar */}
-        <View style={[styles.topBar, { backgroundColor: theme.colors.surface }]}>
+        {/* Top Bar — paddingTop mengikuti inset status bar (native) supaya
+            konten tidak masuk ke balik status bar (looks fullscreen). */}
+        <View
+          style={[
+            styles.topBar,
+            {
+              backgroundColor: theme.colors.surface,
+              paddingTop: 12 + (Platform.OS === "web" ? 0 : insets.top),
+            },
+          ]}
+        >
           <View style={styles.topBarLeft}>
             <TooltipButton
               tooltip="Kembali ke menu utama"
@@ -951,7 +966,18 @@ export default function GameScreen() {
       </ScrollView>
 
       {/* === Fixed Bottom Panels (always visible) === */}
-      <View style={[styles.bottomPanels, { backgroundColor: theme.colors.background }]}>
+      {/* paddingBottom mengikuti inset navigation bar (native) supaya panel
+          aksi tidak tertutup gesture bar Android. Saat keyboard virtual tampil,
+          inset dipindah ke wrapper keyboard (yang berada paling bawah). */}
+      <View
+        style={[
+          styles.bottomPanels,
+          {
+            backgroundColor: theme.colors.background,
+            paddingBottom: keyboardVisible ? 8 : 8 + (Platform.OS === "web" ? 0 : insets.bottom),
+          },
+        ]}
+      >
         {/* Clue Pill: [<] [nomor] [>] | clue [switch] — geser kiri/kanan untuk ganti kata.
             Progress bar garis di tepi ATAS panel soal (pengganti progress ring lama). */}
         <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]} {...cluePillPanResponder.panHandlers}>
@@ -1022,7 +1048,7 @@ export default function GameScreen() {
           </TooltipButton>
 
           {/* Isi clue — teks utuh (tanpa numberOfLines) supaya tidak pernah
-              terpotong; tinggi pill mengikuti panjang teks. */}
+              terpotong; tinggi pill mengikuti panjang teks (auto-height). */}
           <View style={styles.clueContent}>
             <View style={styles.clueTextWrap}>
               <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
@@ -1243,7 +1269,7 @@ export default function GameScreen() {
       </View>
 
       {keyboardVisible && (
-        <View style={styles.keyboardWrapper}>
+        <View style={[styles.keyboardWrapper, { paddingBottom: Platform.OS === "web" ? 0 : insets.bottom }]}>
           <InGameKeyboard />
         </View>
       )}
@@ -1432,13 +1458,20 @@ const styles = StyleSheet.create({
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
   bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 8, paddingHorizontal: 4, marginBottom: 8, position: "relative", overflow: "hidden" },
+  // PENTING: TANPA overflow hidden pada pill. Di Android, overflow: hidden +
+  // borderRadius diketahui memotong baris teks yang terbungkus (text clipping),
+  // sehingga clue panjang tampak terpotong. Tinggi pill mengikuti teks
+  // (auto-height); sudut progress bar dirapikan sendiri supaya tetap mulus.
+  cluePill: { flexDirection: "row", alignItems: "center", borderRadius: 24, paddingVertical: 8, paddingHorizontal: 4, marginBottom: 8, position: "relative" },
   cluePillProgress: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     height: 3,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.28)",
   },
   cluePillProgressFill: { height: "100%", backgroundColor: "#FFD166" },
@@ -1457,7 +1490,7 @@ const styles = StyleSheet.create({
   clueContent: { flex: 1, paddingHorizontal: 2, minWidth: 0 },
   clueNumberBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", marginHorizontal: 2 },
   clueNumberText: { fontSize: 13, fontWeight: "800", color: "#0096cc" },
-  clueTextWrap: { flex: 1 },
+  clueTextWrap: { flex: 1, flexShrink: 1, minWidth: 0 },
   clueOrientation: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
   clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600", lineHeight: 19 },
   actionBar: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
