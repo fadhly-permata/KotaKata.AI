@@ -20,12 +20,21 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-009** | ✅ done | Responsif UI + Orb Login + In-Game + Dialog Seragam + Konfeti + Dialog Tier | 9 langkah: responsivitas lintas resolusi (`useWindowDimensions` di Auth/History/Game/MainMenu; orb, bento, padding proporsional), **orb login animated** (4 orb bounce + parallax scroll), **clue in-game terbaca penuh** (tanpa `numberOfLines`), **action bar responsif** (flexWrap + mode compact <400px), komponen **`AppModal`** seragam (header + tombol ✕ + tap di luar tutup) dipakai semua popup, **konfeti ringan** (Animated, web-safe) di dialog permainan selesai, **hapus semua notifikasi tier** (toast + "TIER UP!"), **dialog perubahan tier baru HANYA di main menu** (naik = konfeti 🎉, turun = hujan murung 🌧️); verifikasi tsc + 43 tes + lint lolos |
 | **PLAN-010** | ✅ done | Konfeti Layar Penuh + ESC Tutup Popup + Panel Profile Kata Ditemukan/Sejarah | 4 langkah: **konfeti & hujan seluruh layar** (`AppModal` prop `confetti="celebrate"/"sad"` — dirender paling atas Modal, pointerEvents none; `CompletionOverlay` konfeti ke lapisan teratas), **tombol ESC tutup semua popup** (hook `useEscapeClose` web-only: `AppModal` ESC=close ikut `dismissable`, `ConfirmDialog` ESC=Batal, `CompletionOverlay` ESC=kembali ke halaman game untuk review soal & jawaban), **Profil**: label "Kata Terpecahkan" → "Kata Ditemukan" + panel baru "Sejarah Permainan" (`boardRepository.countFinished`), keduanya tappable → navigate History / GameHistory; verifikasi tsc + 43 tes + lint lolos |
 | **PLAN-011** | ✅ done | Bersihkan Singkatan Kuno (pd/dl/krn) di Semua Clue Tier | 4 langkah: **audit lengkap** (308 baris tier 6–10 memuat singkatan kuno), **script `modernize-clues.mjs`** — penggantian kata baku dengan word-boundary + auto-resolve konflik QA dari cache riset PLAN-007 + override kurasi manual `modernize-overrides.mjs` (210 kata), **jalankan + QA + SQL**: 308 baris dimodernisasi, `check-clue-quality` 0 issue / 0 bocor / 0 duplikat semua tier, `vocabulary.sql` di-regenerate, **push ke Supabase + verifikasi final**: singkatan kuno = **0**, placeholder "Merupakan kata" tetap 0, total row 10.003 |
+| **PLAN-012** | ✅ done | Reveal XP Fair + Progress Ring & Theme Toggle di Header In-Game | 5 langkah: **reveal letter/word tidak lagi memotong XP saat tidak ada sel yang berubah** (sel kosong → diisi, sel salah → diganti benar; kalau semua huruf sudah benar/terkunci reveal batal total — tombol ikut dinonaktifkan), **animasi zoom-out** pada huruf yang baru di-reveal/diganti (`revealedPulse` transien + `RevealPulseLetter`), **progress bar garis dihapus** dari pill clue (posisinya offset), **progress ring persentase pindah ke header** di samping label XP (hanya tampil di dalam game), **tombol switch cepat tema terang/gelap** di header; verifikasi tsc + 43 tes lolos |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
 ---
 
 ## 📦 Rilis per Plan
+
+### v1.0.1 — Reveal XP Fair + Header In-Game (Progress Ring & Theme Toggle) (PLAN-012)
+
+- 🔍 **Reveal letter/word tidak lagi memotong XP tanpa efek**: sebelumnya reveal hanya mengisi sel *kosong*, jadi saat semua sel sudah terisi (atau terkunci) XP tetap berkurang padahal tidak ada huruf yang berubah. Sekarang reveal mengisi sel kosong **dan** mengganti huruf yang salah dengan huruf yang benar; bila tidak ada satu pun sel yang perlu diubah, reveal **batal total dan XP tidak dipotong** (tombol reveal ikut dinonaktifkan dengan tooltip penjelasan)
+- 🎬 **Animasi zoom-out** pada huruf yang baru di-reveal/diganti: huruf mengecil cepat lalu membal ke ukuran normal (spring) supaya pemain langsung melihat jawaban lama diganti jawaban baru (state transien `revealedPulse` — tidak ikut di-persist)
+- 🚫 **Progress bar garis di pill clue dihapus** (posisinya terlihat offset di layar game)
+- ⭕ **Progress ring persentase** (`ProgressRing`) pindah ke **header layar game, di samping label XP** — hanya tampil di dalam game, angka % di tengah lingkaran
+- 🌗 **Tombol switch cepat tema** terang/gelap di header game (☀️/🌙), tersimpan permanen lewat `ThemeProvider`
 
 ### v1.0.0 — Build Native (EAS), Fix Login APK, Legal, Fix UI Real Device, Kurasi Singkatan Kuno (PLAN-010 + PLAN-011)
 

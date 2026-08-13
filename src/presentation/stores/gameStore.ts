@@ -29,6 +29,12 @@ interface GameState {
   inputOrientation: Orientation | null;
   filledLetters: Record<string, string>;
   hints: Record<string, HintUsage>;
+  /** Pemicu animasi zoom-out per sel yang baru di-reveal/diganti (key sel →
+   *  counter). State transien UI — TIDAK di-persist. Setiap kali reveal
+   *  mengisi/mengganti huruf di sebuah sel, counter-nya naik; CrosswordGrid
+   *  memakai nilai ini untuk memainkan animasi supaya pemain melihat
+   *  jawaban lama diganti jawaban baru. */
+  revealedPulse: Record<string, number>;
   currentXp: number;
   wordsSolved: number;
   totalXp: number; // cumulative XP across games
@@ -78,6 +84,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   inputOrientation: null,
   filledLetters: {},
   hints: {},
+  revealedPulse: {},
   currentXp: 0,
   wordsSolved: 0,
   totalXp: 0,
@@ -112,6 +119,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       inputOrientation: null,
       filledLetters: progress.filledLetters,
       hints: progress.hints,
+      // Pulse animasi bersifat transien (tidak ikut disimpan) — sel yang
+      // di-reveal di sesi sebelumnya tidak perlu dianimasikan ulang.
+      revealedPulse: {},
       currentXp: progress.currentXp,
       wordsSolved: progress.wordsSolved,
       totalXp: progress.totalXp,
@@ -547,14 +557,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!board || !board.words[wordIndex]) return;
 
     const word = board.words[wordIndex];
-    const unrevealed = word.cells.filter(
-      (c) => !filledLetters[`${c.row},${c.col}`] && !c.isLocked,
-    );
-    if (unrevealed.length === 0) return;
+    // Sel yang PERLU diisi/diganti: belum terkunci DAN belum memuat huruf yang
+    // benar. Sel kosong → diisi; sel berisi huruf SALAH → diganti dengan huruf
+    // yang benar (sebelumnya reveal cuma mengisi sel kosong, jadi saat semua
+    // sel sudah terisi tidak ada yang berubah padahal XP tetap dipotong).
+    const needsReplace = word.cells.filter((c) => {
+      if (c.isLocked) return false;
+      const offset =
+        word.orientation === "vertical" ? c.row - word.startRow : c.col - word.startCol;
+      const correct = word.word[offset]?.toUpperCase();
+      return filledLetters[`${c.row},${c.col}`]?.toUpperCase() !== correct;
+    });
+    // Tidak ada satu pun sel yang perlu diganti (semua huruf sudah benar /
+    // terkunci) → reveal tidak melakukan apa-apa, JANGAN potong XP.
+    if (needsReplace.length === 0) return;
 
-    const target = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+    const target = needsReplace[Math.floor(Math.random() * needsReplace.length)];
     const key = `${target.row},${target.col}`;
-    const offset = word.orientation === "vertical" ? target.row - word.startRow : target.col - word.startCol;
+    const offset =
+      word.orientation === "vertical" ? target.row - word.startRow : target.col - word.startCol;
     const letter = word.word[offset];
 
     // Lock the revealed cell so user can't edit it (per PRD §4.3)
@@ -571,6 +592,11 @@ export const useGameStore = create<GameState>((set, get) => ({
           revealedCells: [...(hints[wordIndex]?.revealedCells ?? []), key],
         },
       },
+      // Naikkan counter animasi sel ini supaya hurufnya "zoom out" di grid.
+      revealedPulse: {
+        ...get().revealedPulse,
+        [key]: (get().revealedPulse[key] ?? 0) + 1,
+      },
     });
   },
 
@@ -581,17 +607,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     const word = board.words[wordIndex];
     const newLetters = { ...filledLetters };
     const newRevealed: string[] = [];
+    const pulse = { ...get().revealedPulse };
 
     for (const cell of word.cells) {
+      if (cell.isLocked) continue;
       const key = `${cell.row},${cell.col}`;
-      if (!newLetters[key] && !cell.isLocked) {
-        const offset = word.orientation === "vertical" ? cell.row - word.startRow : cell.col - word.startCol;
-        newLetters[key] = word.word[offset];
-        newRevealed.push(key);
-        // Lock the revealed cell so user can't edit it (per PRD §4.3)
-        cell.isLocked = true;
-      }
+      const offset =
+        word.orientation === "vertical" ? cell.row - word.startRow : cell.col - word.startCol;
+      const correct = word.word[offset]?.toUpperCase();
+      // Sel yang sudah berisi huruf BENAR tidak perlu diubah — lewati.
+      if (newLetters[key]?.toUpperCase() === correct) continue;
+      // Isi sel kosong ATAU ganti huruf yang salah dengan huruf yang benar.
+      newLetters[key] = word.word[offset];
+      newRevealed.push(key);
+      // Lock the revealed cell so user can't edit it (per PRD §4.3)
+      cell.isLocked = true;
+      // Counter animasi zoom-out untuk sel yang hurufnya berubah.
+      pulse[key] = (pulse[key] ?? 0) + 1;
     }
+
+    // Tidak ada sel yang diganti (semua sudah benar / terkunci) → reveal
+    // batal total, XP TIDAK dipotong.
+    if (newRevealed.length === 0) return;
 
     set({
       filledLetters: newLetters,
@@ -604,6 +641,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           revealedCells: [...(hints[wordIndex]?.revealedCells ?? []), ...newRevealed],
         },
       },
+      revealedPulse: pulse,
     });
   },
 
@@ -620,6 +658,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       inputOrientation: null,
       filledLetters: {},
       hints: {},
+      revealedPulse: {},
       currentXp: 0,
       wordsSolved: 0,
       sessionStartTime: 0,
@@ -641,6 +680,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       filledLetters: {},
       hints: {},
+      revealedPulse: {},
       currentXp: 0,
       wordsSolved: 0,
     });

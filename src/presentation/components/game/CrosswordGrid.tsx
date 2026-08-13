@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useRef } from "react";
+import { useEffect, useMemo, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   PanResponder,
+  Animated,
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import type { Board, BoardCell } from "../../../domain/entities/board";
@@ -22,6 +23,8 @@ interface CrosswordGridProps {
   onToggleOrientation: () => void;
   filledLetters: Map<string, string>;
   zoomLevel?: number;
+  /** Pemicu animasi zoom-out per sel yang baru di-reveal/diganti (key sel → counter). */
+  revealedPulse?: Record<string, number>;
 }
 
 const CELL_GAP = 3;
@@ -38,6 +41,7 @@ export default function CrosswordGrid({
   onCellDrag,
   filledLetters,
   zoomLevel = 1,
+  revealedPulse,
 }: CrosswordGridProps) {
   const { theme } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
@@ -161,18 +165,25 @@ export default function CrosswordGrid({
               {cell.number}
             </Text>
           )}
-          <Text
-            style={[
-              styles.cellLetter,
-              { fontSize, color: isSelected ? "#FFF" : isSolved ? theme.colors.cellSolvedText : theme.colors.cellText },
-            ]}
-          >
-            {letter}
-          </Text>
+          {letter ? (
+            <RevealPulseLetter
+              pulse={revealedPulse?.[key] ?? 0}
+              fontSize={fontSize}
+              color={
+                isSelected ? "#FFF" : isSolved ? theme.colors.cellSolvedText : theme.colors.cellText
+              }
+            >
+              {letter}
+            </RevealPulseLetter>
+          ) : (
+            <Text style={[styles.cellLetter, { fontSize, color: theme.colors.cellText }]}>
+              {letter}
+            </Text>
+          )}
         </TouchableOpacity>
       );
     },
-    [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme],
+    [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme, revealedPulse],
   );
 
   // ---- Drag/swipe: kursor mengikuti jari/mouse melintasi sel ----
@@ -257,6 +268,53 @@ export default function CrosswordGrid({
         </View>
       ))}
     </View>
+  );
+}
+
+/**
+ * Huruf sel yang baru di-reveal/diganti — animasi "zoom out": huruf mengecil
+ * cepat lalu membal ke ukuran normal dengan pantulan, supaya pemain langsung
+ * melihat bahwa jawaban di sel itu sudah diganti. `pulse` adalah counter yang
+ * naik setiap kali sel itu di-reveal (dari gameStore.revealedPulse); saat
+ * nilainya berubah, animasi diputar ulang.
+ */
+function RevealPulseLetter({
+  pulse,
+  fontSize,
+  color,
+  children,
+}: {
+  pulse: number;
+  fontSize: number;
+  color: string;
+  children: string;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!pulse) return;
+    scale.setValue(1);
+    opacity.setValue(1);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(scale, { toValue: 0.2, duration: 150, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.25, duration: 150, useNativeDriver: true }),
+      ]),
+      Animated.spring(scale, { toValue: 1, friction: 3, tension: 150, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  }, [pulse, scale, opacity]);
+
+  return (
+    <Animated.Text
+      style={[
+        styles.cellLetter,
+        { fontSize, color, transform: [{ scale }], opacity },
+      ]}
+    >
+      {children}
+    </Animated.Text>
   );
 }
 

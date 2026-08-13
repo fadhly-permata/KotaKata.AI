@@ -171,7 +171,7 @@ bun scripts/db/push-vocab.mjs          # push kosakata ke Supabase
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-011, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-012, semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -215,6 +215,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-009 | ✅ done | Responsif UI + orb login + dialog seragam + konfeti + dialog tier |
 | PLAN-010 | ✅ done | Konfeti layar penuh + ESC tutup popup + panel profil |
 | PLAN-011 | ✅ done | Bersihkan singkatan kuno (pd/dl/krn) di semua clue tier |
+| PLAN-012 | ✅ done | Reveal XP fair (tanpa potong XP bila tidak ada huruf berubah) + animasi zoom-out + progress ring & toggle tema di header in-game |
 
 ## ❓ FAQ
 

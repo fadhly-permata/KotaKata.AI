@@ -6,6 +6,7 @@ import { useTheme } from "../../presentation/components/providers/ThemeProvider"
 import CrosswordGrid from "../../presentation/components/game/CrosswordGrid";
 import InGameKeyboard from "../../presentation/components/game/InGameKeyboard";
 import CompletionOverlay from "../../presentation/components/game/CompletionOverlay";
+import ProgressRing from "../../presentation/components/game/ProgressRing";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import TooltipButton from "../../presentation/components/common/TooltipButton";
 import ZoomIcon from "../../presentation/components/icons/ZoomIcon";
@@ -17,9 +18,7 @@ import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { selectWordPool } from "../../domain/usecases/wordPoolFilter";
 import { supabase } from "../../data/sources/supabase";
-import { useAuth } from "../auth/useAuth";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
-import UserAvatar from "../../presentation/components/common/UserAvatar";
 import { boardRepository } from "../../data/repositories/boardRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
@@ -52,9 +51,8 @@ const MAX_GRID_SIZE = 14;
 const AI_MIN_WORDS = 6;
 
 export default function GameScreen() {
-  const { theme } = useTheme();
+  const { theme, isDark, setThemeMode } = useTheme();
   const navigation = useNavigation();
-  const { user } = useAuth();
   // Safe-area inset (status bar & navigation bar Android) — edge-to-edge wajib
   // di Android 15+, jadi konten game diberi padding inset supaya tidak tampak
   // "fullscreen" (masuk ke balik status bar / gesture bar) dan terlihat seperti
@@ -121,6 +119,7 @@ export default function GameScreen() {
   const useClue3 = useGameStore((s) => s.useClue3);
   const resumeProgress = useGameStore((s) => s.resumeProgress);
   const aiMode = useGameStore((s) => s.aiMode);
+  const revealedPulse = useGameStore((s) => s.revealedPulse);
 
   // Show keyboard on first tap to a cell
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -748,6 +747,26 @@ export default function GameScreen() {
   // Tombol clue nonaktif saat tidak ada kata terpilih / kata sudah selesai.
   const clueActionsDisabled = selectedWordIndex === null || selectedWord?.solved === true;
 
+  // Jumlah sel pada kata terpilih yang masih bisa diisi/diganti oleh reveal
+  // (kosong, atau berisi huruf salah). Kalau 0, reveal tidak akan mengubah
+  // apa pun — tombolnya dinonaktifkan supaya pemain tidak membuka dialog
+  // konfirmasi (dan tidak ada XP yang terpotong tanpa efek).
+  const revealTargets = useMemo(() => {
+    if (!selectedWord) return 0;
+    return selectedWord.cells.filter((c) => {
+      if (c.isLocked) return false;
+      const offset =
+        selectedWord.orientation === "vertical"
+          ? c.row - selectedWord.startRow
+          : c.col - selectedWord.startCol;
+      const correct = selectedWord.word[offset]?.toUpperCase();
+      return filledLetters[`${c.row},${c.col}`]?.toUpperCase() !== correct;
+    }).length;
+  }, [selectedWord, filledLetters]);
+
+  const revealLetterDisabled = clueActionsDisabled || revealTargets === 0;
+  const revealWordDisabled = clueActionsDisabled || revealTargets === 0;
+
   const clue2Opened = !!selectedHintUsage?.clue2Used;
   const clue3Opened = !!selectedHintUsage?.clue3Used;
   const allCluesOpened = clue2Opened && clue3Opened;
@@ -890,7 +909,7 @@ export default function GameScreen() {
             },
           ]}
         >
-          <View style={styles.topBarLeft}>
+          <View style={[styles.topBarLeft, { flexShrink: 1, minWidth: 0 }]}>
             <TooltipButton
               tooltip="Kembali ke menu utama"
               icon="🏠"
@@ -903,11 +922,15 @@ export default function GameScreen() {
             >
               <Text style={[styles.backBtnText, { color: theme.colors.text }]}>‹</Text>
             </TooltipButton>
-            <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={36} />
-            <Text style={[styles.appTitle, { color: theme.colors.primary }]}>KotaKata AI</Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.appTitle, { flexShrink: 1, color: theme.colors.primary }]}
+            >
+              KotaKata AI
+            </Text>
           </View>
           <View style={styles.topBarRight}>
-            {aiMode && (
+            {aiMode && !compactBar && (
               <View style={[styles.aiModeBadge, { backgroundColor: "#e8f4ff", borderColor: "#0096cc" }]}>
                 <Text style={styles.aiModeBadgeText}>🤖 Mode AI</Text>
               </View>
@@ -915,6 +938,26 @@ export default function GameScreen() {
             <View style={[styles.xpPill, { backgroundColor: "#ffd6ee" }]}>
               <Text style={[styles.xpPillText, { color: "#a02070" }]}>⭐ {totalXp + currentXp} XP</Text>
             </View>
+            {/* Progress lingkaran dengan persentase di tengah — hanya tampil
+                di dalam game (header layar game, di samping label XP). */}
+            <ProgressRing progress={fillProgress} />
+            <View style={[styles.topBarDivider, { backgroundColor: theme.colors.border }]} />
+            {/* Switch cepat tema terang/gelap */}
+            <TooltipButton
+              tooltip={isDark ? "Ganti ke tema terang" : "Ganti ke tema gelap"}
+              icon={isDark ? "☀️" : "🌙"}
+              accessibilityLabel={isDark ? "Ganti ke tema terang" : "Ganti ke tema gelap"}
+              style={[styles.themeToggle, { backgroundColor: theme.colors.secondaryContainer }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                play("tap");
+                void setThemeMode(isDark ? "light" : "dark");
+              }}
+            >
+              <Text style={[styles.themeToggleText, { color: theme.colors.secondary }]}>
+                {isDark ? "☀️" : "🌙"}
+              </Text>
+            </TooltipButton>
           </View>
         </View>
 
@@ -958,6 +1001,7 @@ export default function GameScreen() {
                   onToggleOrientation={() => useGameStore.getState().toggleOrientation()}
                   filledLetters={new Map(Object.entries(filledLetters))}
                   zoomLevel={zoomLevel}
+                  revealedPulse={revealedPulse}
                 />
               </View>
             </ScrollView>
@@ -979,17 +1023,8 @@ export default function GameScreen() {
         ]}
       >
         {/* Clue Pill: [<] [nomor] [>] | clue [switch] — geser kiri/kanan untuk ganti kata.
-            Progress bar garis di tepi ATAS panel soal (pengganti progress ring lama). */}
+            Progress lingkaran sudah pindah ke header (di samping label XP). */}
         <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]} {...cluePillPanResponder.panHandlers}>
-          {/* Progress bar garis — lebar mengikuti fillProgress */}
-          <View style={styles.cluePillProgress}>
-            <View
-              style={[
-                styles.cluePillProgressFill,
-                { width: `${Math.round(fillProgress * 100)}%` as any },
-              ]}
-            />
-          </View>
           {/* Nav kata */}
           <TooltipButton
             tooltip="Kata sebelumnya"
@@ -1156,15 +1191,24 @@ export default function GameScreen() {
             {/* Reveal letter */}
             <TooltipButton
               tooltip={
-                aiMode
-                  ? "Buka satu huruf dari kata terpilih (gratis — Mode AI tanpa XP)"
-                  : `Buka satu huruf dari kata terpilih (−${XP_PENALTY_REVEAL} XP)`
+                revealLetterDisabled
+                  ? "Semua huruf kata ini sudah benar/terkunci — tidak ada yang bisa dibuka"
+                  : aiMode
+                    ? "Buka satu huruf dari kata terpilih (gratis — Mode AI tanpa XP)"
+                    : `Buka satu huruf dari kata terpilih (−${XP_PENALTY_REVEAL} XP)`
               }
               icon="🔍"
-              style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
+              accessibilityLabel="Buka satu huruf"
+              style={[
+                styles.actionItem,
+                {
+                  backgroundColor: theme.colors.secondaryContainer,
+                  opacity: revealLetterDisabled ? 0.4 : 1,
+                },
+              ]}
               activeOpacity={0.7}
               onPress={() => {
-                if (selectedWordIndex !== null) {
+                if (selectedWordIndex !== null && !revealLetterDisabled) {
                   play("tap");
                   setShowRevealLetterConfirm(true);
                 }
@@ -1175,15 +1219,24 @@ export default function GameScreen() {
             {/* Reveal word */}
             <TooltipButton
               tooltip={
-                aiMode
-                  ? "Buka semua huruf kata (gratis — Mode AI tanpa XP)"
-                  : `Buka semua huruf kata — −${XP_PENALTY_REVEAL} XP (tanpa XP kata)`
+                revealWordDisabled
+                  ? "Semua huruf kata ini sudah benar/terkunci — tidak ada yang bisa dibuka"
+                  : aiMode
+                    ? "Buka semua huruf kata (gratis — Mode AI tanpa XP)"
+                    : `Buka semua huruf kata — −${XP_PENALTY_REVEAL} XP (tanpa XP kata)`
               }
               icon="💡"
-              style={[styles.actionItem, { backgroundColor: theme.colors.secondaryContainer }]}
+              accessibilityLabel="Buka semua huruf"
+              style={[
+                styles.actionItem,
+                {
+                  backgroundColor: theme.colors.secondaryContainer,
+                  opacity: revealWordDisabled ? 0.4 : 1,
+                },
+              ]}
               activeOpacity={0.7}
               onPress={() => {
-                if (selectedWordIndex !== null) {
+                if (selectedWordIndex !== null && !revealWordDisabled) {
                   play("tap");
                   setShowRevealWordConfirm(true);
                 }
@@ -1400,6 +1453,9 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topBarDivider: { width: 1, height: 20, marginHorizontal: 2, borderRadius: 1 },
+  themeToggle: { width: 34, height: 34, borderRadius: 17, justifyContent: "center", alignItems: "center" },
+  themeToggleText: { fontSize: 16, lineHeight: 18 },
   loadingWrap: { alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
   loadingText: { fontSize: 14, fontWeight: "600", textAlign: "center" },
   errorEmoji: { fontSize: 40 },
