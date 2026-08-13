@@ -48,5 +48,8 @@ package-lock.json
 # CodeGraph local index
 .codegraph/
 
+# Report artefak dari script riset/QA vocab (tidak untuk di-commit)
+scripts/vocab/*-report.json
+
 # Artefak lokal Freebuff (sqlite desktop, bukan bagian proyek)
 .freebuff/

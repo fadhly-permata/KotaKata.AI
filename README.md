@@ -149,6 +149,8 @@ Buat `.env.local` (atau isi lewat tab Keys di Freebuff):
 | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable/anonymous key |
+| `EXPO_TOKEN` | Token akses EAS — dipakai `eas build` untuk build APK/AAB (lihat [Build & Deploy](#-build--deploy)) |
+| `SUPABASE_ACCESS_TOKEN` | Token akses Supabase (Management API) — dipakai script DB (`scripts/db/*.mjs`) |
 
 ## 🗄 Database (Supabase)
 
@@ -169,7 +171,7 @@ bun scripts/db/push-vocab.mjs          # push kosakata ke Supabase
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-005, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-011, semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -185,8 +187,13 @@ bun .agents/plans/plan.mjs help    # semua perintah
 ## 📦 Build & Deploy
 
 ```bash
-# Build untuk produksi (output: dist/)
+# Build web untuk produksi (output: dist/)
 bunx expo export --platform web
+
+# Build APK Android via EAS (butuh EXPO_TOKEN di .env.local / tab Keys)
+# ⚠️ Sesuai aturan repo: build/push ke EAS hanya boleh saat diminta eksplisit
+# pemilik repo — tanpa izin, jangan jalankan perintah ini.
+bunx eas-cli build -p android --profile preview --non-interactive
 ```
 
 ## 🗺️ Development Status
@@ -201,7 +208,13 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-002 | ✅ done | Main Mode AI — soal dari provider (BYOK) |
 | PLAN-003 | ✅ done | Kualitas clue tier 1–10: 0 issue / 0 bocor / 0 duplikat |
 | PLAN-004 | ✅ done | Keluar akun ke Profil + hapus akun permanen |
-| PLAN-005 | ✅ done | Mode AI tanpa XP, paging log, leaderboard, notifikasi tier, tag asal bahasa |
+| PLAN-005 | ✅ done | Mode AI tanpa XP, log paging, leaderboard, notifikasi tier, tag asal bahasa |
+| PLAN-006 | ✅ done | Log cloud, kirim log, detail debug, leaderboard lazy & dialog close |
+| PLAN-007 | ✅ done | Review semua clue via script riset KBBI (placeholder 2472→0) |
+| PLAN-008 | ✅ done | Sejarah Permainan lazy-load (paging saat scroll) |
+| PLAN-009 | ✅ done | Responsif UI + orb login + dialog seragam + konfeti + dialog tier |
+| PLAN-010 | ✅ done | Konfeti layar penuh + ESC tutup popup + panel profil |
+| PLAN-011 | ✅ done | Bersihkan singkatan kuno (pd/dl/krn) di semua clue tier |
 
 ## ❓ FAQ
 
