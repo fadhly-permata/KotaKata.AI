@@ -1,6 +1,6 @@
 # Bersihkan Singkatan Kuno (pd/dl/krn) di Semua Clue Tier
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-12 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 011`
@@ -32,12 +32,12 @@ mengikuti pipeline riset KBBI yang sudah dibangun di PLAN-007.
 
 ## Langkah
 
-- [ ] **1. Audit lengkap & daftar target** — query semua row yang clue 1/2/3
+- [x] **1. Audit lengkap & daftar target** — query semua row yang clue 1/2/3
   memuat salah satu singkatan kuno (regex kata utuh), klasifikasikan per tier
   dan per kolom; simpan daftar target + contoh clue saat ini ke file report.
   Hitung ulang angka pastinya (bukan hanya `pd`/`dl`).
 
-- [ ] **2. Bangun skrip modernisasi bertahap** — perluas/reuse pipeline
+- [x] **2. Bangun skrip modernisasi bertahap** — perluas/reuse pipeline
   `research-clues.mjs` (PLAN-007): untuk tiap row target, (a) ganti mekanik
   aman: `pd→pada`, `dl→dalam`, `krn→karena`, `dgn→dengan`, `yg→yang`,
   `sbg→sebagai`, `dr→dari`, `tt→tentang`, `kpd→kepada`, `tsb→tersebut`,
@@ -48,11 +48,11 @@ mengikuti pipeline riset KBBI yang sudah dibangun di PLAN-007.
   tersebut; (c) bila kata ultra-langka tanpa bahan pengganti → fallback
   perbaikan manual `clue-overrides.mjs` (tambahkan entri).
 
-- [ ] **3. Jalankan, verify QA, regenerate SQL** — jalankan skrip terhadap
+- [x] **3. Jalankan, verify QA, regenerate SQL** — jalankan skrip terhadap
   semua tier, pastikan `check-clue-quality.mjs` tetap **0 issue / 0 bocor /
   0 duplikat**, regenerate `supabase/data/vocabulary.sql`.
 
-- [ ] **4. Push ke Supabase + verifikasi final** — `node scripts/db/push-vocab.mjs`
+- [x] **4. Push ke Supabase + verifikasi final** — `node scripts/db/push-vocab.mjs`
   (UPSERT — riwayat `word_discoveries` aman), lalu query ulang: singkatan
   kuno = **0**, pola "Merupakan kata X" tetap 0, total row tetap 10.003+.
 
