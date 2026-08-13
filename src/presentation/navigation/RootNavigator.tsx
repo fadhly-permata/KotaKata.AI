@@ -19,6 +19,7 @@ import ProfileScreen from "../../features/profile/ProfileScreen";
 import SettingsScreen from "../../features/settings/SettingsScreen";
 import LogViewerScreen from "../../features/settings/LogViewerScreen";
 import AiProviderScreen from "../../features/ai/AiProviderScreen";
+import MarkdownScreen from "../../features/legal/MarkdownScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   GameHistory: undefined;
   BoardViewer: { boardId: string };
   LogViewer: undefined;
+  Markdown: { title: string; url: string };
   Profile: undefined;
   Settings: undefined;
   AiProvider: undefined;
@@ -212,6 +214,11 @@ export default function RootNavigator() {
           name="LogViewer"
           component={LogViewerScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Markdown"
+          component={MarkdownScreen}
+          options={({ route }) => ({ title: route.params.title })}
         />
         <Stack.Screen
           name="Profile"

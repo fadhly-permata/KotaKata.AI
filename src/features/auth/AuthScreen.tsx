@@ -22,6 +22,13 @@ import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type AuthMode = "select" | "email";
 
+// Dokumen legal dimuat dari raw.githubusercontent.com (pengganti rawgit.com
+// yang sudah berhenti beroperasi). Markdown di-render oleh MarkdownScreen.
+const TERMS_URL =
+  "https://raw.githubusercontent.com/fadhly-permata/KotaKata.AI/main/docs/TERMS.md";
+const PRIVACY_URL =
+  "https://raw.githubusercontent.com/fadhly-permata/KotaKata.AI/main/docs/PRIVACY.md";
+
 // LoginScreen.html inspired palette
 const AUTH_LIGHT = {
   bg: "#fef7ff",
@@ -473,8 +480,30 @@ export default function AuthScreen() {
         <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
           <Text style={[styles.footerText, { color: C.onSurfaceVariant }]}>
             Dengan masuk, Anda menyetujui{" "}
-            <Text style={[styles.footerLink, { color: C.primary }]}>Ketentuan Layanan</Text> dan{" "}
-            <Text style={[styles.footerLink, { color: C.primary }]}>Kebijakan Privasi</Text> kami.
+            <Text
+              style={[styles.footerLink, { color: C.primary }]}
+              onPress={() =>
+                navigation.navigate("Markdown", {
+                  title: "Ketentuan Layanan",
+                  url: TERMS_URL,
+                })
+              }
+            >
+              Ketentuan Layanan
+            </Text>{" "}
+            dan{" "}
+            <Text
+              style={[styles.footerLink, { color: C.primary }]}
+              onPress={() =>
+                navigation.navigate("Markdown", {
+                  title: "Kebijakan Privasi",
+                  url: PRIVACY_URL,
+                })
+              }
+            >
+              Kebijakan Privasi
+            </Text>{" "}
+            kami.
           </Text>
         </Animated.View>
       </ScrollView>
