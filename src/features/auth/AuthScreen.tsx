@@ -84,12 +84,7 @@ export default function AuthScreen() {
   const logoSacle = useRef(new Animated.Value(0.8)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslate = useRef(new Animated.Value(20)).current;
-  const buttonsOpacity = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+  const buttonsOpacity = useRef([new Animated.Value(0)]).current;
   const footerOpacity = useRef(new Animated.Value(0)).current;
 
   const { width: winW, height: winH } = useWindowDimensions();
@@ -184,9 +179,6 @@ export default function AuthScreen() {
         Animated.timing(titleTranslate, { toValue: 0, duration: 500, useNativeDriver: true }),
       ]),
       Animated.timing(buttonsOpacity[0], { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(buttonsOpacity[1], { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(buttonsOpacity[2], { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(buttonsOpacity[3], { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.timing(footerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
   }, []);
@@ -352,45 +344,6 @@ export default function AuthScreen() {
                 <Text style={styles.googleIcon}>G</Text>
                 <Text style={[styles.socialBtnText, { color: C.onSurface }]}>Masuk dengan Google</Text>
                 <Text style={[styles.chevron, { color: C.outlineVariant }]}>›</Text>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* TikTok (placeholder — not implemented) */}
-            <Animated.View style={{ opacity: buttonsOpacity[1], width: "100%" }}>
-              <TouchableOpacity
-                style={[styles.socialBtn, { backgroundColor: "#000000", shadowColor: "#000" }]}
-                activeOpacity={0.8}
-                disabled
-              >
-                <Text style={[styles.socialBtnIcon, { color: "#FFF" }]}>♫</Text>
-                <Text style={[styles.socialBtnText, { color: "#FFF" }]}>Masuk dengan TikTok</Text>
-                <Text style={[styles.chevron, { color: "rgba(255,255,255,0.4)" }]}>›</Text>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* X / Twitter (placeholder) */}
-            <Animated.View style={{ opacity: buttonsOpacity[2], width: "100%" }}>
-              <TouchableOpacity
-                style={[styles.socialBtn, { backgroundColor: "#1DA1F2", shadowColor: "#1DA1F2" }]}
-                activeOpacity={0.8}
-                disabled
-              >
-                <Text style={[styles.socialBtnIcon, { color: "#FFF" }]}>𝕏</Text>
-                <Text style={[styles.socialBtnText, { color: "#FFF" }]}>Masuk dengan X</Text>
-                <Text style={[styles.chevron, { color: "rgba(255,255,255,0.4)" }]}>›</Text>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Facebook (placeholder) */}
-            <Animated.View style={{ opacity: buttonsOpacity[3], width: "100%" }}>
-              <TouchableOpacity
-                style={[styles.socialBtn, { backgroundColor: "#1877F2", shadowColor: "#1877F2" }]}
-                activeOpacity={0.8}
-                disabled
-              >
-                <Text style={[styles.socialBtnIcon, { color: "#FFF" }]}>f</Text>
-                <Text style={[styles.socialBtnText, { color: "#FFF" }]}>Masuk dengan Facebook</Text>
-                <Text style={[styles.chevron, { color: "rgba(255,255,255,0.4)" }]}>›</Text>
               </TouchableOpacity>
             </Animated.View>
 
@@ -607,7 +560,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#FFF",
   },
-  socialBtnIcon: { fontSize: 18, marginRight: 14, width: 28, textAlign: "center" },
   socialBtnText: { flex: 1, fontSize: 16, fontWeight: "700" },
   chevron: { fontSize: 22, fontWeight: "300", marginLeft: 8 },
 

@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Identitas guest berbasis device (cara #3 yang direkomendasikan):
@@ -32,7 +31,7 @@ export async function getOrCreateDeviceId(): Promise<string> {
     // Storage tidak tersedia (mis. mode pribadi browser) — lanjut generate ID baru.
   }
 
-  const id = uuidv4();
+  const id = generateUuid();
   try {
     await AsyncStorage.setItem(DEVICE_ID_KEY, id);
   } catch {
@@ -40,6 +39,33 @@ export async function getOrCreateDeviceId(): Promise<string> {
   }
   cached = id;
   return id;
+}
+
+/**
+ * UUID v4 (RFC 4122) tanpa dependensi eksternal.
+ *
+ * Package `uuid` butuh `crypto` global (randomUUID/getRandomValues) yang tidak
+ * tersedia di Hermes/React Native ("property 'crypto' doesn't exist"). Di sini
+ * dipakai `crypto.getRandomValues` kalau ada (web/Node), dan fallback
+ * `Math.random` di native — cukup aman untuk identitas perangkat (bukan
+ * kredensial/kunci kriptografis).
+ */
+function generateUuid(): string {
+  const cryptoObj = (globalThis as { crypto?: { getRandomValues?: (arr: Uint8Array) => void } })
+    .crypto;
+  const bytes = new Uint8Array(16);
+  if (cryptoObj?.getRandomValues) {
+    cryptoObj.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  // Version 4 + variant 10 (RFC 4122).
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /**
