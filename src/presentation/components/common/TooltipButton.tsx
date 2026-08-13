@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
   type TouchableOpacityProps,
   type ViewStyle,
@@ -32,6 +33,14 @@ const LONG_PRESS_MS = 450;
 const AUTO_HIDE_MS = 6000;
 const TOOLTIP_BG = "rgba(15, 18, 30, 0.95)";
 const TOOLTIP_TEXT = "#FFF";
+/**
+ * Lebar maksimum tooltip di native. Dipakai sebagai angka (bukan persen):
+ * `maxWidth: "100%"` di dalam elemen absolute-positioned membuat Yoga
+ * menghitung lebar = 0, sehingga teks membungkus ke kolom sempit yang
+ * memanjang ke bawah dan sulit dibaca. Angka pasti ini membuat tooltip
+ * melebar ke samping (mengikuti isi, dibatasi layar).
+ */
+const TOOLTIP_MAX_WIDTH = 280;
 
 /**
  * Tombol yang menampilkan tooltip penjelasan saat ditekan lama
@@ -51,6 +60,7 @@ export default function TooltipButton({
   children,
   ...rest
 }: TooltipButtonProps) {
+  const { width: windowWidth } = useWindowDimensions();
   const [visible, setVisible] = useState(false);
   // Posisi tombol relatif viewport (web) untuk penempatan portal.
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -125,7 +135,7 @@ export default function TooltipButton({
             tooltipPosition === "top" ? styles.tooltipTop : styles.tooltipBottom,
           ]}
         >
-          <View style={styles.tooltipBox}>
+          <View style={[styles.tooltipBox, { maxWidth: Math.min(windowWidth - 32, TOOLTIP_MAX_WIDTH) }]}>
             {icon ? <Text style={styles.tooltipIcon}>{icon}</Text> : null}
             <Text style={styles.tooltipText}>{tooltip}</Text>
           </View>
@@ -208,7 +218,6 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     paddingHorizontal: 11,
     paddingVertical: 6,
-    maxWidth: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

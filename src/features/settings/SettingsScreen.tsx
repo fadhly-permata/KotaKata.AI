@@ -1,4 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Linking,
+} from "react-native";
 import { useState, useCallback, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -122,10 +130,19 @@ export default function SettingsScreen() {
             <Text style={[styles.settingValue, { color: theme.colors.text }]}>1.0.0</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: theme.colors.textSecondary }]}>Aplikasi</Text>
-            <Text style={[styles.settingValue, { color: theme.colors.text }]}>KotaKata.AI</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.settingRow}
+            activeOpacity={0.6}
+            onPress={() => {
+              play("tap");
+              void Linking.openURL("https://github.com/fadhly-permata");
+            }}
+            accessibilityRole="link"
+            accessibilityLabel="Author Fadhly Permata — buka profil GitHub"
+          >
+            <Text style={[styles.settingLabel, { color: theme.colors.textSecondary }]}>Author</Text>
+            <Text style={[styles.settingValue, { color: theme.colors.primary }]}>Fadhly Permata ↗</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
