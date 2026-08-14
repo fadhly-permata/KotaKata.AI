@@ -20,6 +20,7 @@ import SettingsScreen from "../../features/settings/SettingsScreen";
 import LogViewerScreen from "../../features/settings/LogViewerScreen";
 import AiProviderScreen from "../../features/ai/AiProviderScreen";
 import MarkdownScreen from "../../features/legal/MarkdownScreen";
+import StoreScreen from "../../features/store/StoreScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -33,6 +34,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Settings: undefined;
   AiProvider: undefined;
+  Store: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -233,6 +235,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="AiProvider"
           component={AiProviderScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Store"
+          component={StoreScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

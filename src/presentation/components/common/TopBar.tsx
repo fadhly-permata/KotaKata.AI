@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import { useGameStore } from "../../stores/gameStore";
@@ -14,6 +15,10 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
   const { theme } = useTheme();
   const C = theme.colors;
   const navigation = useNavigation();
+  // Safe-area inset status bar — tanpa ini konten halaman masuk ke balik status
+  // bar (edge-to-edge Android 15+) dan terlihat seperti layar fullscreen.
+  // Web melaporkan insets 0, jadi tampilan web tidak berubah.
+  const insets = useSafeAreaInsets();
   const totalXp = useGameStore((s) => s.totalXp);
   const { user } = useAuth();
 
@@ -26,7 +31,15 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: C.surface }]}>
+    <View
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor: C.surface,
+          paddingTop: Platform.OS === "web" ? 0 : insets.top + 6,
+        },
+      ]}
+    >
       <View style={[styles.topBar, { backgroundColor: C.surface }]}>
         <View style={styles.topBarLeft}>
           {showBack && (

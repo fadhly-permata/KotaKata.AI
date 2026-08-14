@@ -26,6 +26,7 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
 | 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
 | 🌗 **Tema Terang/Gelap** | Transisi halus, konsisten di semua layar |
+| 🛍️ **Pasar (Store)** | Halaman katalog tema — 1 tema bawaan "Puitis" (terang/gelap) sebagai default, siap dikembangkan jadi tema berbayar |
 | ⌨️ **Keyboard & Touch** | Mobile touch + desktop arrow keys, keyboard virtual in-game |
 | ✨ **Animasi** | Parallax + orb floating di main menu, transisi halaman & popup beranimasi |
 
@@ -171,7 +172,7 @@ bun scripts/db/push-vocab.mjs          # push kosakata ke Supabase
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-012, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-013, semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -216,6 +217,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-010 | ✅ done | Konfeti layar penuh + ESC tutup popup + panel profil |
 | PLAN-011 | ✅ done | Bersihkan singkatan kuno (pd/dl/krn) di semua clue tier |
 | PLAN-012 | ✅ done | Reveal XP fair (tanpa potong XP bila tidak ada huruf berubah) + animasi zoom-out + progress ring & toggle tema di header in-game |
+| PLAN-013 | ✅ done | Semua halaman tidak lagi fullscreen (safe-area) + refactor kode (gameStore helpers, GameScreen → GameTopBar/CluePill/GameActionBar, FloatingOrbs) + tombol & halaman Pasar (Store) dengan 1 tema default |
 
 ## ❓ FAQ
 

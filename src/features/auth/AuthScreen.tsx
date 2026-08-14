@@ -15,10 +15,14 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useAuth } from "./useAuth";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import FloatingOrbs, {
+  type FloatingOrbSpec,
+} from "../../presentation/components/common/FloatingOrbs";
 
 type AuthMode = "select" | "email";
 
@@ -94,6 +98,9 @@ export default function AuthScreen() {
   const buttonsOpacity = useRef([new Animated.Value(0)]).current;
   const footerOpacity = useRef(new Animated.Value(0)).current;
 
+  // Safe-area inset status bar (native) — konten login tidak masuk ke balik
+  // status bar (edge-to-edge Android) supaya tidak terlihat fullscreen.
+  const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   // Parallax orb saat scroll — sama seperti main menu (Animated.event).
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -135,41 +142,45 @@ export default function AuthScreen() {
   // Ukuran orb proporsional terhadap layar (HP kecil s/d tablet/web lebar).
   const orbSize = (base: number) =>
     Math.min(base, Math.max(88, Math.min(winW, winH) * 0.32));
-  const orbSpecs = [
+  const orbSpecs: FloatingOrbSpec[] = [
     {
-      size: orbSize(180),
-      color: C.orbPink,
+      width: orbSize(180),
+      height: orbSize(180),
+      backgroundColor: C.orbPink,
       top: -64,
       left: -64,
-      bounce: [0, -16],
-      parallax: [0, -70],
+      parallaxRange: [0, -70],
+      bounceRange: [0, -16],
       opacity: 0.55,
     },
     {
-      size: orbSize(220),
-      color: C.orbBlue,
+      width: orbSize(220),
+      height: orbSize(220),
+      backgroundColor: C.orbBlue,
       bottom: -80,
       right: -64,
-      bounce: [0, 14],
-      parallax: [0, -100],
+      parallaxRange: [0, -100],
+      bounceRange: [0, 14],
       opacity: 0.5,
     },
     {
-      size: orbSize(120),
-      color: C.orbPurple,
+      width: orbSize(120),
+      height: orbSize(120),
+      backgroundColor: C.orbPurple,
       top: "36%",
       right: "-8%",
-      bounce: [0, -10],
-      parallax: [0, -50],
+      parallaxRange: [0, -50],
+      bounceRange: [0, -10],
       opacity: 0.45,
     },
     {
-      size: orbSize(84),
-      color: C.orbPink,
+      width: orbSize(84),
+      height: orbSize(84),
+      backgroundColor: C.orbPink,
       top: "58%",
       left: "-4%",
-      bounce: [0, 9],
-      parallax: [0, -40],
+      parallaxRange: [0, -40],
+      bounceRange: [0, 9],
       opacity: 0.4,
     },
   ];
@@ -252,47 +263,18 @@ export default function AuthScreen() {
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-      {/* Floating decorative orbs — parallax + idle bounce (tidak menghalangi tap) */}
-      <View style={styles.orbLayer} pointerEvents="none">
-        {orbSpecs.map((spec, i) => (
-          <Animated.View
-            key={i}
-            style={[
-              styles.orb,
-              {
-                width: spec.size,
-                height: spec.size,
-                backgroundColor: spec.color,
-                opacity: spec.opacity,
-                top: spec.top as any,
-                left: spec.left as any,
-                right: spec.right as any,
-                bottom: spec.bottom as any,
-                transform: [
-                  {
-                    translateY: scrollY.interpolate({
-                      inputRange: [0, 300],
-                      outputRange: spec.parallax,
-                      extrapolate: "clamp",
-                    }),
-                  },
-                  {
-                    translateY: orbBounce[i].interpolate({
-                      inputRange: [0, 1],
-                      outputRange: spec.bounce,
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        ))}
-      </View>
+      {/* Floating decorative orbs — parallax + idle bounce (tidak menghalangi
+          tap). Komponen bersama FloatingOrbs (dipakai juga oleh Main Menu). */}
+      <FloatingOrbs scrollY={scrollY} orbs={orbSpecs} orbBounce={orbBounce} />
 
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingVertical: winH < 700 ? 24 : 48 },
+          {
+            paddingVertical: winH < 700 ? 24 : 48,
+            paddingTop:
+              (winH < 700 ? 24 : 48) + (Platform.OS === "web" ? 0 : insets.top),
+          },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -519,17 +501,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingVertical: 48,
-  },
-
-  // Floating orbs
-  orbLayer: {
-    ...StyleSheet.absoluteFill,
-    overflow: "hidden",
-    zIndex: 0,
-  },
-  orb: {
-    position: "absolute",
-    borderRadius: 999,
   },
 
   // Splash

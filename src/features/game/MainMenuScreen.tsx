@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import UserAvatar from "../../presentation/components/common/UserAvatar";
@@ -33,6 +34,9 @@ import { loggerInfo } from "../../utils/logger";
 import AppModal from "../../presentation/components/common/AppModal";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import FloatingOrbs, {
+  type FloatingOrbSpec,
+} from "../../presentation/components/common/FloatingOrbs";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
@@ -55,6 +59,9 @@ export default function MainMenuScreen() {
   const { theme, isDark } = useTheme();
   const C = theme.colors;
   const { height: winH } = useWindowDimensions();
+  // Safe-area inset status bar (native) — konten tidak masuk ke balik status
+  // bar (edge-to-edge Android) supaya menu tidak terlihat fullscreen.
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const totalXp = useGameStore((s) => s.totalXp);
   const reset = useGameStore((s) => s.reset);
@@ -128,7 +135,7 @@ export default function MainMenuScreen() {
     };
   }, [orbBounce]);
 
-  const orbSpecs = [
+  const orbSpecs: FloatingOrbSpec[] = [
     {
       width: 160,
       height: 160,
@@ -420,42 +427,9 @@ export default function MainMenuScreen() {
 
   return (
     <ScreenFade style={[styles.root, { backgroundColor: C.background }]}>
-      {/* ─── Floating Background Shapes (Parallax + idle bounce) ─── */}
-      <View style={styles.floatingContainer} pointerEvents="none">
-        {orbSpecs.map((spec, i) => (
-          <Animated.View
-            key={i}
-            style={[
-              styles.floatingOrb,
-              {
-                width: spec.width,
-                height: spec.height,
-                backgroundColor: spec.backgroundColor,
-                top: spec.top as any,
-                left: spec.left as any,
-                right: spec.right as any,
-                bottom: spec.bottom as any,
-                opacity: spec.opacity,
-                transform: [
-                  {
-                    translateY: scrollY.interpolate({
-                      inputRange: [0, 300],
-                      outputRange: spec.parallaxRange,
-                      extrapolate: "clamp",
-                    }),
-                  },
-                  {
-                    translateY: orbBounce[i].interpolate({
-                      inputRange: [0, 1],
-                      outputRange: spec.bounceRange,
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        ))}
-      </View>
+      {/* ─── Floating Background Shapes (Parallax + idle bounce) — komponen
+          bersama FloatingOrbs (dipakai juga oleh halaman login) ─── */}
+      <FloatingOrbs scrollY={scrollY} orbs={orbSpecs} orbBounce={orbBounce} />
 
       {/* ─── Scrollable Content ─── */}
       <ScrollView
@@ -469,8 +443,16 @@ export default function MainMenuScreen() {
         )}
         scrollEventThrottle={16}
       >
-        {/* ═══ Top AppBar ═══ */}
-        <View style={[styles.topBar, { backgroundColor: C.surface }]}>
+        {/* ═══ Top AppBar — paddingTop mengikuti inset status bar (native) ═══ */}
+        <View
+          style={[
+            styles.topBar,
+            {
+              backgroundColor: C.surface,
+              paddingTop: Platform.OS === "web" ? 16 : 12 + insets.top,
+            },
+          ]}
+        >
           <View style={styles.topBarLeft}>
             <UserAvatar name={user?.displayName} avatarUrl={user?.avatarUrl} size={36} />
             <View style={styles.topBarTitleCol}>
@@ -660,6 +642,27 @@ export default function MainMenuScreen() {
             </View>
           </View>
         </View>
+        {/* ═══ Pasar — tombol memanjang di posisi paling bawah ═══ */}
+        <TouchableOpacity
+          style={[
+            styles.pasarBtn,
+            { backgroundColor: C.surface, borderColor: C.border },
+          ]}
+          activeOpacity={0.85}
+          onPress={() => {
+            play("tap");
+            navigation.navigate("Store");
+          }}
+        >
+          <Text style={styles.pasarEmoji}>🛍️</Text>
+          <View style={styles.pasarCol}>
+            <Text style={[styles.pasarLabel, { color: C.text }]}>Pasar</Text>
+            <Text style={[styles.pasarHint, { color: C.textSecondary }]} numberOfLines={1}>
+              Tema keren untuk papanku
+            </Text>
+          </View>
+          <Text style={[styles.pasarChevron, { color: C.secondary }]}>›</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ─── Popup "Kata Ajaib" ─── */}
@@ -989,17 +992,6 @@ export default function MainMenuScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
-  /* ─── Floating Orbs ─── */
-  floatingContainer: {
-    ...StyleSheet.absoluteFill,
-    overflow: "hidden",
-    zIndex: -1,
-  },
-  floatingOrb: {
-    position: "absolute",
-    borderRadius: 9999,
-  },
-
   /* ─── Scroll ─── */
   scroll: { flex: 1 },
   scrollContent: {
@@ -1012,7 +1004,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "web" ? 16 : 48,
     paddingBottom: 12,
   },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -1187,6 +1178,27 @@ const styles = StyleSheet.create({
   },
   bentoSmallEmoji: { fontSize: 24 },
   bentoSmallLabel: { fontSize: 13, fontWeight: "700" },
+
+  /* ─── Pasar (Store) — tombol memanjang di paling bawah ─── */
+  pasarBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+    ...Platform.select({
+      web: { cursor: "pointer" },
+    }),
+  },
+  pasarEmoji: { fontSize: 26 },
+  pasarCol: { flex: 1, gap: 1 },
+  pasarLabel: { fontSize: 17, fontWeight: "900", letterSpacing: -0.3 },
+  pasarHint: { fontSize: 12, fontWeight: "500" },
+  pasarChevron: { fontSize: 26, fontWeight: "700" },
 
   /* ─── Popup Kata Ajaib ─── */
   magicLoading: { marginVertical: 24 },
