@@ -12,6 +12,14 @@ import type { Theme } from "../components/providers/ThemeProvider";
  *  - board    → desain halaman GAME saja: papan, soal (clue pill) & panel hint.
  *  - keyboard → desain InGameKeyboard.
  *
+ * KESERAGAMAN TEMA: setiap tema aplikasi (puitis/samudra/senja/hutan) punya
+ * versi papan & keyboard dengan NAMA SAMA (paletnya diturunkan dari palet
+ * aplikasi) supaya ganti tema tetap senada. Tema papan/keyboard tambahan
+ * (tinta, neon, pastel, klasik) tetap ada sebagai gaya alternatif.
+ *
+ * Tema aplikasi juga membawa `sound` (SoundSpec): gaya audio (rate + volume)
+ * yang dipakai sound.ts ke semua efek suara game — tanpa aset audio baru.
+ *
  * Tiap palet juga bisa membawa `background` (BackgroundSpec): gradien warna
  * dan/atau URL gambar latar + overlay — dirender oleh komponen
  * `ThemedBackground` (lihat src/presentation/components/common/).
@@ -43,6 +51,21 @@ export interface BackgroundSpec {
   overlay?: string;
 }
 
+/* ─────────────────────────── Suara (Tema Audio) ─────────────────────────── */
+
+/**
+ * Kepribadian AUDIO sebuah tema aplikasi — diterapkan oleh sound.ts ke semua
+ * efek suara game (tanpa aset audio baru):
+ * - `rate`   → kecepatan playback (1.0 = normal; <1 lebih pelan/lembut,
+ *              >1 lebih cepat/ceria).
+ * - `volume` → volume relatif (0–1).
+ */
+export interface SoundSpec {
+  label: string;
+  rate: number;
+  volume: number;
+}
+
 /* ─────────────────────────── Tema Aplikasi (Global) ─────────────────────────── */
 
 export interface AppThemeDefinition {
@@ -52,6 +75,8 @@ export interface AppThemeDefinition {
   description: string;
   isDefault: boolean;
   priceLabel: string;
+  /** Gaya suara tema (rate + volume) — dipakai sound.ts. */
+  sound: SoundSpec;
   light: Theme;
   dark: Theme;
 }
@@ -64,6 +89,7 @@ const puitis: AppThemeDefinition = {
     "Tema bawaan KotaKata AI: latar pink-putih lembut di mode terang dan plum gelap di mode gelap, dengan aksen ungu & biru langit.",
   isDefault: true,
   priceLabel: "Gratis · Tema Aktif",
+  sound: { label: "Klasik", rate: 1, volume: 1 },
   light: {
     mode: "light",
     background: { gradient: ["#fef7ff", "#f7eaff", "#eef3ff"] },
@@ -128,9 +154,14 @@ const samudra: AppThemeDefinition = {
     "Palet samudra: biru dalam & teal segar dengan aksen koral. Terasa teduh di mode terang dan seperti menyelam di malam hari saat mode gelap.",
   isDefault: false,
   priceLabel: "Gratis",
+  sound: { label: "Tenang", rate: 0.88, volume: 0.8 },
   light: {
     mode: "light",
-    background: { gradient: ["#eef7fb", "#e2f2f7", "#e8f6f1"] },
+    background: {
+      gradient: ["#eef7fb", "#e2f2f7", "#e8f6f1"],
+      imageUrl: "https://picsum.photos/seed/kotakata-samudra/1080/1920",
+      overlay: "rgba(238,247,251,0.78)",
+    },
     colors: {
       background: "#eef7fb",
       surface: "#ffffff",
@@ -157,7 +188,11 @@ const samudra: AppThemeDefinition = {
   },
   dark: {
     mode: "dark",
-    background: { gradient: ["#061a24", "#0a2233", "#062430"] },
+    background: {
+      gradient: ["#061a24", "#0a2233", "#062430"],
+      imageUrl: "https://picsum.photos/seed/kotakata-samudra/1080/1920",
+      overlay: "rgba(6,26,36,0.82)",
+    },
     colors: {
       background: "#061a24",
       surface: "#0d2a38",
@@ -192,9 +227,14 @@ const senja: AppThemeDefinition = {
     "Nuansa senja: oranye hangat, ungu dusk, dan mawar lembut. Cocok untuk bermain santai di sore hari.",
   isDefault: false,
   priceLabel: "Gratis",
+  sound: { label: "Hangat", rate: 0.95, volume: 0.95 },
   light: {
     mode: "light",
-    background: { gradient: ["#fdf3ec", "#fbe8dc", "#f6e6f3"] },
+    background: {
+      gradient: ["#fdf3ec", "#fbe8dc", "#f6e6f3"],
+      imageUrl: "https://picsum.photos/seed/kotakata-senja/1080/1920",
+      overlay: "rgba(253,243,236,0.8)",
+    },
     colors: {
       background: "#fdf3ec",
       surface: "#ffffff",
@@ -221,7 +261,11 @@ const senja: AppThemeDefinition = {
   },
   dark: {
     mode: "dark",
-    background: { gradient: ["#241420", "#331a2a", "#2b1b33"] },
+    background: {
+      gradient: ["#241420", "#331a2a", "#2b1b33"],
+      imageUrl: "https://picsum.photos/seed/kotakata-senja/1080/1920",
+      overlay: "rgba(36,20,32,0.84)",
+    },
     colors: {
       background: "#241420",
       surface: "#35202e",
@@ -256,6 +300,7 @@ const hutan: AppThemeDefinition = {
     "Palet hutan: hijau rimba yang teduh, zaitun hangat, dan langit biru sebagai aksen. Tenang dan natural di kedua mode.",
   isDefault: false,
   priceLabel: "Gratis",
+  sound: { label: "Segar", rate: 1.08, volume: 0.9 },
   light: {
     mode: "light",
     background: { gradient: ["#f0f7ee", "#e5f2e1", "#ecf5f0"] },
@@ -599,7 +644,235 @@ const papanNeon: BoardThemeDefinition = {
   },
 };
 
-export const BOARD_THEMES: BoardThemeDefinition[] = [papanPuitis, papanTinta, papanNeon];
+const papanSamudra: BoardThemeDefinition = {
+  id: "samudra",
+  name: "Samudra",
+  tagline: "Papan biru laut & teal yang menenangkan",
+  description:
+    "Papan senada tema aplikasi Samudra: sel aktif biru laut, kata terjawab biru muda, soal & panel petunjuk teal segar.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    boardBackground: "#ffffff",
+    background: { gradient: ["#eef7fb", "#e2f2f7"] },
+    boardBorder: "#c3dbe6",
+    cellActive: "#ffffff",
+    cellActiveText: "#0e2a3a",
+    cellBorder: "#c3dbe6",
+    cellSelected: "#0087b8",
+    cellSelectedText: "#ffffff",
+    cellHighlight: "#d8f2f2",
+    cellHighlightBorder: "#0087b8",
+    cellSolved: "#cdeef7",
+    cellSolvedText: "#00607f",
+    cellBlocked: "#0e2a3a",
+    cellNumber: "#4a6b7a",
+    clueBackground: "#0f8a8a",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#0f8a8a",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#ffffff",
+    hintBorder: "#c3dbe6",
+    hintPrimary: "#0087b8",
+    hintPrimaryText: "#ffffff",
+    hintSecondary: "#d8f2f2",
+    hintIcon: "#0f8a8a",
+    hintText: "#0e2a3a",
+    hintTextSecondary: "#4a6b7a",
+    hintBadgeBackground: "#c3dbe6",
+    hintBadgeText: "#0e2a3a",
+  },
+  dark: {
+    boardBackground: "#0d2a38",
+    background: { gradient: ["#0d2a38", "#061a24"] },
+    boardBorder: "#1f4454",
+    cellActive: "#0d2a38",
+    cellActiveText: "#eef7fb",
+    cellBorder: "#1f4454",
+    cellSelected: "#4fc3e8",
+    cellSelectedText: "#061a24",
+    cellHighlight: "#123a42",
+    cellHighlightBorder: "#4fc3e8",
+    cellSolved: "#0e3d4f",
+    cellSolvedText: "#4fc3e8",
+    cellBlocked: "#061a24",
+    cellNumber: "#8fb4c4",
+    clueBackground: "#0f8a8a",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#0f8a8a",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#0d2a38",
+    hintBorder: "#1f4454",
+    hintPrimary: "#4fc3e8",
+    hintPrimaryText: "#061a24",
+    hintSecondary: "#123a42",
+    hintIcon: "#5fd0d0",
+    hintText: "#eef7fb",
+    hintTextSecondary: "#8fb4c4",
+    hintBadgeBackground: "#1f4454",
+    hintBadgeText: "#4fc3e8",
+  },
+};
+
+const papanSenja: BoardThemeDefinition = {
+  id: "senja",
+  name: "Senja",
+  tagline: "Papan hangat oranye & ungu senja",
+  description:
+    "Papan senada tema aplikasi Senja: sel aktif oranye hangat, kata terjawab peach, soal ungu dusk.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    boardBackground: "#ffffff",
+    background: { gradient: ["#fdf3ec", "#fbe8dc"] },
+    boardBorder: "#ecd4c4",
+    cellActive: "#ffffff",
+    cellActiveText: "#3a241a",
+    cellBorder: "#ecd4c4",
+    cellSelected: "#d96c3f",
+    cellSelectedText: "#ffffff",
+    cellHighlight: "#f3e3f7",
+    cellHighlightBorder: "#d96c3f",
+    cellSolved: "#ffe0d1",
+    cellSolvedText: "#b0502a",
+    cellBlocked: "#3a241a",
+    cellNumber: "#7a5c4a",
+    clueBackground: "#8a5a9e",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#8a5a9e",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#ffffff",
+    hintBorder: "#ecd4c4",
+    hintPrimary: "#d96c3f",
+    hintPrimaryText: "#ffffff",
+    hintSecondary: "#f3e3f7",
+    hintIcon: "#8a5a9e",
+    hintText: "#3a241a",
+    hintTextSecondary: "#7a5c4a",
+    hintBadgeBackground: "#ecd4c4",
+    hintBadgeText: "#8a5a9e",
+  },
+  dark: {
+    boardBackground: "#35202e",
+    background: { gradient: ["#35202e", "#241420"] },
+    boardBorder: "#57394a",
+    cellActive: "#35202e",
+    cellActiveText: "#fdf3ec",
+    cellBorder: "#57394a",
+    cellSelected: "#ff9c6b",
+    cellSelectedText: "#241420",
+    cellHighlight: "#46284f",
+    cellHighlightBorder: "#ff9c6b",
+    cellSolved: "#5a2e3a",
+    cellSolvedText: "#ff9c6b",
+    cellBlocked: "#241420",
+    cellNumber: "#c2a492",
+    clueBackground: "#8a5a9e",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#8a5a9e",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#35202e",
+    hintBorder: "#57394a",
+    hintPrimary: "#ff9c6b",
+    hintPrimaryText: "#241420",
+    hintSecondary: "#46284f",
+    hintIcon: "#c9a0dd",
+    hintText: "#fdf3ec",
+    hintTextSecondary: "#c2a492",
+    hintBadgeBackground: "#57394a",
+    hintBadgeText: "#ff9c6b",
+  },
+};
+
+const papanHutan: BoardThemeDefinition = {
+  id: "hutan",
+  name: "Hutan",
+  tagline: "Papan hijau rimba yang teduh",
+  description:
+    "Papan senada tema aplikasi Hutan: sel aktif hijau rimba, kata terjawab hijau muda, soal biru langit.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    boardBackground: "#ffffff",
+    background: { gradient: ["#f0f7ee", "#e5f2e1"] },
+    boardBorder: "#c9ddc5",
+    cellActive: "#ffffff",
+    cellActiveText: "#1d3322",
+    cellBorder: "#c9ddc5",
+    cellSelected: "#2f8f4e",
+    cellSelectedText: "#ffffff",
+    cellHighlight: "#e6f2dc",
+    cellHighlightBorder: "#2f8f4e",
+    cellSolved: "#d8efd4",
+    cellSolvedText: "#1f6b3a",
+    cellBlocked: "#1d3322",
+    cellNumber: "#55705c",
+    clueBackground: "#4a7fc0",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#4a7fc0",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#ffffff",
+    hintBorder: "#c9ddc5",
+    hintPrimary: "#2f8f4e",
+    hintPrimaryText: "#ffffff",
+    hintSecondary: "#e6f2dc",
+    hintIcon: "#6a7f3f",
+    hintText: "#1d3322",
+    hintTextSecondary: "#55705c",
+    hintBadgeBackground: "#c9ddc5",
+    hintBadgeText: "#1f6b3a",
+  },
+  dark: {
+    boardBackground: "#152b1c",
+    background: { gradient: ["#152b1c", "#0d1f12"] },
+    boardBorder: "#2c4a37",
+    cellActive: "#152b1c",
+    cellActiveText: "#f0f7ee",
+    cellBorder: "#2c4a37",
+    cellSelected: "#5fbe7f",
+    cellSelectedText: "#0d1f12",
+    cellHighlight: "#243a28",
+    cellHighlightBorder: "#5fbe7f",
+    cellSolved: "#1e3d2b",
+    cellSolvedText: "#5fbe7f",
+    cellBlocked: "#0d1f12",
+    cellNumber: "#92af99",
+    clueBackground: "#4a7fc0",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#4a7fc0",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#152b1c",
+    hintBorder: "#2c4a37",
+    hintPrimary: "#5fbe7f",
+    hintPrimaryText: "#0d1f12",
+    hintSecondary: "#243a28",
+    hintIcon: "#a3bd6e",
+    hintText: "#f0f7ee",
+    hintTextSecondary: "#92af99",
+    hintBadgeBackground: "#2c4a37",
+    hintBadgeText: "#5fbe7f",
+  },
+};
+
+export const BOARD_THEMES: BoardThemeDefinition[] = [papanPuitis, papanSamudra, papanSenja, papanHutan, papanTinta, papanNeon];
 
 /* ─────────────────────────── Tema Keyboard ─────────────────────────── */
 
@@ -730,7 +1003,116 @@ const keyboardKlasik: KeyboardThemeDefinition = {
   },
 };
 
-export const KEYBOARD_THEMES: KeyboardThemeDefinition[] = [keyboardPuitis, keyboardPastel, keyboardKlasik];
+const keyboardSamudra: KeyboardThemeDefinition = {
+  id: "samudra",
+  name: "Samudra",
+  tagline: "Keyboard biru laut senada tema aplikasi",
+  description:
+    "Keyboard senada tema aplikasi Samudra: tombol putih-biru muda, navigasi biru laut.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    panelBackground: "#ffffff",
+    background: { gradient: ["#eef7fb", "#e2f2f7"] },
+    panelBorder: "#c3dbe6",
+    keyBackground: "#ffffff",
+    keyBorder: "#c3dbe6",
+    keyText: "#0e2a3a",
+    specialBackground: "#c3dbe6",
+    navBackground: "#ffffff",
+    navBorder: "#0087b8",
+    navText: "#0087b8",
+  },
+  dark: {
+    panelBackground: "#0d2a38",
+    background: { gradient: ["#0d2a38", "#0a2233"] },
+    panelBorder: "#1f4454",
+    keyBackground: "#0d2a38",
+    keyBorder: "#1f4454",
+    keyText: "#eef7fb",
+    specialBackground: "#1f4454",
+    navBackground: "#0d2a38",
+    navBorder: "#4fc3e8",
+    navText: "#4fc3e8",
+  },
+};
+
+const keyboardSenja: KeyboardThemeDefinition = {
+  id: "senja",
+  name: "Senja",
+  tagline: "Keyboard hangat senada tema aplikasi",
+  description:
+    "Keyboard senada tema aplikasi Senja: tombol putih-cream, navigasi oranye hangat.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    panelBackground: "#ffffff",
+    background: { gradient: ["#fdf3ec", "#fbe8dc"] },
+    panelBorder: "#ecd4c4",
+    keyBackground: "#ffffff",
+    keyBorder: "#ecd4c4",
+    keyText: "#3a241a",
+    specialBackground: "#ecd4c4",
+    navBackground: "#ffffff",
+    navBorder: "#d96c3f",
+    navText: "#d96c3f",
+  },
+  dark: {
+    panelBackground: "#35202e",
+    background: { gradient: ["#35202e", "#331a2a"] },
+    panelBorder: "#57394a",
+    keyBackground: "#35202e",
+    keyBorder: "#57394a",
+    keyText: "#fdf3ec",
+    specialBackground: "#57394a",
+    navBackground: "#35202e",
+    navBorder: "#ff9c6b",
+    navText: "#ff9c6b",
+  },
+};
+
+const keyboardHutan: KeyboardThemeDefinition = {
+  id: "hutan",
+  name: "Hutan",
+  tagline: "Keyboard hijau segar senada tema aplikasi",
+  description:
+    "Keyboard senada tema aplikasi Hutan: tombol putih-hijau muda, navigasi hijau rimba.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    panelBackground: "#ffffff",
+    background: { gradient: ["#f0f7ee", "#e5f2e1"] },
+    panelBorder: "#c9ddc5",
+    keyBackground: "#ffffff",
+    keyBorder: "#c9ddc5",
+    keyText: "#1d3322",
+    specialBackground: "#c9ddc5",
+    navBackground: "#ffffff",
+    navBorder: "#2f8f4e",
+    navText: "#2f8f4e",
+  },
+  dark: {
+    panelBackground: "#152b1c",
+    background: { gradient: ["#152b1c", "#12291b"] },
+    panelBorder: "#2c4a37",
+    keyBackground: "#152b1c",
+    keyBorder: "#2c4a37",
+    keyText: "#f0f7ee",
+    specialBackground: "#2c4a37",
+    navBackground: "#152b1c",
+    navBorder: "#5fbe7f",
+    navText: "#5fbe7f",
+  },
+};
+
+export const KEYBOARD_THEMES: KeyboardThemeDefinition[] = [
+  keyboardPuitis,
+  keyboardSamudra,
+  keyboardSenja,
+  keyboardHutan,
+  keyboardPastel,
+  keyboardKlasik,
+];
 
 /* ─────────────────────────── Resolver ─────────────────────────── */
 

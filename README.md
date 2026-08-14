@@ -26,10 +26,10 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
 | 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
 | 🌗 **Tema Terang/Gelap** | Transisi halus, konsisten di semua layar |
-| 🎨 **Multi-Tema** | 4 tema aplikasi (Puitis/Samudra/Senja/Hutan) + 3 tema papan (Puitis/Tinta/Neon) + 3 tema keyboard (Puitis/Pastel/Klasik) — semua light & dark, pilihan tersimpan permanen; tiap tema punya **latar gradien** (dan dukungan gambar URL) lewat `ThemedBackground` |
+| 🎨 **Multi-Tema** | **Keseragaman tema**: 4 tema aplikasi (Puitis/Samudra/Senja/Hutan) — masing-masing punya versi **papan & keyboard dengan nama sama** (total 4 app · 6 papan · 6 keyboard; Tinta/Neon & Pastel/Klasik tetap ada sebagai gaya alternatif) — semua light & dark, pilihan tersimpan permanen; tiap tema punya **latar gradien**, tema Samudra & Senja pakai **gambar latar** (foto + overlay kontras, fallback gradien saat offline), dan **tema suara** (Puitis=Klasik, Samudra=Tenang, Senja=Hangat, Hutan=Segar — diterapkan ke semua efek suara tanpa aset baru) |
 | 🛍️ **Pasar (Store)** | Halaman katalog tema dengan 3 seksi (Aplikasi/Papan/Keyboard) + tombol **Preview** tiap tema (mockup sesuai jenis tema, toggle terang/gelap) sebelum diaktifkan; katalog tersimpan di database Supabase (tabel `themes`) dengan fallback offline — siap dikembangkan jadi tema berbayar |
 | ⌨️ **Keyboard & Touch** | Mobile touch + desktop arrow keys, keyboard virtual in-game |
-| ✨ **Animasi** | Parallax + orb floating di main menu, transisi halaman & popup beranimasi |
+| ✨ **Animasi** | Orb ambien di **semua halaman** (`AmbientOrbs` — 24 orb acak, warna palet tema) + parallax & orb floating khusus di main menu & login, transisi halaman & popup beranimasi; dialog konfirmasi ber-ikon dengan tata letak responsif (vertikal di HP, horizontal di layar lebar) |
 
 ## 🏆 Sistem Peringkat
 
@@ -178,10 +178,17 @@ bun scripts/db/gen-themes-sql.mjs     # generate supabase/data/themes.sql dari t
 node scripts/db/push-themes.mjs       # regenerate + push katalog tema ke Supabase
 ```
 
+Build & deploy:
+
+```bash
+bun run build:eas                     # build APK/AAB via expo.dev (EAS)
+bun run deploy:web                    # export web + deploy ke EAS Hosting (expo.dev)
+```
+
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-014, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-018, semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -237,6 +244,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-015 | ✅ done | Tombol Preview di tiap kartu tema Pasar — modal mockup sesuai jenis tema (aplikasi/papan/keyboard) dengan toggle terang/gelap sebelum aktivasi |
 | PLAN-016 | ✅ done | Aturan GitHub Release (tidak dibuat dari workspace — identitas app bukan pemilik), script build EAS `scripts/expo-build.mjs` + npm `build:eas`, fix clue auto-height di HP (flexShrink 0 agar pill tidak pernah terdesak) |
 | PLAN-017 | ✅ done | Background image & gradien: `BackgroundSpec` (gradien + URL gambar + overlay) di semua tema, komponen `ThemedBackground` (react-native-svg), ScreenFade merender latar tema aplikasi di semua halaman, halaman game pakai latar tema papan, keyboard pakai latar tema keyboard, preview Pasar merender gradien |
+| PLAN-018 | ✅ done | Keseragaman tema (tiap tema app punya papan & keyboard senama), tema gambar latar (Samudra & Senja pakai foto), tema suara (rate+volume per tema, tanpa aset baru), orb ambien di semua halaman (`AmbientOrbs` reusable), dialog konfirmasi ber-ikon & responsif, deploy web ke EAS Hosting (`deploy:web`) |
 
 ## ❓ FAQ
 

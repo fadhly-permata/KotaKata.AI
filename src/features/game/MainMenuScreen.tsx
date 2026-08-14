@@ -426,7 +426,9 @@ export default function MainMenuScreen() {
   const bentoSmallH = Math.max(60, Math.min(84, winH * 0.115));
 
   return (
-    <ScreenFade style={[styles.root, { backgroundColor: C.background }]}>
+    <ScreenFade orbs={false} style={[styles.root, { backgroundColor: C.background }]}>
+      {/* orbs={false}: Main Menu punya FloatingOrbs parallax sendiri — orb
+          ambien global (dari ScreenFade) dimatikan supaya tidak dobel. */}
       {/* ─── Floating Background Shapes (Parallax + idle bounce) — komponen
           bersama FloatingOrbs (dipakai juga oleh halaman login) ─── */}
       <FloatingOrbs scrollY={scrollY} orbs={orbSpecs} orbBounce={orbBounce} />

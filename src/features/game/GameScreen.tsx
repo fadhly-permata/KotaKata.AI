@@ -1068,6 +1068,8 @@ export default function GameScreen() {
         onCancel={handleCancelQuit}
         variant="danger"
         emoji="🚪"
+        confirmIcon="💾"
+        cancelIcon="🎮"
       />
 
       {/* Reset board confirmation */}
@@ -1081,6 +1083,8 @@ export default function GameScreen() {
         onCancel={() => setShowResetConfirm(false)}
         variant="danger"
         emoji="🔄"
+        confirmIcon="🗑️"
+        cancelIcon="↩️"
       />
 
       {/* Reveal clue confirmation — buka clue 2 lalu 3, potong XP sekali */}

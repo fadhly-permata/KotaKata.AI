@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Animated, useWindowDimensions } from "react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
@@ -14,6 +14,10 @@ interface ConfirmDialogProps {
   onCancel: () => void;
   variant?: "danger" | "normal";
   emoji?: string;
+  /** Ikon (emoji) di tombol konfirmasi — opsional, bikin tombol lebih ceria. */
+  confirmIcon?: string;
+  /** Ikon (emoji) di tombol batal — opsional. */
+  cancelIcon?: string;
 }
 
 export default function ConfirmDialog({
@@ -26,8 +30,14 @@ export default function ConfirmDialog({
   onCancel,
   variant = "normal",
   emoji,
+  confirmIcon,
+  cancelIcon,
 }: ConfirmDialogProps) {
   const { theme } = useTheme();
+  // Responsif: layar sempit (HP) → tombol vertikal menumpuk; layar lebar →
+  // dua tombol berdampingan.
+  const { width: winW } = useWindowDimensions();
+  const isNarrow = winW < 400;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(18)).current;
@@ -79,7 +89,7 @@ export default function ConfirmDialog({
         <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
         <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text>
 
-        <View style={styles.buttons}>
+        <View style={[styles.buttons, isNarrow ? styles.buttonsNarrow : styles.buttonsWide]}>
           <TouchableOpacity
             style={[styles.btn, styles.cancelBtn, { borderColor: theme.colors.border }]}
             activeOpacity={0.6}
@@ -88,7 +98,10 @@ export default function ConfirmDialog({
               onCancel();
             }}
           >
-            <Text style={[styles.cancelText, { color: theme.colors.textSecondary }]}>{cancelText}</Text>
+            <View style={styles.btnLabelRow}>
+              {cancelIcon ? <Text style={styles.btnIcon}>{cancelIcon}</Text> : null}
+              <Text style={[styles.cancelText, { color: theme.colors.textSecondary }]}>{cancelText}</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: confirmColor }]}
@@ -98,7 +111,10 @@ export default function ConfirmDialog({
               onConfirm();
             }}
           >
-            <Text style={styles.confirmText}>{confirmText}</Text>
+            <View style={styles.btnLabelRow}>
+              {confirmIcon ? <Text style={styles.btnIcon}>{confirmIcon}</Text> : null}
+              <Text style={styles.confirmText}>{confirmText}</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -129,17 +145,31 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "700", textAlign: "center" },
   message: { fontSize: 14, textAlign: "center", lineHeight: 20 },
   buttons: {
-    flexDirection: "row",
     gap: 12,
     marginTop: 8,
     width: "100%",
   },
+  buttonsNarrow: {
+    flexDirection: "column",
+  },
+  buttonsWide: {
+    flexDirection: "row",
+  },
   btn: {
     flex: 1,
     paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 10,
     alignItems: "center",
+    justifyContent: "center",
   },
+  btnLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  btnIcon: { fontSize: 15 },
   cancelBtn: { borderWidth: 1 },
   cancelText: { fontSize: 14, fontWeight: "600" },
   confirmText: { color: "#FFF", fontSize: 14, fontWeight: "700" },

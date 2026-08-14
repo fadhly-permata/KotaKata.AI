@@ -39,6 +39,11 @@ let enabled = true;
 let nativePlayers: Partial<Record<SoundName, AudioPlayer>> | null = null;
 let initStarted = false;
 
+// Kepribadian audio tema aktif (lihat SoundSpec di themeData.ts):
+// rate <1 lebih pelan/lembut, >1 lebih cepat/ceria; volume relatif 0–1.
+let currentRate = 1;
+let currentVolume = 1;
+
 // ---------------------------------------------------------------------------
 // Web: HTMLAudioElement dengan error handling lengkap
 // ---------------------------------------------------------------------------
@@ -106,6 +111,9 @@ function playWeb(name: SoundName): void {
   if (!audio) return;
   try {
     audio.currentTime = 0;
+    // Kepribadian suara tema aktif (rate & volume relatif).
+    audio.playbackRate = currentRate;
+    audio.volume = currentVolume;
     // Autoplay policy / source error → rejection. Ditangkap: jangan pernah
     // jadi unhandled rejection (ini akar 50 error log dari expo-audio web).
     audio.play().catch(() => {
@@ -122,6 +130,18 @@ function playWeb(name: SoundName): void {
 
 export function isSoundEnabled(): boolean {
   return enabled;
+}
+
+/**
+ * Terapkan gaya audio tema aktif (dipanggil ThemeProvider saat tema berubah).
+ * Nilai tidak valid diabaikan → kembali ke normal (rate 1, volume 1).
+ */
+export function setSoundTheme(spec?: { rate?: number; volume?: number } | null): void {
+  const rate = typeof spec?.rate === "number" && spec.rate > 0 ? spec.rate : 1;
+  const volume =
+    typeof spec?.volume === "number" && spec.volume >= 0 && spec.volume <= 1 ? spec.volume : 1;
+  currentRate = rate;
+  currentVolume = volume;
 }
 
 /** Baca preferensi suara tersimpan (default: nyala). Panggil sekali di App. */
@@ -169,7 +189,8 @@ function getNativePlayer(name: SoundName): AudioPlayer | null {
   if (existing) return existing;
   try {
     const player = createAudioPlayer(SOUND_SOURCES[name] as any);
-    player.volume = 1;
+    player.volume = currentVolume;
+    player.playbackRate = currentRate;
     nativePlayers[name] = player;
     return player;
   } catch (err) {
@@ -190,6 +211,9 @@ export function play(name: SoundName): void {
   try {
     // seekTo(0) + play = replay dari awal untuk bunyi beruntun cepat.
     player.seekTo(0);
+    // Terapkan kepribadian suara tema aktif setiap play (murah & aman).
+    if (player.playbackRate !== currentRate) player.playbackRate = currentRate;
+    if (player.volume !== currentVolume) player.volume = currentVolume;
     player.play();
   } catch {
     // Abaikan error playback — suara hanya pemanis.

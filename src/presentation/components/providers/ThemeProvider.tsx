@@ -20,6 +20,7 @@ import {
   hydrateThemeSelection,
   useThemeSelectionStore,
 } from "../../stores/themeSelectionStore";
+import { setSoundTheme } from "../../../utils/sound";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -124,6 +125,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // tema default "puitis" bila id tidak dikenal (lihat get*ThemeById).
   const appTheme = getAppThemeById(appThemeId);
   const theme = isDark ? appTheme.dark : appTheme.light;
+
+  // Kepribadian suara mengikuti tema aplikasi aktif (lihat SoundSpec).
+  useEffect(() => {
+    setSoundTheme(appTheme.sound);
+  }, [appTheme]);
   const boardTheme = getBoardThemeById(boardThemeId);
   const boardPalette = isDark ? boardTheme.dark : boardTheme.light;
   const boardColors = boardPalette;

@@ -258,7 +258,8 @@ export default function AuthScreen() {
   }
 
   return (
-    <ScreenFade style={{ backgroundColor: C.bg }}>
+    <ScreenFade orbs={false} style={{ backgroundColor: C.bg }}>
+      {/* orbs={false}: halaman login punya FloatingOrbs parallax sendiri. */}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

@@ -9,6 +9,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import ThemedBackground from "./ThemedBackground";
+import AmbientOrbs from "./AmbientOrbs";
 import type { BackgroundSpec } from "../../themes/themeData";
 
 interface ScreenFadeProps {
@@ -20,6 +21,12 @@ interface ScreenFadeProps {
    * dari `style`-nya sendiri tanpa lapisan latar tema.
    */
   background?: BackgroundSpec | null;
+  /**
+   * Render orb ambien di belakang konten (default true — efek orb di semua
+   * halaman). Main Menu & Login mematikan via `orbs={false}` karena sudah
+   * punya FloatingOrbs parallax sendiri.
+   */
+  orbs?: boolean;
 }
 
 /**
@@ -38,7 +45,7 @@ interface ScreenFadeProps {
  * lihat `ThemedBackground`. Warna solid yang dikirim lewat `style`
  * (backgroundColor) tetap dipakai sebagai dasar di bawah lapisan itu.
  */
-export default function ScreenFade({ children, style, background }: ScreenFadeProps) {
+export default function ScreenFade({ children, style, background, orbs = true }: ScreenFadeProps) {
   const { background: appBackground } = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -59,6 +66,7 @@ export default function ScreenFade({ children, style, background }: ScreenFadePr
   return (
     <Animated.View style={[styles.fill, { opacity: anim, transform: [{ translateY }] }, style]}>
       <ThemedBackground spec={background ?? appBackground} />
+      {orbs && <AmbientOrbs />}
       {children}
     </Animated.View>
   );
