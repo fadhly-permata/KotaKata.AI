@@ -1,6 +1,6 @@
 # Multi-Tema: Pasar (Store) dengan Katalog dari Database + Tema Papan & Keyboard
 
-<!-- status: in-progress -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-14 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 014`

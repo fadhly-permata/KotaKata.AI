@@ -48,7 +48,7 @@ const MAX_GRID_SIZE = 14;
 const AI_MIN_WORDS = 6;
 
 export default function GameScreen() {
-  const { theme, isDark, setThemeMode, boardColors } = useTheme();
+  const { theme, isDark, setThemeMode, boardColors, boardBackground } = useTheme();
   const navigation = useNavigation();
   // Safe-area inset (status bar & navigation bar Android) — edge-to-edge wajib
   // di Android 15+, jadi konten game diberi padding inset supaya tidak tampak
@@ -856,7 +856,7 @@ export default function GameScreen() {
   if (!board) {
     if (boardLoadError) {
       return (
-        <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.container, styles.loadingWrap, { backgroundColor: boardBackground.color }]}>
           <Text style={styles.errorEmoji}>⚠️</Text>
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
             {aiBoardFailed
@@ -877,7 +877,7 @@ export default function GameScreen() {
       );
     }
     return (
-      <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.container, styles.loadingWrap, { backgroundColor: boardBackground.color }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
           Menyusun papan kata…
@@ -886,7 +886,7 @@ export default function GameScreen() {
     );
   }
   return (
-    <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScreenFade background={boardBackground} style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Scrollable area */}
       <ScrollView
         ref={outerScrollRef}
@@ -970,7 +970,10 @@ export default function GameScreen() {
         style={[
           styles.bottomPanels,
           {
-            backgroundColor: theme.colors.background,
+            // Transparan supaya latar (gradien/gambar) tema papan tetap
+            // terlihat di balik clue pill & action bar (keduanya punya warna
+            // panel sendiri).
+            backgroundColor: "transparent",
             paddingBottom: keyboardVisible ? 8 : 8 + (Platform.OS === "web" ? 0 : insets.bottom),
           },
         ]}
@@ -1208,6 +1211,12 @@ const styles = StyleSheet.create({
   gridScroll: { flexGrow: 0 },
   gridScrollContent: { flexGrow: 0 },
   gridCenterWrapper: { alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
-  bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  keyboardWrapper: {},
+  // Panel bawah (clue pill + action bar) TIDAK boleh disusutkan — kalau
+  // Yoga mengecilkan area ini saat keyboard virtual tampil di HP, pill clue
+  // ikut terdesak dan teks soal panjang terpotong. Tinggi panel mengikuti
+  // isi (auto-height); ScrollView papan di atasnya yang fleksibel.
+  bottomPanels: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, flexShrink: 0 },
+  // Keyboard virtual juga tidak boleh disusutkan (tombol punya tinggi tetap
+  // 46px); kalau ruang sempit, ScrollView papan yang mengecil.
+  keyboardWrapper: { flexShrink: 0 },
 });

@@ -19,18 +19,23 @@ import {
   themeRepository,
   type ThemeCatalogRow,
 } from "../../data/repositories/themeRepository";
-
-type ThemeKind = "app" | "board" | "keyboard";
+import ThemePreviewModal, {
+  type ThemeKind,
+  type ThemePreviewPalettes,
+} from "./ThemePreviewModal";
 
 /** Satu kartu tema di halaman Pasar (model UI, independen dari sumber data). */
 interface ThemeCardModel {
   id: string;
+  kind: ThemeKind;
   name: string;
   tagline: string;
   description: string;
   isDefault: boolean;
   priceLabel: string;
   swatches: { light: string[]; dark: string[] };
+  /** Palet LENGKAP (light/dark) untuk mockup di modal Preview. */
+  palettes: ThemePreviewPalettes;
 }
 
 /** Warna representatif per jenis tema untuk preview swatch (terang/gelap). */
@@ -51,9 +56,33 @@ function pickSwatches(palette: Record<string, unknown>, keys: string[]): string[
   return out;
 }
 
+/**
+ * Normalisasi palet jadi map warna polos + spec latar. Tema app di
+ * DB/registry berbentuk `{ mode, colors }` — ambil bagian `colors`; tema
+ * papan/keyboard langsung map warna. Nilai non-string dibuang, KECUALI
+ * objek `background` (gradien/gambar) yang ikut disalin utuh supaya mockup
+ * preview bisa merendernya.
+ */
+function colorMapOf(kind: ThemeKind, palette: Record<string, unknown>): Record<string, unknown> {
+  const raw =
+    kind === "app" && palette && typeof palette === "object" && "colors" in palette
+      ? (palette as { colors?: unknown }).colors
+      : palette;
+  const out: Record<string, unknown> = {};
+  if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof value === "string") out[key] = value;
+    }
+  }
+  const bg = palette?.background;
+  if (bg && typeof bg === "object") out.background = bg;
+  return out;
+}
+
 function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
   return {
     id: row.id,
+    kind,
     name: row.name,
     tagline: row.tagline,
     description: row.description,
@@ -63,6 +92,10 @@ function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
       light: pickSwatches(row.light, SWATCH_KEYS[kind]),
       dark: pickSwatches(row.dark, SWATCH_KEYS[kind]),
     },
+    palettes: {
+      light: colorMapOf(kind, row.light),
+      dark: colorMapOf(kind, row.dark),
+    },
   };
 }
 
@@ -71,6 +104,7 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
   if (kind === "app") {
     return APP_THEMES.map((t) => ({
       id: t.id,
+      kind,
       name: t.name,
       tagline: t.tagline,
       description: t.description,
@@ -80,11 +114,16 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
         light: pickSwatches(t.light.colors as unknown as Record<string, unknown>, SWATCH_KEYS.app),
         dark: pickSwatches(t.dark.colors as unknown as Record<string, unknown>, SWATCH_KEYS.app),
       },
+      palettes: {
+        light: colorMapOf(kind, t.light as unknown as Record<string, unknown>),
+        dark: colorMapOf(kind, t.dark as unknown as Record<string, unknown>),
+      },
     }));
   }
   if (kind === "board") {
     return BOARD_THEMES.map((t) => ({
       id: t.id,
+      kind,
       name: t.name,
       tagline: t.tagline,
       description: t.description,
@@ -94,10 +133,15 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
         light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.board),
         dark: pickSwatches(t.dark as unknown as Record<string, unknown>, SWATCH_KEYS.board),
       },
+      palettes: {
+        light: colorMapOf(kind, t.light as unknown as Record<string, unknown>),
+        dark: colorMapOf(kind, t.dark as unknown as Record<string, unknown>),
+      },
     }));
   }
   return KEYBOARD_THEMES.map((t) => ({
     id: t.id,
+    kind,
     name: t.name,
     tagline: t.tagline,
     description: t.description,
@@ -106,6 +150,10 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
     swatches: {
       light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
       dark: pickSwatches(t.dark as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
+    },
+    palettes: {
+      light: colorMapOf(kind, t.light as unknown as Record<string, unknown>),
+      dark: colorMapOf(kind, t.dark as unknown as Record<string, unknown>),
     },
   }));
 }
@@ -138,10 +186,11 @@ interface ThemeCardProps {
   card: ThemeCardModel;
   active: boolean;
   accent: string;
+  onPreview: () => void;
   onActivate: (id: string) => void;
 }
 
-function ThemeCard({ card, active, accent, onActivate }: ThemeCardProps) {
+function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardProps) {
   const { theme } = useTheme();
   const C = theme.colors;
 
@@ -173,19 +222,28 @@ function ThemeCard({ card, active, accent, onActivate }: ThemeCardProps) {
 
       <View style={[styles.cardFooter, { borderTopColor: C.border }]}>
         <Text style={[styles.priceLabel, { color: C.text }]}>{card.priceLabel}</Text>
-        {active ? (
-          <View style={[styles.activeButton, { backgroundColor: accent + "1A" }]}>
-            <Text style={[styles.activeButtonText, { color: accent }]}>Sedang Dipakai</Text>
-          </View>
-        ) : (
+        <View style={styles.cardActions}>
           <TouchableOpacity
             activeOpacity={0.75}
-            onPress={() => onActivate(card.id)}
-            style={[styles.activateButton, { backgroundColor: accent }]}
+            onPress={onPreview}
+            style={[styles.previewButton, { backgroundColor: C.secondaryContainer }]}
           >
-            <Text style={[styles.activateButtonText, { color: "#FFFFFF" }]}>Aktifkan</Text>
+            <Text style={[styles.previewButtonText, { color: C.secondary }]}>👁 Preview</Text>
           </TouchableOpacity>
-        )}
+          {active ? (
+            <View style={[styles.activeButton, { backgroundColor: accent + "1A" }]}>
+              <Text style={[styles.activeButtonText, { color: accent }]}>Sedang Dipakai</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => onActivate(card.id)}
+              style={[styles.activateButton, { backgroundColor: accent }]}
+            >
+              <Text style={[styles.activateButtonText, { color: "#FFFFFF" }]}>Aktifkan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -242,6 +300,9 @@ export default function StoreScreen() {
   const [catalog, setCatalog] = useState<ThemeCatalogRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [fromCloud, setFromCloud] = useState(false);
+  // Tema yang sedang di-preview (modal mockup) — hanya state UI, tidak mengubah
+  // pilihan aktif sampai user menekan "Aktifkan" di kartu.
+  const [previewCard, setPreviewCard] = useState<ThemeCardModel | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -325,6 +386,7 @@ export default function StoreScreen() {
                     card={card}
                     active={card.id === activeId}
                     accent={C.primary}
+                    onPreview={() => setPreviewCard(card)}
                     onActivate={(id) => activateFor(section.kind, id)}
                   />
                 ))}
@@ -343,6 +405,18 @@ export default function StoreScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Preview tema — mockup sesuai jenis tema, sebelum user mengaktifkan */}
+      <ThemePreviewModal
+        visible={previewCard !== null}
+        kind={previewCard?.kind ?? "app"}
+        name={previewCard?.name ?? ""}
+        tagline={previewCard?.tagline ?? ""}
+        palettes={
+          previewCard?.palettes ?? { light: {}, dark: {} }
+        }
+        onClose={() => setPreviewCard(null)}
+      />
     </ScreenFade>
   );
 }
@@ -401,9 +475,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   priceLabel: { fontSize: 13, fontWeight: "800", flexShrink: 1 },
-  activeButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  cardActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  previewButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  previewButtonText: { fontSize: 12, fontWeight: "800" },
+  activeButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
   activeButtonText: { fontSize: 12, fontWeight: "800" },
-  activateButton: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
+  activateButton: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
   activateButtonText: { fontSize: 13, fontWeight: "800" },
 
   /* ─── Catatan ─── */

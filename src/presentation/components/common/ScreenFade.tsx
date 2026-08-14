@@ -7,10 +7,19 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTheme } from "../providers/ThemeProvider";
+import ThemedBackground from "./ThemedBackground";
+import type { BackgroundSpec } from "../../themes/themeData";
 
 interface ScreenFadeProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Spec latar layar. Default: background tema aplikasi aktif.
+   * Kirim `background={null}` untuk layar yang ingin memakai warna solid
+   * dari `style`-nya sendiri tanpa lapisan latar tema.
+   */
+  background?: BackgroundSpec | null;
 }
 
 /**
@@ -23,8 +32,14 @@ interface ScreenFadeProps {
  * terpasang di stack), jadi animasi berbasis mount hanya jalan sekali.
  * Dengan useFocusEffect, halaman memudar masuk + naik sedikit dari bawah
  * SETIAP kali layar mendapat fokus — termasuk saat kembali dari layar lain.
+ *
+ * Sejak dukungan background tema (gradien/gambar), ScreenFade otomatis
+ * merender lapisan latar tema aplikasi aktif di belakang konten layar —
+ * lihat `ThemedBackground`. Warna solid yang dikirim lewat `style`
+ * (backgroundColor) tetap dipakai sebagai dasar di bawah lapisan itu.
  */
-export default function ScreenFade({ children, style }: ScreenFadeProps) {
+export default function ScreenFade({ children, style, background }: ScreenFadeProps) {
+  const { background: appBackground } = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
@@ -43,6 +58,7 @@ export default function ScreenFade({ children, style }: ScreenFadeProps) {
 
   return (
     <Animated.View style={[styles.fill, { opacity: anim, transform: [{ translateY }] }, style]}>
+      <ThemedBackground spec={background ?? appBackground} />
       {children}
     </Animated.View>
   );

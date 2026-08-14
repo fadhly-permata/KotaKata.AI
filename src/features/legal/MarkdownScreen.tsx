@@ -114,7 +114,8 @@ export default function MarkdownScreen({ route }: Props) {
 
   return (
     <ScreenFade style={{ backgroundColor: C.background }}>
-      <View style={[styles.container, { backgroundColor: C.background }]}>
+      {/* Transparan supaya latar tema (gradien/gambar) terlihat di belakang. */}
+      <View style={styles.container}>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={C.primary} size="large" />

@@ -114,6 +114,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginBottom: 8,
     position: "relative",
+    // PENTING: pill tidak boleh pernah disusutkan oleh layout (mis. saat
+    // keyboard virtual tampil di HP dan ruang vertikal sempit). flexShrink: 0
+    // menjamin tinggi pill selalu mengikuti isi teks (auto-height) — kalau
+    // Yoga boleh mengecilkan pill, baris teks clue yang terbungkus bisa
+    // terpotong di ponsel.
+    flexShrink: 0,
   },
   clueArrow: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
   clueNumberBadge: {
@@ -135,8 +141,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   clueDivider: { width: 1, height: 24, marginHorizontal: 6, borderRadius: 1 },
-  clueContent: { flex: 1, paddingHorizontal: 2, minWidth: 0 },
-  clueTextWrap: { flex: 1, flexShrink: 1, minWidth: 0 },
+  clueContent: { flex: 1, paddingHorizontal: 2, minWidth: 0, flexShrink: 0 },
+  clueTextWrap: { flex: 1, flexShrink: 0, minWidth: 0 },
   clueOrientation: {
     fontSize: 10,
     fontWeight: "600",

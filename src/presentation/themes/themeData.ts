@@ -12,9 +12,36 @@ import type { Theme } from "../components/providers/ThemeProvider";
  *  - board    → desain halaman GAME saja: papan, soal (clue pill) & panel hint.
  *  - keyboard → desain InGameKeyboard.
  *
+ * Tiap palet juga bisa membawa `background` (BackgroundSpec): gradien warna
+ * dan/atau URL gambar latar + overlay — dirender oleh komponen
+ * `ThemedBackground` (lihat src/presentation/components/common/).
+ *
  * ⚠️ Jaga konsistensi dengan `supabase/data/themes.sql` (dibuat otomatis via
  * `bun scripts/db/gen-themes-sql.mjs`).
  */
+
+/* ─────────────────────────── Latar (Background) Tema ─────────────────────────── */
+
+export type BackgroundDirection = "vertical" | "horizontal" | "diagonal-tl" | "diagonal-tr";
+
+/**
+ * Latar halaman/panel yang bisa di-custom per tema:
+ * - `color`    → warna solid dasar (selalu dipakai, sekaligus fallback).
+ * - `gradient` → daftar warna gradien (≥2) — dirender via react-native-svg.
+ * - `imageUrl` → URL gambar latar (opsional; butuh jaringan — gradient/color
+ *                tetap tampil sebagai fallback saat offline / belum dimuat).
+ * - `overlay`  → warna semi-transparan di atas gambar/gradien untuk kontras teks.
+ * - `direction`→ arah gradien. Default: "vertical" (atas → bawah).
+ */
+export interface BackgroundSpec {
+  /** Warna solid dasar (fallback). Opsional — resolver (ThemeProvider) yang
+   *  mengisinya dari warna latar palet; kalau kosong, dasar jadi transparan. */
+  color?: string;
+  gradient?: string[];
+  direction?: BackgroundDirection;
+  imageUrl?: string;
+  overlay?: string;
+}
 
 /* ─────────────────────────── Tema Aplikasi (Global) ─────────────────────────── */
 
@@ -39,6 +66,7 @@ const puitis: AppThemeDefinition = {
   priceLabel: "Gratis · Tema Aktif",
   light: {
     mode: "light",
+    background: { gradient: ["#fef7ff", "#f7eaff", "#eef3ff"] },
     colors: {
       background: "#fef7ff",
       surface: "#ffffff",
@@ -65,6 +93,7 @@ const puitis: AppThemeDefinition = {
   },
   dark: {
     mode: "dark",
+    background: { gradient: ["#1a1020", "#231326", "#161c2c"] },
     colors: {
       background: "#1a1020",
       surface: "#2a1a30",
@@ -101,6 +130,7 @@ const samudra: AppThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     mode: "light",
+    background: { gradient: ["#eef7fb", "#e2f2f7", "#e8f6f1"] },
     colors: {
       background: "#eef7fb",
       surface: "#ffffff",
@@ -127,6 +157,7 @@ const samudra: AppThemeDefinition = {
   },
   dark: {
     mode: "dark",
+    background: { gradient: ["#061a24", "#0a2233", "#062430"] },
     colors: {
       background: "#061a24",
       surface: "#0d2a38",
@@ -163,6 +194,7 @@ const senja: AppThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     mode: "light",
+    background: { gradient: ["#fdf3ec", "#fbe8dc", "#f6e6f3"] },
     colors: {
       background: "#fdf3ec",
       surface: "#ffffff",
@@ -189,6 +221,7 @@ const senja: AppThemeDefinition = {
   },
   dark: {
     mode: "dark",
+    background: { gradient: ["#241420", "#331a2a", "#2b1b33"] },
     colors: {
       background: "#241420",
       surface: "#35202e",
@@ -225,6 +258,7 @@ const hutan: AppThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     mode: "light",
+    background: { gradient: ["#f0f7ee", "#e5f2e1", "#ecf5f0"] },
     colors: {
       background: "#f0f7ee",
       surface: "#ffffff",
@@ -251,6 +285,7 @@ const hutan: AppThemeDefinition = {
   },
   dark: {
     mode: "dark",
+    background: { gradient: ["#0d1f12", "#12291b", "#0f2026"] },
     colors: {
       background: "#0d1f12",
       surface: "#152b1c",
@@ -310,6 +345,8 @@ export interface BoardColors {
   clueBadgeText: string;
   clueArrowBackground: string;
   clueDivider: string;
+  /** Latar HALAMAN GAME (di balik papan & panel bawah) — gradien/gambar opsional. */
+  background?: BackgroundSpec;
   /** Panel hint (action bar). */
   hintBackground: string;
   hintBorder: string;
@@ -344,6 +381,7 @@ const papanPuitis: BoardThemeDefinition = {
   priceLabel: "Gratis · Tema Aktif",
   light: {
     boardBackground: "#ffffff",
+    background: { gradient: ["#f9f0fc", "#f4eafa"] },
     boardBorder: "#dcc8e0",
     cellActive: "#ffffff",
     cellActiveText: "#2e1a28",
@@ -376,6 +414,7 @@ const papanPuitis: BoardThemeDefinition = {
   },
   dark: {
     boardBackground: "#2a1a30",
+    background: { gradient: ["#241430", "#1a1020"] },
     boardBorder: "#4a3850",
     cellActive: "#2a1a30",
     cellActiveText: "#fef7ff",
@@ -418,6 +457,7 @@ const papanTinta: BoardThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     boardBackground: "#faf7f0",
+    background: { gradient: ["#faf7f0", "#f1ede2"] },
     boardBorder: "#b8b2a6",
     cellActive: "#ffffff",
     cellActiveText: "#1c1c1c",
@@ -450,6 +490,7 @@ const papanTinta: BoardThemeDefinition = {
   },
   dark: {
     boardBackground: "#17171a",
+    background: { gradient: ["#17171a", "#101013"] },
     boardBorder: "#3c3c42",
     cellActive: "#202024",
     cellActiveText: "#f2f2f2",
@@ -492,6 +533,7 @@ const papanNeon: BoardThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     boardBackground: "#101626",
+    background: { gradient: ["#101626", "#0a0f1c"] },
     boardBorder: "#2a3a5e",
     cellActive: "#16203a",
     cellActiveText: "#e8f0ff",
@@ -524,6 +566,7 @@ const papanNeon: BoardThemeDefinition = {
   },
   dark: {
     boardBackground: "#101626",
+    background: { gradient: ["#101626", "#0a0f1c"] },
     boardBorder: "#2a3a5e",
     cellActive: "#16203a",
     cellActiveText: "#e8f0ff",
@@ -568,6 +611,8 @@ export interface KeyboardColors {
   keyText: string;
   /** Tombol khusus (backspace). */
   specialBackground: string;
+  /** Latar panel keyboard — gradien/gambar opsional (panel tetap solid bila kosong). */
+  background?: BackgroundSpec;
   /** Tombol navigasi panah. */
   navBackground: string;
   navBorder: string;
@@ -627,6 +672,7 @@ const keyboardPastel: KeyboardThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     panelBackground: "#fbf3fa",
+    background: { gradient: ["#fbf3fa", "#f5eaf9"] },
     panelBorder: "#ead8f0",
     keyBackground: "#ffffff",
     keyBorder: "#e6d3ec",
@@ -638,6 +684,7 @@ const keyboardPastel: KeyboardThemeDefinition = {
   },
   dark: {
     panelBackground: "#2e2138",
+    background: { gradient: ["#2e2138", "#372944"] },
     panelBorder: "#4a3a5a",
     keyBackground: "#3a2a48",
     keyBorder: "#4a3a5a",
@@ -659,6 +706,7 @@ const keyboardKlasik: KeyboardThemeDefinition = {
   priceLabel: "Gratis",
   light: {
     panelBackground: "#f5f5f2",
+    background: { gradient: ["#f5f5f2", "#ebeae4"] },
     panelBorder: "#d5d2c8",
     keyBackground: "#ffffff",
     keyBorder: "#d5d2c8",
@@ -670,6 +718,7 @@ const keyboardKlasik: KeyboardThemeDefinition = {
   },
   dark: {
     panelBackground: "#1a1a1a",
+    background: { gradient: ["#1a1a1a", "#222222"] },
     panelBorder: "#3a3a3a",
     keyBackground: "#262626",
     keyBorder: "#3a3a3a",

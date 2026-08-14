@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
+import ThemedBackground from "../common/ThemedBackground";
 import { useGameStore } from "../../stores/gameStore";
 import { playLetterPressFeedback, playDeleteFeedback } from "../../../utils/soundFeedback";
 import { play } from "../../../utils/sound";
@@ -12,7 +13,7 @@ const ROWS = [
 
 export default function InGameKeyboard() {
   // Palet KEYBOARD (tema keyboard aktif) — terpisah dari tema aplikasi & papan.
-  const { keyboardColors: K } = useTheme();
+  const { keyboardColors: K, keyboardBackground } = useTheme();
   const inputLetter = useGameStore((s) => s.inputLetter);
   const deleteLetter = useGameStore((s) => s.deleteLetter);
   const navigateToCell = useGameStore((s) => s.navigateToCell);
@@ -44,9 +45,13 @@ export default function InGameKeyboard() {
         {
           backgroundColor: K.panelBackground,
           borderTopColor: K.panelBorder,
+          overflow: "hidden",
         },
       ]}
     >
+      {/* Latar tema keyboard (gradien/gambar) di belakang tombol. */}
+      <ThemedBackground spec={keyboardBackground} />
+
       {/* Row 1: Q-P */}
       <View style={styles.row}>
         {ROWS[0].map((key) => (

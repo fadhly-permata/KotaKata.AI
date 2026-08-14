@@ -26,8 +26,8 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
 | 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
 | 🌗 **Tema Terang/Gelap** | Transisi halus, konsisten di semua layar |
-| 🎨 **Multi-Tema** | 4 tema aplikasi (Puitis/Samudra/Senja/Hutan) + 3 tema papan (Puitis/Tinta/Neon) + 3 tema keyboard (Puitis/Pastel/Klasik) — semua light & dark, pilihan tersimpan permanen |
-| 🛍️ **Pasar (Store)** | Halaman katalog tema dengan 3 seksi (Aplikasi/Papan/Keyboard); katalog tersimpan di database Supabase (tabel `themes`) dengan fallback offline — siap dikembangkan jadi tema berbayar |
+| 🎨 **Multi-Tema** | 4 tema aplikasi (Puitis/Samudra/Senja/Hutan) + 3 tema papan (Puitis/Tinta/Neon) + 3 tema keyboard (Puitis/Pastel/Klasik) — semua light & dark, pilihan tersimpan permanen; tiap tema punya **latar gradien** (dan dukungan gambar URL) lewat `ThemedBackground` |
+| 🛍️ **Pasar (Store)** | Halaman katalog tema dengan 3 seksi (Aplikasi/Papan/Keyboard) + tombol **Preview** tiap tema (mockup sesuai jenis tema, toggle terang/gelap) sebelum diaktifkan; katalog tersimpan di database Supabase (tabel `themes`) dengan fallback offline — siap dikembangkan jadi tema berbayar |
 | ⌨️ **Keyboard & Touch** | Mobile touch + desktop arrow keys, keyboard virtual in-game |
 | ✨ **Animasi** | Parallax + orb floating di main menu, transisi halaman & popup beranimasi |
 
@@ -203,7 +203,13 @@ bunx expo export --platform web
 # Build APK Android via EAS (butuh EXPO_TOKEN di .env.local / tab Keys)
 # ⚠️ Sesuai aturan repo: build/push ke EAS hanya boleh saat diminta eksplisit
 # pemilik repo — tanpa izin, jangan jalankan perintah ini.
-bunx eas-cli build -p android --profile preview --non-interactive
+#
+# Ada script siap pakai (baca EXPO_TOKEN dari env / .env.local / .env):
+bun run build:eas                    # android + preview (APK)
+node scripts/expo-build.mjs ios      # iOS + preview
+node scripts/expo-build.mjs all production   # semua platform + production (AAB)
+node scripts/expo-build.mjs --list   # lihat daftar build terakhir di expo.dev
+# (lihat cara pakai lengkap: node scripts/expo-build.mjs --help)
 ```
 
 ## 🗺️ Development Status
@@ -228,6 +234,9 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-012 | ✅ done | Reveal XP fair (tanpa potong XP bila tidak ada huruf berubah) + animasi zoom-out + progress ring & toggle tema di header in-game |
 | PLAN-013 | ✅ done | Semua halaman tidak lagi fullscreen (safe-area) + refactor kode (gameStore helpers, GameScreen → GameTopBar/CluePill/GameActionBar, FloatingOrbs) + tombol & halaman Pasar (Store) dengan 1 tema default |
 | PLAN-014 | ✅ done | Multi-tema: 4 tema aplikasi + 3 tema papan + 3 tema keyboard (semua light/dark, bisa switch) — katalog tersimpan di database (tabel `themes`, RLS read publik) dengan fallback offline; halaman Pasar 3 seksi |
+| PLAN-015 | ✅ done | Tombol Preview di tiap kartu tema Pasar — modal mockup sesuai jenis tema (aplikasi/papan/keyboard) dengan toggle terang/gelap sebelum aktivasi |
+| PLAN-016 | ✅ done | Aturan GitHub Release (tidak dibuat dari workspace — identitas app bukan pemilik), script build EAS `scripts/expo-build.mjs` + npm `build:eas`, fix clue auto-height di HP (flexShrink 0 agar pill tidak pernah terdesak) |
+| PLAN-017 | ✅ done | Background image & gradien: `BackgroundSpec` (gradien + URL gambar + overlay) di semua tema, komponen `ThemedBackground` (react-native-svg), ScreenFade merender latar tema aplikasi di semua halaman, halaman game pakai latar tema papan, keyboard pakai latar tema keyboard, preview Pasar merender gradien |
 
 ## ❓ FAQ
 

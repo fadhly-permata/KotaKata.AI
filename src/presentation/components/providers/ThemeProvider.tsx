@@ -12,6 +12,7 @@ import {
   getAppThemeById,
   getBoardThemeById,
   getKeyboardThemeById,
+  type BackgroundSpec,
   type BoardColors,
   type KeyboardColors,
 } from "../../themes/themeData";
@@ -24,6 +25,8 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type Theme = {
   mode: "light" | "dark";
+  /** Latar GLOBAL (halaman) — gradien/gambar opsional di atas warna solid. */
+  background?: BackgroundSpec;
   colors: {
     background: string;
     surface: string;
@@ -52,6 +55,8 @@ export type Theme = {
 interface ThemeContextValue {
   /** Palet GLOBAL aplikasi (dari tema aplikasi aktif, light/dark terselesaikan). */
   theme: Theme;
+  /** Spec latar GLOBAL aplikasi (warna + gradien/gambar) untuk semua halaman. */
+  background: BackgroundSpec;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   isDark: boolean;
@@ -63,11 +68,15 @@ interface ThemeContextValue {
   setBoardThemeId: (id: string) => Promise<void>;
   /** Palet papan untuk mode terang/gelap yang sedang berjalan. */
   boardColors: BoardColors;
+  /** Spec latar HALAMAN GAME (dari tema papan aktif). */
+  boardBackground: BackgroundSpec;
   /** Tema KEYBOARD aktif (InGameKeyboard). */
   keyboardThemeId: string;
   setKeyboardThemeId: (id: string) => Promise<void>;
   /** Palet keyboard untuk mode terang/gelap yang sedang berjalan. */
   keyboardColors: KeyboardColors;
+  /** Spec latar panel KEYBOARD (dari tema keyboard aktif). */
+  keyboardBackground: BackgroundSpec;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -116,9 +125,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const appTheme = getAppThemeById(appThemeId);
   const theme = isDark ? appTheme.dark : appTheme.light;
   const boardTheme = getBoardThemeById(boardThemeId);
-  const boardColors = isDark ? boardTheme.dark : boardTheme.light;
+  const boardPalette = isDark ? boardTheme.dark : boardTheme.light;
+  const boardColors = boardPalette;
   const keyboardTheme = getKeyboardThemeById(keyboardThemeId);
-  const keyboardColors = isDark ? keyboardTheme.dark : keyboardTheme.light;
+  const keyboardPalette = isDark ? keyboardTheme.dark : keyboardTheme.light;
+  const keyboardColors = keyboardPalette;
+
+  // Spec latar: warna solid palet sebagai dasar + dekorasi (gradien/gambar)
+  // dari field `background` tema — warna default diambil dari palet itu sendiri.
+  const background: BackgroundSpec = { color: theme.colors.background, ...(theme.background ?? {}) };
+  const boardBackground: BackgroundSpec = {
+    color: boardPalette.boardBackground,
+    ...(boardPalette.background ?? {}),
+  };
+  const keyboardBackground: BackgroundSpec = {
+    color: keyboardPalette.panelBackground,
+    ...(keyboardPalette.background ?? {}),
+  };
 
   if (!loaded || !themeSelectionHydrated) return null;
 
@@ -126,6 +149,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     <ThemeContext.Provider
       value={{
         theme,
+        background,
         themeMode,
         setThemeMode,
         isDark,
@@ -134,9 +158,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         boardThemeId,
         setBoardThemeId,
         boardColors,
+        boardBackground,
         keyboardThemeId,
         setKeyboardThemeId,
         keyboardColors,
+        keyboardBackground,
       }}
     >
       {children}

@@ -31,6 +31,18 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
 - JANGAN menambahkan baris seperti "Generated with Codebuff" / "🤖 Generated
   with Codebuff" ke body pesan commit.
 
+### 2b. JANGAN membuat GitHub Release dari workspace ini
+- Setiap perintah `gh` di workspace ini berjalan dengan kredensial **GitHub App
+  Freebuff** (`freebuff-web[bot]`) — satu-satunya identitas yang tersedia untuk
+  API GitHub. Akibatnya, release yang dibuat lewat `gh release create`
+  **tercatat atas nama app, bukan pemilik repo** (commit tidak terpengaruh:
+  memakai `user.name`/`user.email` git = Fadhly Permata).
+- JANGAN membuat GitHub Release kecuali diminta eksplisit. Kalau diminta:
+  - Siapkan draf catatan rilis + tag, lalu minta pemilik membuat release dari
+    akun GitHub-nya sendiri (UI GitHub atau `gh` pribadinya).
+  - ATAU peringatkan terlebih dahulu bahwa release akan tercatat atas nama
+    GitHub App Freebuff, dan hanya lanjut bila pemilik menyetujui.
+
 ### 3. STOP preview dulu sebelum menyentuh file (aturan dari pemilik repo)
 - Selama mode preview SEDANG JALAN, file-file (mis. `.env` / `.env.local`) bisa
   terkunci sehingga akses terminal ke file itu diblokir/ditutup. Ini BUKAN karena
