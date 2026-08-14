@@ -35,7 +35,8 @@ export type BackgroundDirection = "vertical" | "horizontal" | "diagonal-tl" | "d
 /**
  * Latar halaman/panel yang bisa di-custom per tema:
  * - `color`    → warna solid dasar (selalu dipakai, sekaligus fallback).
- * - `gradient` → daftar warna gradien (≥2) — dirender via react-native-svg.
+ * - `gradient` → daftar warna gradien (≥2) — dirender ThemedBackground dengan
+ *                lapisan View berwarna bertumpuk (tanpa react-native-svg).
  * - `imageUrl` → URL gambar latar (opsional; butuh jaringan — gradient/color
  *                tetap tampil sebagai fallback saat offline / belum dimuat).
  * - `overlay`  → warna semi-transparan di atas gambar/gradien untuk kontras teks.

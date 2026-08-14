@@ -1,6 +1,6 @@
 # Hapus kemampuan login dengan email di halaman Login
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-14 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 022`
@@ -16,13 +16,13 @@
 - Login yang TETAP: Google + Guest (tamu).
 - Dokumen yang menyebut "login Google/email" perlu disesuaikan: README.md (fitur, FAQ "Hubungkan Akun"), GUIDE.md ("login Google atau Email", "Akun & Data"), docs/TERMS.md & PRIVACY.md ("masuk dengan Google/email").
 
-## Langkah (rencana, belum dikerjakan)
+## Langkah
 
-- [ ] **1. AuthScreen** — hapus mode email, form, link "Atau masuk dengan email", state & handler email, style mati.
-- [ ] **2. useAuth** — hapus `signInWithEmail`/`signUpWithEmail`/`linkEmail` (+ import yang tak terpakai).
-- [ ] **3. Dokumen** — sinkronkan penyebutan login email di README/GUIDE/TERMS/PRIVACY.
-- [ ] **4. Verifikasi** — tsc + test + lint; preview manual login Google & Guest tetap jalan.
+- [x] **1. AuthScreen** — mode email, form, link "Atau masuk dengan email", state/handler email, dan style mati (formCard/input/emailSubmit/switchMode/dll) dihapus; `TextInput` tak terpakai ikut dibuang. Halaman login kini hanya Google + Guest.
+- [x] **2. useAuth** — `signInWithEmail`/`signUpWithEmail`/`linkEmail` dihapus (sudah diverifikasi tidak dipakai di tempat lain).
+- [x] **3. Dokumen** — README/GUIDE/TERMS/PRIVACY disinkronkan ("login Google/email" → "login Google").
+- [x] **4. Verifikasi** — tsc + 43 tes + lint lolos.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 022 <no> "teks"`)_
+- Selesai dikerjakan bersama PLAN-021 & PLAN-025 (batch 2026-08-14).

@@ -25,7 +25,7 @@
 
 1. Buka aplikasi → layar **Masuk**.
 2. Bisa langsung main **tanpa akun** (mode guest): progres tersimpan per perangkat secara anonim.
-3. Untuk menyimpan progres antar perangkat, **login Google atau Email** (sinkron ke cloud Supabase).
+3. Untuk menyimpan progres antar perangkat, **login Google** (sinkron ke cloud Supabase).
 4. Dari layar masuk, tekan **Mulai Bermain** — papan TTS baru langsung digenerate.
 
 > Guest yang sudah main lalu login, bisa menyatukan datanya lewat **Profil → "Hubungkan Akun"** (lihat [Akun & Data](#-akun--data)).
@@ -233,14 +233,14 @@ Tap tombol, pop huruf, "ding-ding" kata benar, dengung kata salah, fanfare menan
 
 | Aksi | Lokasi | Cara |
 | :--- | :--- | :--- |
-| **Hubungkan Akun** | Profil | Hanya tampil untuk **guest anonim**. Menyatukan data guest (XP, riwayat, board) ke akun Google/email. |
+| **Hubungkan Akun** | Profil | Hanya tampil untuk **guest anonim**. Menyatukan data guest (XP, riwayat, board) ke akun Google. |
 | **Keluar Akun** | Profil | Konfirmasi → keluar ke layar Masuk. Hanya tampil untuk user yang login. |
 | **Hapus Akun (Permanen)** | Profil | ⚠️ Konfirmasi 2 level: (1) peringatan data hilang permanen → (2) ketik **kode acak 10 huruf** yang ditampilkan. Tombol aktif hanya jika kode cocok (case-insensitive). Menghapus seluruh data cloud (riwayat, board, profil, akun) + data lokal perangkat. |
 
 ### Guest & sinkronisasi
 
 - **Mode guest**: identitas berbasis UUID perangkat (tanpa permission MAC/IMEI). Data tersimpan lokal + sinkron ke cloud saat online.
-- **Login Google/email**: data tersimpan per akun — bisa diakses dari perangkat mana pun.
+- **Login Google**: data tersimpan per akun — bisa diakses dari perangkat mana pun.
 - **Offline-first**: progres board dan log tetap jalan saat offline; sinkron otomatis saat online kembali.
 - **Auto-save**: progres board disimpan otomatis (500 ms setelah perubahan + saat menutup/refresh/menutup tab). Board yang belum selesai bisa dilanjutkan dari tombol "Mulai Bermain".
 

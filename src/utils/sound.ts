@@ -51,6 +51,27 @@ let ambientEnabled = true;
 let nativePlayers: Partial<Record<SoundName, AudioPlayer>> | null = null;
 let initStarted = false;
 
+// Preferensi (efek suara & backsound) dibaca ASYNC dari AsyncStorage saat
+// start. Backsound pertama kali ditunda sampai preferensi terbaca
+// (whenSoundPrefsReady), supaya setting tersimpan (mis. suara MATI) diterapkan
+// tepat waktu — tanpa ini ada race: backsound sempat berbunyi walau user sudah
+// mematikan suara di sesi sebelumnya.
+let prefsResolve: () => void = () => {};
+const prefsLoadedPromise: Promise<void> = new Promise((r) => {
+  prefsResolve = r;
+});
+let soundPrefsReady = false;
+let ambientPrefsReady = false;
+
+function maybeResolvePrefs(): void {
+  if (soundPrefsReady && ambientPrefsReady) prefsResolve();
+}
+
+/** Selesai saat preferensi suara & backsound sudah dibaca dari storage. */
+export function whenSoundPrefsReady(): Promise<void> {
+  return prefsLoadedPromise;
+}
+
 // Kepribadian audio tema aktif (lihat SoundSpec di themeData.ts):
 // rate <1 lebih pelan/lembut, >1 lebih cepat/ceria; volume relatif 0–1.
 let currentRate = 1;
@@ -117,6 +138,7 @@ function stopAmbientWeb(): void {
   } catch {
     // abaikan
   }
+  emitAmbientStatus();
 }
 
 function startAmbientWeb(): void {
@@ -138,9 +160,11 @@ function startAmbientWeb(): void {
     if (p && typeof p.then === "function") {
       p.then(() => {
         ambientPendingWeb = false;
+        emitAmbientStatus();
       }).catch(() => {
         // Autoplay policy (belum ada interaksi user) → tunggu gestur pertama.
         ambientPendingWeb = true;
+        emitAmbientStatus();
       });
     } else {
       ambientPendingWeb = false;
@@ -148,6 +172,7 @@ function startAmbientWeb(): void {
   } catch {
     ambientPendingWeb = true;
   }
+  emitAmbientStatus();
 }
 
 /** Web: coba mulai lagi backsound yang diblokir autoplay saat user berinteraksi. */
@@ -160,6 +185,7 @@ function retryAmbientOnGesture(): void {
   } catch {
     // tetap diam — user bisa ganti tema / nyalakan suara lagi.
   }
+  emitAmbientStatus();
 }
 
 function bindWebAmbientGesture(): void {
@@ -180,6 +206,35 @@ function applyAmbient(): void {
 function stopAmbient(): void {
   if (IS_WEB) stopAmbientWeb();
   else stopAmbientNative();
+}
+
+// ---------------------------------------------------------------------------
+// Status backsound (web) — dipakai hint "ketuk layar untuk memutar suara latar"
+// ---------------------------------------------------------------------------
+/** Listener status: `true` = autoplay diblokir browser, menunggu gestur user. */
+export type AmbientStatusListener = (blocked: boolean) => void;
+const ambientStatusListeners = new Set<AmbientStatusListener>();
+
+function isAmbientBlocked(): boolean {
+  return IS_WEB && ambientPendingWeb && enabled && ambientEnabled && !!ambientSpec;
+}
+
+function emitAmbientStatus(): void {
+  const blocked = isAmbientBlocked();
+  for (const l of ambientStatusListeners) l(blocked);
+}
+
+/**
+ * Berlangganan status backsound (web: diblokir autoplay atau tidak).
+ * Listener langsung dipanggil dengan status saat ini. Kembalikan fungsi untuk
+ * berhenti berlangganan.
+ */
+export function subscribeAmbientStatus(listener: AmbientStatusListener): () => void {
+  ambientStatusListeners.add(listener);
+  listener(isAmbientBlocked());
+  return () => {
+    ambientStatusListeners.delete(listener);
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +357,9 @@ export async function loadSoundPrefs(): Promise<void> {
     if (stored !== null) enabled = stored === "true";
   } catch {
     // Abaikan — default nyala.
+  } finally {
+    soundPrefsReady = true;
+    maybeResolvePrefs();
   }
 }
 
@@ -329,6 +387,9 @@ export async function loadAmbientPrefs(): Promise<void> {
     if (stored !== null) ambientEnabled = stored === "true";
   } catch {
     // Abaikan — default nyala.
+  } finally {
+    ambientPrefsReady = true;
+    maybeResolvePrefs();
   }
 }
 

@@ -1,6 +1,6 @@
 # Backsound tidak langsung aktif saat aplikasi dijalankan
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-14 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 021`
@@ -18,11 +18,11 @@
   1. Race: `loadSoundPrefs`/`loadAmbientPrefs` async — kalau user menyimpan suara **mati**, di start efek mount sempat memutar backsound sebelum preferensi terbaca (backsound bisa terdengar walau setting mati, atau sebaliknya). Fix: tunggu prefs dimuat sebelum `setAmbientSound` pertama.
   2. Web: gestur pertama yang terjadi sangat awal (sebelum backsound siap) bisa lolos dari retry — listener tetap terpasang, jadi kecil pengaruhnya.
 
-## Langkah (rencana fix, belum dikerjakan)
+## Langkah
 
-- [ ] **1. Tentukan perilaku target** — web: tetap tunduk autoplay policy + opsi hint "ketuk untuk memutar suara latar"; native: pastikan start bersih saat launch (tunggu prefs, mulai streaming segera).
-- [ ] **2. Implementasi** — (isi saat dikerjakan)
+- [x] **1. Fix race preferensi** — `sound.ts`: promise `whenSoundPrefsReady()` selesai saat efek suara & backsound selesai dibaca dari AsyncStorage (`loadSoundPrefs`/`loadAmbientPrefs` menandai selesai di `finally`); `ThemeProvider` menunggu promise itu sebelum `setAmbientSound` pertama → backsound tidak sempat berbunyi walau user mematikan suara di sesi sebelumnya.
+- [x] **2. Hint web saat autoplay diblokir** — `sound.ts` expose `subscribeAmbientStatus` (status "diblokir autoplay" di web); komponen baru `AmbientSoundHint` (pill "🔊 Ketuk layar untuk memutar suara latar", hilang sendiri 6 detik) dirender di `ScreenFade` → muncul di semua halaman, native tidak dirender.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 021 <no> "teks"`)_
+- Selesai dikerjakan bersama PLAN-022 & PLAN-025 (batch 2026-08-14). Verifikasi tsc + 43 tes + lint lolos.

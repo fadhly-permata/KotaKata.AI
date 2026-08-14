@@ -10,7 +10,7 @@ KotaKata.AI adalah permainan teka-teki silang (TTS) puitis dengan sistem peringk
 
 ## 2. Akun
 
-- Anda dapat bermain sebagai **tamu (anonim)** tanpa mendaftar, atau **masuk dengan Google/email**.
+- Anda dapat bermain sebagai **tamu (anonim)** tanpa mendaftar, atau **masuk dengan Google**.
 - Anda bertanggung jawab menjaga keamanan kredensial akun Anda (misalnya akun Google yang digunakan untuk masuk).
 - Progres guest dikaitkan dengan **identitas perangkat** (UUID anonim) yang disimpan lokal di perangkat Anda. Jika data aplikasi dihapus atau perangkat diganti, progres guest bisa hilang — kecuali Anda menghubungkannya ke akun permanen melalui fitur **"Hubungkan Akun"** di halaman Profil.
 

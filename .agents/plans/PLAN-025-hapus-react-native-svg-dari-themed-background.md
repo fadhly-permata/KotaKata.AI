@@ -1,6 +1,6 @@
 # Hapus penggunaan react-native-svg dari ThemedBackground
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-14 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 025`
@@ -31,12 +31,12 @@ PLAN-023/024 — react-native-svg gradien di Android lama/modern).
 2. `ImageBackground` dengan gambar gradien statis (di-hosting / aset lokal) — mendukung tema Samudra/Senja.
 3. `expo-linear-gradient` (modul native baru — perlu instalasi; kehati-hatian karena tujuannya mengurangi crash native).
 
-## Langkah (rencana, belum dikerjakan)
+## Langkah
 
-- [ ] **1. Putuskan pengganti** — pilih pendekatan gradien non-SVG (opsi di atas).
-- [ ] **2. Implementasi** — tulis ulang `ThemedBackground` tanpa react-native-svg; pastikan fallback warna solid & overlay tetap.
-- [ ] **3. Verifikasi** — tsc + test + lint; preview web & (kalau bisa) device; pastikan tidak ada perubahan visual berarti.
+- [x] **1. Putuskan pengganti** — dipilih **lapisan `View` berwarna bertumpuk** (tanpa modul native baru): 10 band warna hasil interpolasi antar stop; arah vertical/horizontal/diagonal didukung (diagonal via rotate+scale dalam wadah overflow hidden).
+- [x] **2. Implementasi** — `ThemedBackground.tsx` ditulis ulang tanpa react-native-svg (`GradientLayer` + `interpolateHex` + `buildBands`); warna solid dasar, `ImageBackground` (gambar URL), dan overlay kontras tetap. Komentar `themeData.ts` yang menyebut react-native-svg disesuaikan. `react-native-svg` TIDAK dihapus dari package.json karena masih dipakai `ProgressRing` & ikon (keputusan terpisah).
+- [x] **3. Verifikasi** — tsc + 43 tes + lint lolos.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 025 <no> "teks"`)_
+- Selesai dikerjakan bersama PLAN-021 & PLAN-022 (batch 2026-08-14). Diharapkan membantu kondisi force close (PLAN-023/024 — keduanya di-flag bug & ditangguhkan).

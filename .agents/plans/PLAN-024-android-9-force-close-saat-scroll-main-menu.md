@@ -6,6 +6,12 @@
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 024`
 > (lihat `bun .agents/plans/plan.mjs help`)
 
+## 🚩 FLAG: BUG (ditangguhkan)
+
+Plan ini bersifat **bug** dan untuk sementara **DITANGGUHKAN** (keputusan
+pemilik, 2026-08-14). Kemungkinan teratasi oleh PLAN-025 (hapus react-native-svg
+dari ThemedBackground). Suatu hari nanti bisa **dibatalkan** atau **dikerjakan**.
+
 ## Revisi (laporan/pertanyaan dari pemilik)
 
 > "Ketika APK di install di Android 9, aplikasi bisa dibuka tapi pas di main

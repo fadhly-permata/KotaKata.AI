@@ -10,6 +10,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import ThemedBackground from "./ThemedBackground";
 import AmbientOrbs from "./AmbientOrbs";
+import AmbientSoundHint from "./AmbientSoundHint";
 import type { BackgroundSpec } from "../../themes/themeData";
 
 interface ScreenFadeProps {
@@ -68,6 +69,8 @@ export default function ScreenFade({ children, style, background, orbs = true }:
       <ThemedBackground spec={background ?? appBackground} />
       {orbs && <AmbientOrbs />}
       {children}
+      {/* Web: hint saat backsound diblokir autoplay (native: tidak dirender). */}
+      <AmbientSoundHint />
     </Animated.View>
   );
 }

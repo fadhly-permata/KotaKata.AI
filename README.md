@@ -69,7 +69,7 @@ Setiap kata punya 3 clue yang selalu berbeda dan tidak pernah memuat jawaban:
 - **Sejarah Permainan** — daftar papan selesai + viewer read-only (sel hitam, nomor clue, grup Mendatar/Menurun).
 - **Kata Ajaib** — popup kata acak + clue dari seluruh tier (clue Antonim/Sinonim dikecualikan).
 - **Auto-save** — progres board tersimpan otomatis (500 ms setelah perubahan + saat menutup/refresh); board belum selesai bisa dilanjutkan dari "Mulai Bermain".
-- **Guest & Akun** — main tanpa akun (identitas per perangkat) atau login Google/email; progres tersinkronisasi cloud. "Hubungkan Akun" (Profil) menyatukan data guest ke akun permanen.
+- **Guest & Akun** — main tanpa akun (identitas per perangkat) atau login Google; progres tersinkronisasi cloud. "Hubungkan Akun" (Profil) menyatukan data guest ke akun permanen.
 
 ## 🤖 Mode AI (Main Mode AI)
 
@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-020, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-025 — semuanya ✅ done, kecuali PLAN-023 & PLAN-024 yang di-flag 🚩 sebagai bug & ditangguhkan) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -249,12 +249,17 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-018 | ✅ done | Keseragaman tema (tiap tema app punya papan & keyboard senama), tema gambar latar (Samudra & Senja pakai foto), tema suara (rate+volume per tema, tanpa aset baru), orb ambien di semua halaman (`AmbientOrbs` reusable), dialog konfirmasi ber-ikon & responsif, deploy web ke EAS Hosting (`deploy:web`) |
 | PLAN-019 | ✅ done | Backsound suara latar per tema (URL MP3 online terverifikasi): Puitis → rintik hujan, Samudra → ombak laut, Senja → jangkrik malam, Hutan → hujan di hutan — loop pelan (expo-audio native / HTMLAudioElement web), ikut mati saat suara dimatikan, kartu Pasar menampilkan chip "🎵 Backsound: <nama>" |
 | PLAN-020 | ✅ done | Switch on/off backsound di Pengaturan — preferensi terpisah `kotakata.ambientEnabled` (default nyala); backsound hanya diputar kalau efek suara & backsound sama-sama nyala; baris "Backsound Tema" + Switch di bawah "Efek Suara" (seksi "Tampilan & Suara") |
+| PLAN-021 | ✅ done | Backsound langsung aktif saat app start — fix race preferensi (`whenSoundPrefsReady`: backsound pertama menunggu preferensi terbaca supaya tidak sempat berbunyi saat setting mati) + hint web "🔊 Ketuk layar untuk memutar suara latar" saat autoplay diblokir browser (`AmbientSoundHint` di semua halaman via ScreenFade) |
+| PLAN-022 | ✅ done | Hapus login email di halaman Login — form email, link "Atau masuk dengan email", `signInWithEmail`/`signUpWithEmail`/`linkEmail` dihapus; login hanya Google + Guest; dokumen (README/GUIDE/TERMS/PRIVACY) disinkronkan |
+| PLAN-023 | 🚩 bug (ditangguhkan) | Force close random di Android 12–15 (3× Android 14, 1× Android 15, 1× Android 12) — ditangguhkan; kemungkinan teratasi oleh PLAN-025 |
+| PLAN-024 | 🚩 bug (ditangguhkan) | Force close saat scroll Main Menu di Android 9 — ditangguhkan; kemungkinan teratasi oleh PLAN-025 |
+| PLAN-025 | ✅ done | ThemedBackground tanpa react-native-svg — gradien jadi lapisan `View` berwarna bertumpuk (10 band interpolasi hex; vertical/horizontal/diagonal via rotate+scale); fallback warna solid, gambar latar & overlay tetap; `react-native-svg` masih dipakai ProgressRing & ikon (keputusan terpisah) |
 
 ## ❓ FAQ
 
 **Akun & Data**
 
-- **Apakah data hilang saat login?** Tidak. Login tidak menghapus data guest. Untuk menggabungkan progres guest ke akun, gunakan **Profil → Hubungkan Akun** (guest anonim menyatukan XP, riwayat, dan board ke akun Google/email).
+- **Apakah data hilang saat login?** Tidak. Login tidak menghapus data guest. Untuk menggabungkan progres guest ke akun, gunakan **Profil → Hubungkan Akun** (guest anonim menyatukan XP, riwayat, dan board ke akun Google).
 - **Bagaimana cara keluar akun?** Profil → **Keluar Akun** (hanya tampil untuk user yang login; guest cukup menutup sesi).
 - **Bagaimana cara menghapus akun?** Profil → **Hapus Akun (Permanen)** — konfirmasi 2 level: peringatan, lalu ketik **kode acak 10 huruf** (case-insensitive). Menghapus seluruh data cloud + lokal secara permanen.
 - **Apakah progres tersimpan otomatis?** Ya. Board disimpan 500 ms setelah perubahan + saat menutup/refresh tab. Board yang belum selesai bisa dilanjutkan dari "Mulai Bermain".

@@ -46,29 +46,6 @@ export function useAuth() {
     return data;
   }, []);
 
-  /** Sign in with email + password */
-  const signInWithEmail = useCallback(
-    async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return data;
-    },
-    [],
-  );
-
-  /** Sign up with email + password */
-  const signUpWithEmail = useCallback(
-    async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      return data;
-    },
-    [],
-  );
-
   /**
    * Sign in with Google OAuth.
    *
@@ -148,19 +125,6 @@ export function useAuth() {
     return data;
   }, []);
 
-  /** Link anonymous account to email/password (identity linking) */
-  const linkEmail = useCallback(
-    async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.updateUser({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return data;
-    },
-    [],
-  );
-
   /** Sign out */
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
@@ -171,10 +135,7 @@ export function useAuth() {
     user,
     loading,
     signInAnonymously,
-    signInWithEmail,
-    signUpWithEmail,
     signInWithGoogle,
-    linkEmail,
     signOut,
   };
 }

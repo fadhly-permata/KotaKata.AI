@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -23,8 +22,6 @@ import ScreenFade from "../../presentation/components/common/ScreenFade";
 import FloatingOrbs, {
   type FloatingOrbSpec,
 } from "../../presentation/components/common/FloatingOrbs";
-
-type AuthMode = "select" | "email";
 
 // Dokumen legal dimuat dari raw.githubusercontent.com (pengganti rawgit.com
 // yang sudah berhenti beroperasi). Markdown di-render oleh MarkdownScreen.
@@ -71,12 +68,8 @@ const AUTH_DARK = {
 export default function AuthScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user, loading: authLoading, signInAnonymously, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { user, loading: authLoading, signInAnonymously, signInWithGoogle } = useAuth();
 
-  const [mode, setMode] = useState<AuthMode>("select");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -225,26 +218,6 @@ export default function AuthScreen() {
     }
   };
 
-  const handleEmailAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError("Email dan password wajib diisi");
-      return;
-    }
-    setError("");
-    setActionLoading(true);
-    try {
-      if (isSignUp) {
-        await signUpWithEmail(email, password);
-      } else {
-        await signInWithEmail(email, password);
-      }
-    } catch (e: any) {
-      setError(e.message || "Autentikasi gagal");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   // Splash while checking session
   if (authLoading) {
     return (
@@ -315,8 +288,7 @@ export default function AuthScreen() {
         </Animated.View>
 
         {/* ── Auth Buttons ── */}
-        {mode === "select" && (
-          <View style={styles.authSection}>
+        <View style={styles.authSection}>
             {error ? (
               <View style={[styles.errorBanner, { backgroundColor: isDark ? "#3D1A1A" : "#ffe8e8" }]}>
                 <Text style={styles.errorBannerText}>{error}</Text>
@@ -363,101 +335,7 @@ export default function AuthScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Email link */}
-            <TouchableOpacity
-              style={styles.emailLink}
-              activeOpacity={0.6}
-              onPress={() => setMode("email")}
-            >
-              <Text style={[styles.emailLinkText, { color: C.onSurfaceVariant }]}>
-                Atau masuk dengan email
-              </Text>
-            </TouchableOpacity>
           </View>
-        )}
-
-        {/* ── Email Form ── */}
-        {mode === "email" && (
-          <View style={styles.authSection}>
-            <View style={[styles.formCard, { backgroundColor: C.surface }]}>
-              <Text style={[styles.formTitle, { color: C.onSurface }]}>
-                {isSignUp ? "Daftar dengan Email" : "Masuk dengan Email"}
-              </Text>
-
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? "#3a2a40" : "#FFF",
-                    color: C.onSurface,
-                    borderColor: C.outlineVariant,
-                  },
-                ]}
-                placeholder="Email"
-                placeholderTextColor={C.onSurfaceVariant}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? "#3a2a40" : "#FFF",
-                    color: C.onSurface,
-                    borderColor: C.outlineVariant,
-                  },
-                ]}
-                placeholder="Password"
-                placeholderTextColor={C.onSurfaceVariant}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-
-              {error ? <Text style={[styles.errorText, { color: C.error }]}>{error}</Text> : null}
-
-              <TouchableOpacity
-                style={[styles.emailSubmit, { backgroundColor: C.primary }]}
-                activeOpacity={0.8}
-                onPress={handleEmailAuth}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.emailSubmitText}>{isSignUp ? "Daftar" : "Masuk"}</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.switchMode}
-                activeOpacity={0.6}
-                onPress={() => {
-                  setIsSignUp(!isSignUp);
-                  setError("");
-                }}
-              >
-                <Text style={[styles.switchModeText, { color: C.primary }]}>
-                  {isSignUp ? "Sudah punya akun? Masuk" : "Belum punya akun? Daftar"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.backBtn}
-                activeOpacity={0.6}
-                onPress={() => {
-                  setMode("select");
-                  setError("");
-                }}
-              >
-                <Text style={[styles.backText, { color: C.onSurfaceVariant }]}>← Kembali</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* ── Footer ── */}
         <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
@@ -590,44 +468,6 @@ const styles = StyleSheet.create({
   guestIcon: { fontSize: 18 },
   guestBtnText: { fontSize: 16, fontWeight: "700" },
 
-  // Email link
-  emailLink: { alignItems: "center", paddingVertical: 8 },
-  emailLinkText: { fontSize: 13, fontWeight: "600" },
-
-  // Form
-  formCard: {
-    padding: 24,
-    borderRadius: 20,
-    gap: 14,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  formTitle: { fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 4 },
-  input: {
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  errorText: { fontSize: 13, textAlign: "center", fontWeight: "500" },
-  emailSubmit: {
-    paddingVertical: 16,
-    borderRadius: 999,
-    alignItems: "center",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  emailSubmitText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
-  switchMode: { alignItems: "center", paddingVertical: 6 },
-  switchModeText: { fontSize: 13, fontWeight: "600" },
-  backBtn: { alignItems: "center", paddingVertical: 8 },
-  backText: { fontSize: 13, fontWeight: "500" },
 
   // Footer
   footer: { alignItems: "center", marginTop: 8, paddingBottom: 20 },

@@ -20,7 +20,7 @@ import {
   hydrateThemeSelection,
   useThemeSelectionStore,
 } from "../../stores/themeSelectionStore";
-import { setAmbientSound, setSoundTheme } from "../../../utils/sound";
+import { setAmbientSound, setSoundTheme, whenSoundPrefsReady } from "../../../utils/sound";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -126,10 +126,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const appTheme = getAppThemeById(appThemeId);
   const theme = isDark ? appTheme.dark : appTheme.light;
 
-  // Kepribadian suara + backsound mengikuti tema aplikasi aktif (SoundSpec & AmbientSoundSpec).
+  // Kepribadian suara + backsound mengikuti tema aplikasi aktif (SoundSpec &
+  // AmbientSoundSpec). Backsound pertama kali ditunda sampai preferensi
+  // tersimpan (efek suara & backsound) selesai dibaca — mencegah race: kalau
+  // user mematikan suara di sesi sebelumnya, backsound tidak sempat berbunyi
+  // sebelum preferensi diterapkan (lihat PLAN-021).
   useEffect(() => {
-    setSoundTheme(appTheme.sound);
-    setAmbientSound(appTheme.ambient ?? null);
+    let cancelled = false;
+    void whenSoundPrefsReady().then(() => {
+      if (cancelled) return;
+      setSoundTheme(appTheme.sound);
+      setAmbientSound(appTheme.ambient ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [appTheme]);
   const boardTheme = getBoardThemeById(boardThemeId);
   const boardPalette = isDark ? boardTheme.dark : boardTheme.light;
