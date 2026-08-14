@@ -71,13 +71,21 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
 - Bila beberapa pekerjaan selesai dalam satu sesi, gabungkan per batch yang
   jelas (mis. satu commit per plan/revisi).
 
-### 5. Konfirmasi dulu sebelum mulai mengerjakan revisi (aturan dari pemilik repo)
-- SAAT menerima pesan berisi daftar revisi/permintaan baru: JANGAN langsung
-  mengerjakan semuanya. Di awal, lakukan:
-  1. Susun daftar revisi yang BELUM dikerjakan (ringkas & jelas).
-  2. Konfirmasi ke pemilik: mau dikerjakan SEMUANYA sekaligus, SATU PER SATU
-     (selesai satu → lapor → lanjut), atau MAU YANG DULU (pemilik pilih urutan).
-- Pengecualian yang boleh langsung dikerjakan tanpa konfirmasi: permintaan
-  meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di AGENTS.md),
-  dan fix bug kecil yang jelas & mendesak (tetap laporkan setelah selesai).
+### 5. Revisi baru: CATAT DULU, jangan langsung dikerjakan (aturan dari pemilik repo)
+- SAAT menerima revisi/permintaan baru (fitur, perubahan, atau laporan bug):
+  **JANGAN langsung mengerjakan.** Cukup catat dulu:
+  1. Buat/masukkan ke dokumen plan `PLAN-NNN` di `.agents/plans/` dengan status
+     **pending** (langkahnya belum di-checklist) — satu plan per revisi, judul
+     ringkas & jelas, isi deskripsi revisi apa adanya.
+  2. Lapor ke pemilik: revisi sudah dicatat (sebut nomor plan-nya) + jawaban
+     singkat kalau pemilik bertanya (mis. analisis penyebab bug, tanpa mengubah
+     kode).
+  3. Pekerjaan DIMULAI hanya setelah pemilik menyuruh mengerjakannya (mis.
+     "kerjakan", "kerjakan semuanya", "kerjakan satu per satu", atau
+     "kerjakan yang ini dulu"). Saat itu, susun daftar revisi pending & tanyakan
+     caranya: SEMUANYA sekaligus / SATU PER SATU (selesai satu → lapor →
+     lanjut) / pilih yang mana dulu.
+- Pengecualian yang boleh langsung dikerjakan tanpa menunggu perintah:
+  permintaan meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di
+  AGENTS.md) — revisi lain tetap dicatat dulu.
 <!-- ATURAN_PROYEK_END -->
