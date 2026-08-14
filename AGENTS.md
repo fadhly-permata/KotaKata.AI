@@ -60,4 +60,24 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
   kalau preview memang sedang dibutuhkan.
 - Jangan pernah pakai `kill`/`pkill` untuk mematikan preview — selalu lewat
   `freebuff-preview stop` (tool resmi platform).
+
+### 4. Langsung commit & push setelah setiap perubahan (aturan dari pemilik repo)
+- SETELAH satu revisi/pekerjaan selesai (kode, fix bug, dokumen, meta-aturan)
+  dan verifikasinya lolos (tsc / test / lint bila relevan): LANGSUNG
+  `git add` file yang relevan → `git commit` → `git push origin main`,
+  tanpa menunggu diminta lagi.
+- Pesan commit mengikuti gaya repo & aturan #2 (atas nama pemilik saja, tanpa
+  atribusi pihak lain). Jangan biarkan perubahan menumpuk tidak ter-commit.
+- Bila beberapa pekerjaan selesai dalam satu sesi, gabungkan per batch yang
+  jelas (mis. satu commit per plan/revisi).
+
+### 5. Konfirmasi dulu sebelum mulai mengerjakan revisi (aturan dari pemilik repo)
+- SAAT menerima pesan berisi daftar revisi/permintaan baru: JANGAN langsung
+  mengerjakan semuanya. Di awal, lakukan:
+  1. Susun daftar revisi yang BELUM dikerjakan (ringkas & jelas).
+  2. Konfirmasi ke pemilik: mau dikerjakan SEMUANYA sekaligus, SATU PER SATU
+     (selesai satu → lapor → lanjut), atau MAU YANG DULU (pemilik pilih urutan).
+- Pengecualian yang boleh langsung dikerjakan tanpa konfirmasi: permintaan
+  meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di AGENTS.md),
+  dan fix bug kecil yang jelas & mendesak (tetap laporkan setelah selesai).
 <!-- ATURAN_PROYEK_END -->

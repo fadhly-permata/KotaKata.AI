@@ -49,7 +49,23 @@ export default function ThemedBackground({ spec, style, children }: ThemedBackgr
 
       {/* 2) Gradien (jika didefinisikan). */}
       {stops && (
-        <Svg style={StyleSheet.absoluteFill}>
+        /*
+         * width/height="100%" + viewBox WAJIB eksplisit: react-native-svg hanya
+         * mengisi otomatis ke 100% saat posisinya BUKAN absolute (lihat
+         * Svg.tsx: `if (width === undefined && height === undefined &&
+         * position !== 'absolute')`). Karena kita pakai absoluteFill
+         * (position: absolute), tanpa width/height kanvas SVG jadi tak
+         * berukuran → di Android Rect gradien merender kotak kecil di pojok
+         * kiri atas. viewBox + preserveAspectRatio="none" membuat rect
+         * meregang penuh ke seluruh layar di semua platform.
+         */
+        <Svg
+          style={StyleSheet.absoluteFill}
+          width="100%"
+          height="100%"
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+        >
           <Defs>
             <LinearGradient id={gradientId} {...coords}>
               {stops.map((stopColor, i) => (
@@ -62,7 +78,7 @@ export default function ThemedBackground({ spec, style, children }: ThemedBackgr
               ))}
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradientId})`} />
+          <Rect x="0" y="0" width="1" height="1" fill={`url(#${gradientId})`} />
         </Svg>
       )}
 
