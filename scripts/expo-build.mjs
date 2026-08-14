@@ -74,13 +74,17 @@ console.log(`Platform : ${platform}`);
 console.log(`Profile  : ${profile}${profile === "preview" ? " (APK untuk install manual)" : profile === "production" ? " (AAB untuk Play Store)" : " (development client)"}`);
 console.log(`Token    : ${token.length} karakter (tidak dicetak isinya)\n`);
 
-const r = spawnSync("bunx", ["eas-cli", "build", "--platform", platform, "--profile", profile, "--non-interactive"], {
-  stdio: "inherit",
-  env: { ...process.env, EXPO_TOKEN: token },
-});
+const r = spawnSync(
+  "bunx",
+  ["eas-cli", "build", "--platform", platform, "--profile", profile, "--non-interactive", "--no-wait"],
+  {
+    stdio: "inherit",
+    env: { ...process.env, EXPO_TOKEN: token },
+  },
+);
 
 if (r.status === 0) {
-  console.log("\n✅ Build terdaftar di EAS. Pantau status & download di:");
+  console.log("\n✅ Build dikirim ke EAS (berjalan di cloud expo.dev). Pantau status & download di:");
   console.log(`   ${PROJECT_URL}`);
   console.log("\nAtau dari terminal:");
   console.log("   bunx eas-cli build:list");

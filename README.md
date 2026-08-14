@@ -146,7 +146,7 @@ bun lint
 
 ## 🔑 Environment Variables
 
-Buat `.env.local` (atau isi lewat tab Keys di Freebuff):
+Buat `.env.local` (atau isi lewat tab Keys/API keys di platform):
 
 | Variable | Description |
 | --- | --- |

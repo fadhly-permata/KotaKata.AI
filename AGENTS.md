@@ -26,22 +26,29 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
 
 ### 2. Atribusi commit: hanya nama pemilik repo
 - JANGAN pernah menambahkan trailer `Co-Authored-By: ...` atau atribusi pihak
-  lain (mis. Codebuff/Freebuff Agent) ke pesan commit. Semua commit harus
-  tercatat atas nama pemilik repo (Fadhly Permata) saja.
-- JANGAN menambahkan baris seperti "Generated with Codebuff" / "🤖 Generated
-  with Codebuff" ke body pesan commit.
+  lain (mis. agen AI) ke pesan commit. Semua commit harus tercatat atas nama
+  pemilik repo (Fadhly Permata) saja.
+- JANGAN menambahkan baris watermark/atribusi otomatis (mis. "Generated with
+  ...") ke body pesan commit.
 
-### 2b. JANGAN membuat GitHub Release dari workspace ini
+### 2b. Rilis GitHub WAJIB atas nama Fadhly Permata (dilarang pakai identitas lain)
 - Setiap perintah `gh` di workspace ini berjalan dengan kredensial **GitHub App
-  Freebuff** (`freebuff-web[bot]`) — satu-satunya identitas yang tersedia untuk
-  API GitHub. Akibatnya, release yang dibuat lewat `gh release create`
-  **tercatat atas nama app, bukan pemilik repo** (commit tidak terpengaruh:
-  memakai `user.name`/`user.email` git = Fadhly Permata).
-- JANGAN membuat GitHub Release kecuali diminta eksplisit. Kalau diminta:
-  - Siapkan draf catatan rilis + tag, lalu minta pemilik membuat release dari
-    akun GitHub-nya sendiri (UI GitHub atau `gh` pribadinya).
-  - ATAU peringatkan terlebih dahulu bahwa release akan tercatat atas nama
-    GitHub App Freebuff, dan hanya lanjut bila pemilik menyetujui.
+  yang dikelola platform** (bukan akun personal Fadhly Permata) — satu-satunya
+  identitas yang tersedia untuk API GitHub. Akibatnya, release yang dibuat
+  lewat `gh release create` dari workspace ini tercatat atas nama app tersebut,
+  BUKAN atas nama Fadhly Permata (commit tidak terpengaruh: memakai
+  `user.name`/`user.email` git = Fadhly Permata).
+- KARENA ITU: **JANGAN PERNAH** membuat (atau menghapus) GitHub Release dari
+  workspace ini. Kalau pemilik minta rilis:
+  1. Siapkan SEMUANYA di sini: bump versi `app.json` (version/buidNumber),
+     catatan rilis lengkap (RELEASE_NOTES), nama tag `vX.Y.Z`.
+  2. Jangan jalankan `gh release create` / `gh release delete` — berikan
+     instruksi singkat dan MINTA Fadhly Permata publish dari akun GitHub-nya
+     sendiri (UI GitHub atau `gh` pribadinya), supaya penulis release =
+     Fadhly Permata.
+- Dilarang mencantumkan identitas selain Fadhly Permata sebagai author release,
+  author commit, atau kredit di file repo (kecuali nama command tooling
+  platform yang memang harus dipakai, mis. `freebuff-preview`).
 
 ### 3. STOP preview dulu sebelum menyentuh file (aturan dari pemilik repo)
 - Selama mode preview SEDANG JALAN, file-file (mis. `.env` / `.env.local`) bisa

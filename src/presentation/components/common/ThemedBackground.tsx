@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { ImageBackground, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Stop, Rect } from "react-native-svg";
 import type { BackgroundDirection, BackgroundSpec } from "../../themes/themeData";
@@ -37,6 +37,10 @@ export default function ThemedBackground({ spec, style, children }: ThemedBackgr
   const { color = "transparent", gradient, direction = "vertical", imageUrl, overlay } = spec;
   const stops = gradient && gradient.length >= 2 ? gradient : undefined;
   const coords = gradientCoords(direction);
+  // ID gradien UNIK per instance — di web react-native-svg merender DOM SVG
+  // asli, jadi ID statis akan membuat beberapa ThemedBackground saling
+  // menimpa referensi `url(#...)` (gradien tertukar). useId menjamin unik.
+  const gradientId = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   return (
     <View style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
@@ -47,7 +51,7 @@ export default function ThemedBackground({ spec, style, children }: ThemedBackgr
       {stops && (
         <Svg style={StyleSheet.absoluteFill}>
           <Defs>
-            <LinearGradient id="themed-background" {...coords}>
+            <LinearGradient id={gradientId} {...coords}>
               {stops.map((stopColor, i) => (
                 <Stop
                   key={i}
@@ -58,7 +62,7 @@ export default function ThemedBackground({ spec, style, children }: ThemedBackgr
               ))}
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#themed-background)" />
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradientId})`} />
         </Svg>
       )}
 
