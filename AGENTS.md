@@ -30,4 +30,15 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
   tercatat atas nama pemilik repo (Fadhly Permata) saja.
 - JANGAN menambahkan baris seperti "Generated with Codebuff" / "🤖 Generated
   with Codebuff" ke body pesan commit.
+
+### 3. STOP preview dulu sebelum menyentuh file (aturan dari pemilik repo)
+- Selama mode preview SEDANG JALAN, file-file (mis. `.env` / `.env.local`) bisa
+  terkunci sehingga akses terminal ke file itu diblokir/ditutup. Ini BUKAN karena
+  izin hilang — itu efek preview yang sedang berjalan.
+- SEBELUM melakukan perubahan apa pun yang menyentuh file (termasuk operasi yang
+  membaca/menulis `.env*`, script DB yang baca `.env.local`, dll):
+  `freebuff-preview stop` dulu, kerjakan, lalu `freebuff-preview start` lagi
+  kalau preview memang sedang dibutuhkan.
+- Jangan pernah pakai `kill`/`pkill` untuk mematikan preview — selalu lewat
+  `freebuff-preview stop` (tool resmi platform).
 <!-- ATURAN_PROYEK_END -->

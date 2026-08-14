@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, type GestureResponderHandlers } from "react-native";
+import { useTheme } from "../providers/ThemeProvider";
 import TooltipButton from "../common/TooltipButton";
 import NextIcon from "../icons/NextIcon";
 import NumberSquareIcon from "../icons/NumberSquareIcon";
@@ -39,33 +40,35 @@ export default function CluePill({
   clueLevelText,
   onSwitchClue,
 }: CluePillProps) {
+  // Palet PAPAN (tema papan aktif) — panel soal ikut berganti tema papan.
+  const { boardColors: B } = useTheme();
   return (
-    <View style={[styles.cluePill, { backgroundColor: "#0096cc" }]} {...panHandlers}>
+    <View style={[styles.cluePill, { backgroundColor: B.clueBackground }]} {...panHandlers}>
       {/* Nav kata */}
       <TooltipButton
         tooltip="Kata sebelumnya"
         icon="◀️"
         activeOpacity={0.7}
         onPress={onPrevWord}
-        style={styles.clueArrow}
+        style={[styles.clueArrow, { backgroundColor: B.clueArrowBackground }]}
       >
-        <NextIcon flipped size={17} color="#FFF" />
+        <NextIcon flipped size={17} color={B.clueText} />
       </TooltipButton>
-      <View style={styles.clueNumberBadge}>
-        <Text style={styles.clueNumberText}>{wordNumber}</Text>
+      <View style={[styles.clueNumberBadge, { backgroundColor: B.clueBadgeBackground }]}>
+        <Text style={[styles.clueNumberText, { color: B.clueBadgeText }]}>{wordNumber}</Text>
       </View>
       <TooltipButton
         tooltip="Kata berikutnya"
         icon="▶️"
         activeOpacity={0.7}
         onPress={onNextWord}
-        style={styles.clueArrow}
+        style={[styles.clueArrow, { backgroundColor: B.clueArrowBackground }]}
       >
-        <NextIcon size={17} color="#FFF" />
+        <NextIcon size={17} color={B.clueText} />
       </TooltipButton>
 
       {/* Separator */}
-      <View style={[styles.clueDivider, { backgroundColor: "rgba(255,255,255,0.35)" }]} />
+      <View style={[styles.clueDivider, { backgroundColor: B.clueDivider }]} />
 
       {/* Tombol ganti tampilan clue — ditaruh di DEPAN teks clue biar konteksnya jelas */}
       <TooltipButton
@@ -82,17 +85,20 @@ export default function CluePill({
         onPress={() => {
           if (canRotateClue) onSwitchClue();
         }}
-        style={[styles.clueSwitchBtn, { opacity: canRotateClue ? 1 : 0.4 }]}
+        style={[
+          styles.clueSwitchBtn,
+          { backgroundColor: B.clueArrowBackground, opacity: canRotateClue ? 1 : 0.4 },
+        ]}
       >
-        <NumberSquareIcon number={shownClueLevel} size={20} color="#FFF" />
+        <NumberSquareIcon number={shownClueLevel} size={20} color={B.clueText} />
       </TooltipButton>
 
       {/* Isi clue — teks utuh (tanpa numberOfLines) supaya tidak pernah
           terpotong; tinggi pill mengikuti panjang teks (auto-height). */}
       <View style={styles.clueContent}>
         <View style={styles.clueTextWrap}>
-          <Text style={styles.clueOrientation}>{clueLevelLabel}</Text>
-          <Text style={styles.clueMain}>{clueLevelText}</Text>
+          <Text style={[styles.clueOrientation, { color: B.clueTextMuted }]}>{clueLevelLabel}</Text>
+          <Text style={[styles.clueMain, { color: B.clueText }]}>{clueLevelText}</Text>
         </View>
       </View>
     </View>
@@ -114,17 +120,15 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "#FFF",
     justifyContent: "center",
     alignItems: "center",
     marginHorizontal: 2,
   },
-  clueNumberText: { fontSize: 13, fontWeight: "800", color: "#0096cc" },
+  clueNumberText: { fontSize: 13, fontWeight: "800" },
   clueSwitchBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 4,
@@ -135,10 +139,9 @@ const styles = StyleSheet.create({
   clueTextWrap: { flex: 1, flexShrink: 1, minWidth: 0 },
   clueOrientation: {
     fontSize: 10,
-    color: "rgba(255,255,255,0.8)",
     fontWeight: "600",
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  clueMain: { fontSize: 14, color: "#FFF", fontWeight: "600", lineHeight: 19 },
+  clueMain: { fontSize: 14, fontWeight: "600", lineHeight: 19 },
 });

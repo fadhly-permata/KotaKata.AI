@@ -48,7 +48,7 @@ const MAX_GRID_SIZE = 14;
 const AI_MIN_WORDS = 6;
 
 export default function GameScreen() {
-  const { theme, isDark, setThemeMode } = useTheme();
+  const { theme, isDark, setThemeMode, boardColors } = useTheme();
   const navigation = useNavigation();
   // Safe-area inset (status bar & navigation bar Android) — edge-to-edge wajib
   // di Android 15+, jadi konten game diberi padding inset supaya tidak tampak
@@ -998,7 +998,7 @@ export default function GameScreen() {
         />
 
         <GameActionBar
-          colors={theme.colors}
+          colors={boardColors}
           compactBar={compactBar}
           toolsExpanded={toolsExpanded}
           onToggleTools={() => {

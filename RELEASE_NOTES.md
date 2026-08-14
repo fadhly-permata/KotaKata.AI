@@ -22,12 +22,22 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-011** | ✅ done | Bersihkan Singkatan Kuno (pd/dl/krn) di Semua Clue Tier | 4 langkah: **audit lengkap** (308 baris tier 6–10 memuat singkatan kuno), **script `modernize-clues.mjs`** — penggantian kata baku dengan word-boundary + auto-resolve konflik QA dari cache riset PLAN-007 + override kurasi manual `modernize-overrides.mjs` (210 kata), **jalankan + QA + SQL**: 308 baris dimodernisasi, `check-clue-quality` 0 issue / 0 bocor / 0 duplikat semua tier, `vocabulary.sql` di-regenerate, **push ke Supabase + verifikasi final**: singkatan kuno = **0**, placeholder "Merupakan kata" tetap 0, total row 10.003 |
 | **PLAN-012** | ✅ done | Reveal XP Fair + Progress Ring & Theme Toggle di Header In-Game | 5 langkah: **reveal letter/word tidak lagi memotong XP saat tidak ada sel yang berubah** (sel kosong → diisi, sel salah → diganti benar; kalau semua huruf sudah benar/terkunci reveal batal total — tombol ikut dinonaktifkan), **animasi zoom-out** pada huruf yang baru di-reveal/diganti (`revealedPulse` transien + `RevealPulseLetter`), **progress bar garis dihapus** dari pill clue (posisinya offset), **progress ring persentase pindah ke header** di samping label XP (hanya tampil di dalam game), **tombol switch cepat tema terang/gelap** di header; verifikasi tsc + 43 tes lolos |
 | **PLAN-013** | ✅ done | Halaman Pasar (Store), Perbaikan Fullscreen & Refactor Kode | 7 langkah: **semua halaman tidak lagi tampak fullscreen** (safe-area inset status bar di `TopBar` — History/GameHistory/BoardViewer/Profile/Settings/LogViewer/AiProvider — plus Main Menu & Login; Game sudah dibereskan di rilis sebelumnya), **refactor maintainability**: helper papan `gameStore` dipisah ke `gameBoardHelpers.ts`, `GameScreen` (±1.570 → 1.213 baris) dipecah ke komponen `GameTopBar`/`CluePill`/`GameActionBar`, orb dekoratif jadi komponen bersama `FloatingOrbs` (dipakai Main Menu & Login), **tombol "Pasar" memanjang di paling bawah Main Menu** → halaman Store, **halaman Store** dengan katalog tema (`themeCatalog.ts`) — 1 tema bawaan "Puitis" (mendukung terang/gelap) dipilih sebagai default, struktur siap dikembangkan jadi tema berbayar; verifikasi tsc + 43 tes + lint lolos |
+| **PLAN-014** | ✅ done | Multi-Tema: Pasar dengan Katalog dari Database + Tema Papan & Keyboard | 6 langkah: **registry tema** (`themeData.ts` — 4 tema aplikasi Puitis/Samudra/Senja/Hutan, 3 tema papan Puitis/Tinta/Neon, 3 tema keyboard Puitis/Pastel/Klasik, semua light & dark), **store pilihan + ThemeProvider** (`themeSelectionStore` zustand + AsyncStorage: `appThemeId`/`boardThemeId`/`keyboardThemeId`; provider me-resolve palet global/papan/keyboard), **komponen game memakai tema spesifik** (CrosswordGrid/CluePill/GameActionBar → tema papan; InGameKeyboard → tema keyboard), **database `themes`** (migrasi + RLS read-publik, generator `gen-themes-sql.mjs` → `supabase/data/themes.sql`, `push-themes.mjs`, `themeRepository` fetch katalog cloud), **halaman Pasar 3 seksi** (Tema Aplikasi / Papan / Keyboard — ambil dari DB dengan fallback registry lokal, kartu bisa langsung diaktifkan, `themeCatalog.ts` lama dihapus); verifikasi tsc + 43 tes + lint lolos |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
 ---
 
 ## 📦 Rilis per Plan
+
+### v1.2.0 — Multi-Tema: Katalog dari Database + Tema Papan & Keyboard (PLAN-014)
+
+- 🎨 **4 tema aplikasi** siap di-*switch* dari halaman Pasar: **Puitis** (default, gratis) — merah muda & ungu identitas KotaKata, **Samudra** — biru laut & teal, **Senja** — oranye hangat & ungu dusk, **Hutan** — hijau rimba & zaitun; semuanya mendukung mode **terang & gelap** penuh
+- 🧩 **3 tema PAPAN** (desain halaman game saja — papan, soal/clue pill, dan panel petunjuk): **Puitis** (default), **Tinta** (crossword koran hitam-putih-merah), **Neon** (grid gelap neon cyan & magenta)
+- ⌨️ **3 tema KEYBOARD** (InGameKeyboard): **Puitis** (default), **Pastel** (tombol lembut aksen ungu), **Klasik** (monokrom bersih)
+- 🗄 **Data tema disimpan di DATABASE**: tabel baru `themes` di Supabase (id, kind `app/board/keyboard`, nama, deskripsi, palet jsonb light/dark, RLS read publik). Seed di-*generate* dari registry lokal (`scripts/db/gen-themes-sql.mjs` → `supabase/data/themes.sql`) dan di-push via `scripts/db/push-themes.mjs` — pola sama dengan vocabulary
+- 🔁 **Pilihan tema tersimpan permanen**: `themeSelectionStore` (zustand + AsyncStorage) menyimpan `appThemeId`/`boardThemeId`/`keyboardThemeId`; kartu tema di Pasar menampilkan badge **"✓ Aktif"** dan tombol **"Aktifkan"** untuk mengganti langsung
+- 📴 **Offline-first**: registry lokal (`themeData.ts`) menjamin render selalu jalan tanpa jaringan; halaman Pasar menampilkan katalog dari cloud dan otomatis jatuh ke katalog lokal bila Supabase tidak terjangkau (banner "Katalog offline")
 
 ### v1.1.0 — Halaman Pasar (Store), Fix Fullscreen & Refactor Kode (PLAN-013)
 
@@ -184,3 +194,4 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | Check | `qa-logic.mjs` | Validasi logic game end-to-end |
 | Check | `detect-regional.mjs` / `verify-origin-prefixes.mjs` | Verifikasi penanda asal bahasa |
 | DB | `push-vocab.mjs` / `supabase-run.mjs` | Push vocabulary & query ad-hoc ke Supabase |
+| DB | `gen-themes-sql.mjs` / `push-themes.mjs` | Generate `supabase/data/themes.sql` dari registry tema & push ke Supabase |

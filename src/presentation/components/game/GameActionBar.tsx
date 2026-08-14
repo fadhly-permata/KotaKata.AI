@@ -8,7 +8,7 @@ import {
   XP_PENALTY_CLUE_3,
   XP_PENALTY_REVEAL,
 } from "../../../domain/usecases/xpEngine";
-import type { Theme } from "../providers/ThemeProvider";
+import type { BoardColors } from "../../themes/themeData";
 
 /** Rentang & langkah zoom papan — dipakai juga oleh GameScreen (animateZoom). */
 export const ZOOM_MIN = 0.5;
@@ -16,7 +16,8 @@ export const ZOOM_MAX = 2.0;
 export const ZOOM_STEP = 0.25;
 
 interface GameActionBarProps {
-  colors: Theme["colors"];
+  /** Palet PAPAN (tema papan aktif) — panel hint ikut berganti tema papan. */
+  colors: BoardColors;
   /** Layar ponsel (< 480px): baris kedua (Reset + Keyboard) bisa di-collapse. */
   compactBar: boolean;
   toolsExpanded: boolean;
@@ -73,7 +74,7 @@ export default function GameActionBar({
       style={[
         styles.actionBar,
         { flexWrap: "wrap", rowGap: 10 },
-        { backgroundColor: C.surface, borderColor: C.border },
+        { backgroundColor: C.hintBackground, borderColor: C.hintBorder },
       ]}
     >
       {/* Zoom Controls (Left) — kaca pembesar + / − */}
@@ -83,21 +84,21 @@ export default function GameActionBar({
           icon="🔍"
           style={[
             styles.zoomBtnSmall,
-            { backgroundColor: C.secondaryContainer, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 },
+            { backgroundColor: C.hintSecondary, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 },
           ]}
           activeOpacity={0.7}
           onPress={onZoomOut}
         >
-          <ZoomIcon variant="out" size={18} color={C.text} />
+          <ZoomIcon variant="out" size={18} color={C.hintText} />
         </TooltipButton>
         <TooltipButton
           tooltip="Atur ulang zoom ke 100%"
           icon="🔍"
-          style={[styles.zoomResetBtn, { backgroundColor: C.surface, borderColor: C.border }]}
+          style={[styles.zoomResetBtn, { backgroundColor: C.hintBackground, borderColor: C.hintBorder }]}
           activeOpacity={0.7}
           onPress={onResetZoom}
         >
-          <Text style={[styles.zoomLabel, { color: C.textSecondary }]}>
+          <Text style={[styles.zoomLabel, { color: C.hintTextSecondary }]}>
             {Math.round(zoomLevel * 100)}%
           </Text>
         </TooltipButton>
@@ -106,22 +107,22 @@ export default function GameActionBar({
           icon="🔍"
           style={[
             styles.zoomBtnSmall,
-            { backgroundColor: C.secondaryContainer, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 },
+            { backgroundColor: C.hintSecondary, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 },
           ]}
           activeOpacity={0.7}
           onPress={onZoomIn}
         >
-          <ZoomIcon variant="in" size={18} color={C.text} />
+          <ZoomIcon variant="in" size={18} color={C.hintText} />
         </TooltipButton>
       </View>
 
       {/* Divider — hanya ditampilkan di layar lebar */}
-      {!compactBar && <View style={[styles.actionDivider, { backgroundColor: C.border }]} />}
+      {!compactBar && <View style={[styles.actionDivider, { backgroundColor: C.hintBorder }]} />}
 
       {/* Reveal Actions (Center) — label statis + 3 tombol icon */}
       <View style={[styles.revealGroup, compactBar ? styles.revealGroupCompact : null]}>
         {!compactBar && (
-          <Text style={[styles.clueLabelText, { color: C.textSecondary }]}>Petunjuk</Text>
+          <Text style={[styles.clueLabelText, { color: C.hintTextSecondary }]}>Petunjuk</Text>
         )}
 
         {/* Reveal petunjuk — buka clue 2 dulu, lalu 3 (XP potong sekali) */}
@@ -146,7 +147,7 @@ export default function GameActionBar({
           style={[
             styles.actionItem,
             {
-              backgroundColor: allCluesOpened ? C.surface : C.primary,
+              backgroundColor: allCluesOpened ? C.hintBackground : C.hintPrimary,
               opacity: revealClueDisabled ? 0.4 : 1,
             },
           ]}
@@ -155,12 +156,12 @@ export default function GameActionBar({
             if (!revealClueDisabled) onRevealClue();
           }}
         >
-          <ListNumbersIcon size={18} color={allCluesOpened ? C.textSecondary : "#FFF"} />
-          <View style={[styles.clueBadge, { backgroundColor: allCluesOpened ? C.border : "#FFF" }]}>
+          <ListNumbersIcon size={18} color={allCluesOpened ? C.hintTextSecondary : C.hintPrimaryText} />
+          <View style={[styles.clueBadge, { backgroundColor: allCluesOpened ? C.hintBorder : C.hintBadgeBackground }]}>
             <Text
               style={[
                 styles.clueBadgeText,
-                { color: allCluesOpened ? C.textSecondary : C.primary },
+                { color: allCluesOpened ? C.hintTextSecondary : C.hintBadgeText },
               ]}
             >
               {allCluesOpened ? "✓" : nextClueToReveal}
@@ -181,7 +182,7 @@ export default function GameActionBar({
           style={[
             styles.actionItem,
             {
-              backgroundColor: C.secondaryContainer,
+              backgroundColor: C.hintSecondary,
               opacity: revealLetterDisabled ? 0.4 : 1,
             },
           ]}
@@ -190,7 +191,7 @@ export default function GameActionBar({
             if (!revealLetterDisabled) onRevealLetter();
           }}
         >
-          <Text style={[styles.actionIcon, { color: C.secondary }]}>🔍</Text>
+          <Text style={[styles.actionIcon, { color: C.hintIcon }]}>🔍</Text>
         </TooltipButton>
         {/* Reveal word */}
         <TooltipButton
@@ -206,7 +207,7 @@ export default function GameActionBar({
           style={[
             styles.actionItem,
             {
-              backgroundColor: C.secondaryContainer,
+              backgroundColor: C.hintSecondary,
               opacity: revealWordDisabled ? 0.4 : 1,
             },
           ]}
@@ -215,7 +216,7 @@ export default function GameActionBar({
             if (!revealWordDisabled) onRevealWord();
           }}
         >
-          <Text style={[styles.actionIcon, { color: C.secondary }]}>💡</Text>
+          <Text style={[styles.actionIcon, { color: C.hintIcon }]}>💡</Text>
         </TooltipButton>
       </View>
 
@@ -234,11 +235,11 @@ export default function GameActionBar({
           }
           icon="⚙️"
           accessibilityLabel={toolsExpanded ? "Sembunyikan panel alat" : "Tampilkan panel alat"}
-          style={[styles.rstBtn, { backgroundColor: C.secondaryContainer }]}
+          style={[styles.rstBtn, { backgroundColor: C.hintSecondary }]}
           activeOpacity={0.7}
           onPress={onToggleTools}
         >
-          <Text style={[styles.rstBtnText, { color: C.secondary }]}>
+          <Text style={[styles.rstBtnText, { color: C.hintIcon }]}>
             {toolsExpanded ? "▲" : "▼"}
           </Text>
         </TooltipButton>
@@ -260,11 +261,11 @@ export default function GameActionBar({
           <TooltipButton
             tooltip="Reset papan — kosongkan jawaban & XP"
             icon="🔄"
-            style={[styles.actionItem, { backgroundColor: C.secondaryContainer }]}
+            style={[styles.actionItem, { backgroundColor: C.hintSecondary }]}
             activeOpacity={0.7}
             onPress={onReset}
           >
-            <Text style={[styles.rstBtnText, { color: C.secondary }]}>🔄</Text>
+            <Text style={[styles.rstBtnText, { color: C.hintIcon }]}>🔄</Text>
           </TooltipButton>
 
           <TooltipButton
@@ -273,7 +274,7 @@ export default function GameActionBar({
             accessibilityLabel={keyboardVisible ? "Sembunyikan keyboard" : "Tampilkan keyboard di layar"}
             style={[
               styles.actionItem,
-              { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+              { backgroundColor: C.hintBackground, borderWidth: 1, borderColor: C.hintBorder },
             ]}
             activeOpacity={0.7}
             onPress={onToggleKeyboard}

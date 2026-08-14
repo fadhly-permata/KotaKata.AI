@@ -11,7 +11,8 @@ const ROWS = [
 ];
 
 export default function InGameKeyboard() {
-  const { theme } = useTheme();
+  // Palet KEYBOARD (tema keyboard aktif) — terpisah dari tema aplikasi & papan.
+  const { keyboardColors: K } = useTheme();
   const inputLetter = useGameStore((s) => s.inputLetter);
   const deleteLetter = useGameStore((s) => s.deleteLetter);
   const navigateToCell = useGameStore((s) => s.navigateToCell);
@@ -41,8 +42,8 @@ export default function InGameKeyboard() {
       style={[
         styles.panel,
         {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
+          backgroundColor: K.panelBackground,
+          borderTopColor: K.panelBorder,
         },
       ]}
     >
@@ -55,10 +56,10 @@ export default function InGameKeyboard() {
             onPress={() => handlePress(key)}
             style={[
               styles.key,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+              { backgroundColor: K.keyBackground, borderColor: K.keyBorder },
             ]}
           >
-            <Text style={[styles.keyText, { color: theme.colors.text }]}>
+            <Text style={[styles.keyText, { color: K.keyText }]}>
               {key}
             </Text>
           </TouchableOpacity>
@@ -77,8 +78,8 @@ export default function InGameKeyboard() {
               style={[
                 styles.key,
                 {
-                  backgroundColor: isBackspace ? theme.colors.border : theme.colors.surface,
-                  borderColor: theme.colors.border,
+                  backgroundColor: isBackspace ? K.specialBackground : K.keyBackground,
+                  borderColor: K.keyBorder,
                   flex: isBackspace ? 1.3 : 1,
                 },
               ]}
@@ -86,7 +87,7 @@ export default function InGameKeyboard() {
               <Text
                 style={[
                   styles.keyText,
-                  { color: theme.colors.text, fontSize: isBackspace ? 14 : 18 },
+                  { color: K.keyText, fontSize: isBackspace ? 14 : 18 },
                 ]}
               >
                 {key}
@@ -105,10 +106,10 @@ export default function InGameKeyboard() {
             onPress={() => handlePress(key)}
             style={[
               styles.key,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+              { backgroundColor: K.keyBackground, borderColor: K.keyBorder },
             ]}
           >
-            <Text style={[styles.keyText, { color: theme.colors.text }]}>
+            <Text style={[styles.keyText, { color: K.keyText }]}>
               {key}
             </Text>
           </TouchableOpacity>
@@ -120,20 +121,20 @@ export default function InGameKeyboard() {
               onPress={() => handleNav("left")}
               style={[
                 styles.navKey,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+                { backgroundColor: K.navBackground, borderColor: K.navBorder },
               ]}
             >
-              <Text style={[styles.navText, { color: theme.colors.text }]}>◀</Text>
+              <Text style={[styles.navText, { color: K.navText }]}>◀</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => handleNav("right")}
               style={[
                 styles.navKey,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+                { backgroundColor: K.navBackground, borderColor: K.navBorder },
               ]}
             >
-              <Text style={[styles.navText, { color: theme.colors.text }]}>▶</Text>
+              <Text style={[styles.navText, { color: K.navText }]}>▶</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -143,20 +144,20 @@ export default function InGameKeyboard() {
               onPress={() => handleNav("up")}
               style={[
                 styles.navKey,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+                { backgroundColor: K.navBackground, borderColor: K.navBorder },
               ]}
             >
-              <Text style={[styles.navText, { color: theme.colors.text }]}>▲</Text>
+              <Text style={[styles.navText, { color: K.navText }]}>▲</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => handleNav("down")}
               style={[
                 styles.navKey,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.text },
+                { backgroundColor: K.navBackground, borderColor: K.navBorder },
               ]}
             >
-              <Text style={[styles.navText, { color: theme.colors.text }]}>▼</Text>
+              <Text style={[styles.navText, { color: K.navText }]}>▼</Text>
             </TouchableOpacity>
           </>
         )}

@@ -43,7 +43,9 @@ export default function CrosswordGrid({
   zoomLevel = 1,
   revealedPulse,
 }: CrosswordGridProps) {
-  const { theme } = useTheme();
+  // Palet PAPAN (tema papan aktif) — terpisah dari palet global aplikasi
+  // supaya user bisa mengganti desain papan tanpa mengubah tema aplikasi.
+  const { boardColors: B } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
   const baseCellSize = useMemo(() => {
@@ -105,7 +107,7 @@ export default function CrosswordGrid({
             style={[
               styles.cell,
               styles.blockedCell,
-              { width: cellSize, height: cellSize, backgroundColor: theme.colors.cellBlocked, borderRadius: 4 },
+              { width: cellSize, height: cellSize, backgroundColor: B.cellBlocked, borderRadius: 4 },
             ]}
           />
         );
@@ -116,18 +118,18 @@ export default function CrosswordGrid({
       let borderW = 1;
 
       if (isSolved) {
-        bgColor = theme.colors.cellSolved;
-        borderColor = theme.colors.cellSolvedText;
+        bgColor = B.cellSolved;
+        borderColor = B.cellSolvedText;
       } else if (isSelected) {
-        bgColor = theme.colors.primary;
-        borderColor = theme.colors.primary;
+        bgColor = B.cellSelected;
+        borderColor = B.cellSelected;
         borderW = 2;
       } else if (isHighlighted) {
-        bgColor = theme.mode === "dark" ? "#2A2938" : "#EDE8FF";
-        borderColor = theme.colors.primary;
+        bgColor = B.cellHighlight;
+        borderColor = B.cellHighlightBorder;
       } else {
-        bgColor = theme.colors.cellActive;
-        borderColor = theme.colors.cellBorder;
+        bgColor = B.cellActive;
+        borderColor = B.cellBorder;
       }
 
       // Cell solved TETAP bisa di-tap — tujuannya untuk memilih kata & melihat
@@ -154,13 +156,13 @@ export default function CrosswordGrid({
               borderWidth: borderW,
               transform: isSelected ? [{ scale: 1.08 }] : [{ scale: 1 }],
               zIndex: isSelected ? 10 : 1,
-              ...(isSelected ? { shadowColor: theme.colors.primary } : {}),
+              ...(isSelected ? { shadowColor: B.cellSelected } : {}),
             },
           ]}
         >
           {cell.number != null && (
             <Text
-              style={[styles.cellNumber, { fontSize: numberSize, color: isSelected ? "#FFF" : theme.colors.textSecondary }]}
+              style={[styles.cellNumber, { fontSize: numberSize, color: isSelected ? B.cellSelectedText : B.cellNumber }]}
             >
               {cell.number}
             </Text>
@@ -170,20 +172,20 @@ export default function CrosswordGrid({
               pulse={revealedPulse?.[key] ?? 0}
               fontSize={fontSize}
               color={
-                isSelected ? "#FFF" : isSolved ? theme.colors.cellSolvedText : theme.colors.cellText
+                isSelected ? B.cellSelectedText : isSolved ? B.cellSolvedText : B.cellActiveText
               }
             >
               {letter}
             </RevealPulseLetter>
           ) : (
-            <Text style={[styles.cellLetter, { fontSize, color: theme.colors.cellText }]}>
+            <Text style={[styles.cellLetter, { fontSize, color: B.cellActiveText }]}>
               {letter}
             </Text>
           )}
         </TouchableOpacity>
       );
     },
-    [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, theme, revealedPulse],
+    [cellSize, fontSize, numberSize, selectedCell, selectedCells, solvedCells, filledLetters, onCellPress, B, revealedPulse],
   );
 
   // ---- Drag/swipe: kursor mengikuti jari/mouse melintasi sel ----
@@ -255,9 +257,9 @@ export default function CrosswordGrid({
         styles.container,
         {
           width: gridSize,
-          backgroundColor: theme.colors.surface,
+          backgroundColor: B.boardBackground,
           borderRadius: 12,
-          borderColor: theme.colors.border,
+          borderColor: B.boardBorder,
           shadowColor: "#000",
         },
       ]}

@@ -26,7 +26,8 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
 | 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
 | 🌗 **Tema Terang/Gelap** | Transisi halus, konsisten di semua layar |
-| 🛍️ **Pasar (Store)** | Halaman katalog tema — 1 tema bawaan "Puitis" (terang/gelap) sebagai default, siap dikembangkan jadi tema berbayar |
+| 🎨 **Multi-Tema** | 4 tema aplikasi (Puitis/Samudra/Senja/Hutan) + 3 tema papan (Puitis/Tinta/Neon) + 3 tema keyboard (Puitis/Pastel/Klasik) — semua light & dark, pilihan tersimpan permanen |
+| 🛍️ **Pasar (Store)** | Halaman katalog tema dengan 3 seksi (Aplikasi/Papan/Keyboard); katalog tersimpan di database Supabase (tabel `themes`) dengan fallback offline — siap dikembangkan jadi tema berbayar |
 | ⌨️ **Keyboard & Touch** | Mobile touch + desktop arrow keys, keyboard virtual in-game |
 | ✨ **Animasi** | Parallax + orb floating di main menu, transisi halaman & popup beranimasi |
 
@@ -106,7 +107,8 @@ src/
 │   └── usecases/    # Generator crossword, validator, XP engine, filter word pool
 ├── presentation/    # UI layer
 │   ├── components/  # Komponen reusable (common/, icons/, game/, providers/)
-│   ├── stores/      # Zustand stores (gameStore)
+│   ├── stores/      # Zustand stores (gameStore, themeSelectionStore)
+│   ├── themes/      # Registry tema (themeData.ts) — aplikasi, papan, keyboard
 │   └── navigation/  # React Navigation setup
 └── utils/           # Helper (log DB, device identity, board progress, dsb.)
 
@@ -169,10 +171,17 @@ bun scripts/vocab/gen-vocab-sql.mjs   # generate SQL dari seed
 bun scripts/db/push-vocab.mjs          # push kosakata ke Supabase
 ```
 
+Katalog tema (tabel `themes`) di-generate dari registry lokal lalu di-push:
+
+```bash
+bun scripts/db/gen-themes-sql.mjs     # generate supabase/data/themes.sql dari themeData.ts
+node scripts/db/push-themes.mjs       # regenerate + push katalog tema ke Supabase
+```
+
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-013, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-014, semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -218,6 +227,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-011 | ✅ done | Bersihkan singkatan kuno (pd/dl/krn) di semua clue tier |
 | PLAN-012 | ✅ done | Reveal XP fair (tanpa potong XP bila tidak ada huruf berubah) + animasi zoom-out + progress ring & toggle tema di header in-game |
 | PLAN-013 | ✅ done | Semua halaman tidak lagi fullscreen (safe-area) + refactor kode (gameStore helpers, GameScreen → GameTopBar/CluePill/GameActionBar, FloatingOrbs) + tombol & halaman Pasar (Store) dengan 1 tema default |
+| PLAN-014 | ✅ done | Multi-tema: 4 tema aplikasi + 3 tema papan + 3 tema keyboard (semua light/dark, bisa switch) — katalog tersimpan di database (tabel `themes`, RLS read publik) dengan fallback offline; halaman Pasar 3 seksi |
 
 ## ❓ FAQ
 
