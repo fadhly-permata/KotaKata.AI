@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-019, semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-020, semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -248,6 +248,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-017 | ✅ done | Background image & gradien: `BackgroundSpec` (gradien + URL gambar + overlay) di semua tema, komponen `ThemedBackground` (react-native-svg), ScreenFade merender latar tema aplikasi di semua halaman, halaman game pakai latar tema papan, keyboard pakai latar tema keyboard, preview Pasar merender gradien |
 | PLAN-018 | ✅ done | Keseragaman tema (tiap tema app punya papan & keyboard senama), tema gambar latar (Samudra & Senja pakai foto), tema suara (rate+volume per tema, tanpa aset baru), orb ambien di semua halaman (`AmbientOrbs` reusable), dialog konfirmasi ber-ikon & responsif, deploy web ke EAS Hosting (`deploy:web`) |
 | PLAN-019 | ✅ done | Backsound suara latar per tema (URL MP3 online terverifikasi): Puitis → rintik hujan, Samudra → ombak laut, Senja → jangkrik malam, Hutan → hujan di hutan — loop pelan (expo-audio native / HTMLAudioElement web), ikut mati saat suara dimatikan, kartu Pasar menampilkan chip "🎵 Backsound: <nama>" |
+| PLAN-020 | ✅ done | Switch on/off backsound di Pengaturan — preferensi terpisah `kotakata.ambientEnabled` (default nyala); backsound hanya diputar kalau efek suara & backsound sama-sama nyala; baris "Backsound Tema" + Switch di bawah "Efek Suara" (seksi "Tampilan & Suara") |
 
 ## ❓ FAQ
 

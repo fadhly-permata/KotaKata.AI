@@ -12,7 +12,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
-import { isSoundEnabled, setSoundEnabled, play } from "../../utils/sound";
+import {
+  isSoundEnabled,
+  setSoundEnabled,
+  isAmbientEnabled,
+  setAmbientEnabled,
+  play,
+} from "../../utils/sound";
 import {
   getAiProviderConfig,
   providerLabel,
@@ -26,6 +32,7 @@ export default function SettingsScreen() {
   const { theme, themeMode, setThemeMode } = useTheme();
   const navigation = useNavigation<Nav>();
   const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
+  const [ambientEnabled, setAmbientEnabledState] = useState(isAmbientEnabled());
   const [aiStatus, setAiStatus] = useState<{ label: string; model: string } | null>(null);
 
   // Baca status provider AI tersimpan (BYOK) untuk ditampilkan di pengaturan.
@@ -54,13 +61,20 @@ export default function SettingsScreen() {
     if (value) play("tap");
   }, []);
 
+  // Backsound tema: toggle terpisah dari efek suara. Mati → backsound berhenti;
+  // nyala → backsound tema aktif diputar lagi (kalau efek suara juga nyala).
+  const toggleAmbient = useCallback((value: boolean) => {
+    setAmbientEnabledState(value);
+    void setAmbientEnabled(value);
+  }, []);
+
   return (
     <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Tampilan */}
+        {/* Tampilan & Suara */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tampilan</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tampilan & Suara</Text>
           <View style={styles.settingRow}>
             <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Mode Gelap</Text>
             <Switch
@@ -76,6 +90,21 @@ export default function SettingsScreen() {
             <Switch
               value={soundEnabled}
               onValueChange={toggleSound}
+              trackColor={{ false: "#ccc", true: theme.colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabelWrap}>
+              <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Backsound Tema</Text>
+              <Text style={[styles.settingHint, { color: theme.colors.textSecondary }]}>
+                Suara latar tema (ombak, hujan, jangkrik, dll.)
+              </Text>
+            </View>
+            <Switch
+              value={ambientEnabled}
+              onValueChange={toggleAmbient}
               trackColor={{ false: "#ccc", true: theme.colors.primary }}
               thumbColor="#fff"
             />
@@ -157,6 +186,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "700" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 15, fontWeight: "500" },
+  settingLabelWrap: { flex: 1, gap: 2, paddingRight: 12 },
   settingValue: { fontSize: 14, fontWeight: "600" },
   settingHint: { fontSize: 13, lineHeight: 18 },
   divider: { height: 1 },

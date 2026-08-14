@@ -22,6 +22,9 @@ import { loggerWarn } from "./logger";
  *   otomatis saat gestur pertama (pointer/keyboard/touch).
  * - Preferensi hidup/mati disimpan di AsyncStorage ("kotakata.soundEnabled");
  *   saat dimatikan, backsound ikut di-pause.
+ * - BACKSOUND punya toggle sendiri ("kotakata.ambientEnabled") di halaman
+ *   Pengaturan — terpisah dari efek suara. Backsound hanya diputar kalau
+ *   keduanya nyala.
  * - Semua akses native dibungkus try/catch — suara tidak pernah merusak aplikasi.
  */
 
@@ -38,10 +41,13 @@ const SOUND_SOURCES: Record<SoundName, unknown> = {
 };
 
 const SOUND_KEY = "kotakata.soundEnabled";
+const AMBIENT_KEY = "kotakata.ambientEnabled";
 
 const IS_WEB = Platform.OS === "web";
 
 let enabled = true;
+/** Toggle backsound tema — terpisah dari efek suara (default: nyala). */
+let ambientEnabled = true;
 let nativePlayers: Partial<Record<SoundName, AudioPlayer>> | null = null;
 let initStarted = false;
 
@@ -78,7 +84,7 @@ function stopAmbientNative(): void {
 }
 
 function startAmbientNative(): void {
-  if (!enabled || !ambientSpec) {
+  if (!enabled || !ambientEnabled || !ambientSpec) {
     stopAmbientNative();
     return;
   }
@@ -114,7 +120,7 @@ function stopAmbientWeb(): void {
 }
 
 function startAmbientWeb(): void {
-  if (!enabled || !ambientSpec) {
+  if (!enabled || !ambientEnabled || !ambientSpec) {
     stopAmbientWeb();
     return;
   }
@@ -279,12 +285,13 @@ export function setSoundTheme(spec?: { rate?: number; volume?: number } | null):
 
 /**
  * Ganti BACKSOUND tema aktif (dipanggil ThemeProvider saat tema aplikasi
- * berubah). `null`/`undefined` = hentikan backsound. Backsound ikut mati saat
- * user mematikan suara (setSoundEnabled(false)) dan menyala lagi saat dihidupkan.
+ * berubah). `null`/`undefined` = hentikan backsound. Backsound hanya diputar
+ * kalau efek suara (setSoundEnabled) DAN toggle backsound (setAmbientEnabled)
+ * sama-sama nyala.
  */
 export function setAmbientSound(spec?: AmbientSoundSpec | null): void {
   ambientSpec = spec ?? null;
-  if (enabled) applyAmbient();
+  if (enabled && ambientEnabled) applyAmbient();
   else stopAmbient();
 }
 
@@ -300,11 +307,42 @@ export async function loadSoundPrefs(): Promise<void> {
 
 export async function setSoundEnabled(value: boolean): Promise<void> {
   enabled = value;
-  // Backsound ikut mati/nyala mengikuti toggle suara.
-  if (value) applyAmbient();
+  // Backsound ikut mati/nyala mengikuti toggle suara (dan toggle backsound).
+  if (value && ambientEnabled) applyAmbient();
   else stopAmbient();
   try {
     await AsyncStorage.setItem(SOUND_KEY, String(value));
+  } catch {
+    // Preferensi hanya lokal — gagal simpan tidak fatal.
+  }
+}
+
+/** Apakah toggle backsound tema sedang nyala (default: true). */
+export function isAmbientEnabled(): boolean {
+  return ambientEnabled;
+}
+
+/** Baca preferensi backsound tersimpan (default: nyala). */
+export async function loadAmbientPrefs(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(AMBIENT_KEY);
+    if (stored !== null) ambientEnabled = stored === "true";
+  } catch {
+    // Abaikan — default nyala.
+  }
+}
+
+/**
+ * Switch backsound tema di halaman Pengaturan — terpisah dari efek suara.
+ * Mati → backsound langsung berhenti; nyala → backsound tema aktif diputar
+ * lagi (selama efek suara juga nyala).
+ */
+export async function setAmbientEnabled(value: boolean): Promise<void> {
+  ambientEnabled = value;
+  if (value && enabled) applyAmbient();
+  else stopAmbient();
+  try {
+    await AsyncStorage.setItem(AMBIENT_KEY, String(value));
   } catch {
     // Preferensi hanya lokal — gagal simpan tidak fatal.
   }
@@ -320,6 +358,9 @@ export function initSound(): void {
   initStarted = true;
   if (IS_WEB) {
     void initWebSounds();
+    // Web juga memuat preferensi tersimpan (efek suara & backsound).
+    void loadSoundPrefs();
+    void loadAmbientPrefs();
     return;
   }
   try {
@@ -328,6 +369,7 @@ export function initSound(): void {
     // Platform tanpa expo-audio — diabaikan.
   }
   void loadSoundPrefs();
+  void loadAmbientPrefs();
 }
 
 function getNativePlayer(name: SoundName): AudioPlayer | null {
