@@ -162,6 +162,8 @@ Migrasi SQL ada di folder `supabase/migrations/` (tabel, RLS, fungsi); data besa
 ```bash
 bun scripts/db/apply-supabase-migrations.mjs
 bun scripts/db/supabase-run.mjs "SELECT ..."   # jalankan query ad-hoc
+node scripts/db/supabase-auth-config.mjs      # lihat konfigurasi Auth (site_url, redirect allow-list)
+node scripts/db/supabase-auth-config.mjs '{...}'  # perbarui sebagian (PATCH) — mis. tambah domain ke uri_allow_list
 ```
 
 Kosakata di-push dari seed lokal (`src/data/vocabulary/`) ke tabel `vocabulary`:
