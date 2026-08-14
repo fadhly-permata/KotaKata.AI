@@ -66,6 +66,22 @@ export interface SoundSpec {
   volume: number;
 }
 
+/**
+ * BACKSOUND (suara latar) tema aplikasi — diputar loop pelan oleh sound.ts
+ * selama tema ini aktif (URL audio online, MP3 agar kompatibel iOS + web):
+ * - `url`    → URL langsung file MP3 (mis. aset suara alam dari Mixkit CDN).
+ * - `volume` → volume backsound relatif (0–1; default 0.3 — tetap pelan agar
+ *              tidak menenggelamkan efek suara game).
+ * - `label`  → nama suara, ditampilkan di kartu tema (halaman Pasar).
+ * Disesuaikan: ganti `url` di registry lalu regenerate seed SQL
+ * (bun scripts/db/gen-themes-sql.mjs) supaya katalog cloud ikut ter-update.
+ */
+export interface AmbientSoundSpec {
+  label: string;
+  url: string;
+  volume?: number;
+}
+
 /* ─────────────────────────── Tema Aplikasi (Global) ─────────────────────────── */
 
 export interface AppThemeDefinition {
@@ -77,6 +93,8 @@ export interface AppThemeDefinition {
   priceLabel: string;
   /** Gaya suara tema (rate + volume) — dipakai sound.ts. */
   sound: SoundSpec;
+  /** Backsound latar tema (loop, URL audio online) — opsional; dipakai sound.ts. */
+  ambient?: AmbientSoundSpec;
   light: Theme;
   dark: Theme;
 }
@@ -90,6 +108,11 @@ const puitis: AppThemeDefinition = {
   isDefault: true,
   priceLabel: "Gratis · Tema Aktif",
   sound: { label: "Klasik", rate: 1, volume: 1 },
+  ambient: {
+    label: "Rintik hujan lembut",
+    url: "https://assets.mixkit.co/active_storage/sfx/2393/2393-preview.mp3",
+    volume: 0.3,
+  },
   light: {
     mode: "light",
     background: { gradient: ["#fef7ff", "#f7eaff", "#eef3ff"] },
@@ -155,6 +178,11 @@ const samudra: AppThemeDefinition = {
   isDefault: false,
   priceLabel: "Gratis",
   sound: { label: "Tenang", rate: 0.88, volume: 0.8 },
+  ambient: {
+    label: "Ombak laut",
+    url: "https://assets.mixkit.co/active_storage/sfx/1196/1196-preview.mp3",
+    volume: 0.35,
+  },
   light: {
     mode: "light",
     background: {
@@ -228,6 +256,11 @@ const senja: AppThemeDefinition = {
   isDefault: false,
   priceLabel: "Gratis",
   sound: { label: "Hangat", rate: 0.95, volume: 0.95 },
+  ambient: {
+    label: "Jangkrik malam",
+    url: "https://assets.mixkit.co/active_storage/sfx/1789/1789-preview.mp3",
+    volume: 0.3,
+  },
   light: {
     mode: "light",
     background: {
@@ -301,6 +334,11 @@ const hutan: AppThemeDefinition = {
   isDefault: false,
   priceLabel: "Gratis",
   sound: { label: "Segar", rate: 1.08, volume: 0.9 },
+  ambient: {
+    label: "Hujan di hutan",
+    url: "https://assets.mixkit.co/active_storage/sfx/1225/1225-preview.mp3",
+    volume: 0.3,
+  },
   light: {
     mode: "light",
     background: { gradient: ["#f0f7ee", "#e5f2e1", "#ecf5f0"] },

@@ -33,6 +33,8 @@ interface ThemeCardModel {
   description: string;
   isDefault: boolean;
   priceLabel: string;
+  /** Label backsound tema (hanya tema aplikasi yang punya) — chip kecil di kartu. */
+  ambientLabel?: string;
   swatches: { light: string[]; dark: string[] };
   /** Palet LENGKAP (light/dark) untuk mockup di modal Preview. */
   palettes: ThemePreviewPalettes;
@@ -80,6 +82,11 @@ function colorMapOf(kind: ThemeKind, palette: Record<string, unknown>): Record<s
 }
 
 function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
+  // Backsound dibawa seed di dalam jsonb palet (light/dark) — lihat
+  // scripts/db/gen-themes-sql.mjs. Hanya tema app yang punya.
+  const ambient =
+    (row.light as { ambient?: { label?: string } } | null)?.ambient ??
+    (row.dark as { ambient?: { label?: string } } | null)?.ambient;
   return {
     id: row.id,
     kind,
@@ -88,6 +95,7 @@ function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
     description: row.description,
     isDefault: row.is_default,
     priceLabel: row.price_label,
+    ambientLabel: kind === "app" ? ambient?.label : undefined,
     swatches: {
       light: pickSwatches(row.light, SWATCH_KEYS[kind]),
       dark: pickSwatches(row.dark, SWATCH_KEYS[kind]),
@@ -110,6 +118,7 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
       description: t.description,
       isDefault: t.isDefault,
       priceLabel: t.priceLabel,
+      ambientLabel: t.ambient?.label,
       swatches: {
         light: pickSwatches(t.light.colors as unknown as Record<string, unknown>, SWATCH_KEYS.app),
         dark: pickSwatches(t.dark.colors as unknown as Record<string, unknown>, SWATCH_KEYS.app),
@@ -208,6 +217,13 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
         <View style={styles.themeCardTitleCol}>
           <Text style={[styles.themeName, { color: C.text }]}>{card.name}</Text>
           <Text style={[styles.themeTagline, { color: C.textSecondary }]}>{card.tagline}</Text>
+          {card.ambientLabel ? (
+            <View style={[styles.ambientChip, { backgroundColor: C.secondaryContainer }]}>
+              <Text style={[styles.ambientChipText, { color: C.secondary }]}>
+                🎵 Backsound: {card.ambientLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
         {active && (
           <View style={[styles.activeBadge, { backgroundColor: accent + "1A" }]}>
@@ -455,6 +471,14 @@ const styles = StyleSheet.create({
   themeCardTitleCol: { flex: 1, gap: 2 },
   themeName: { fontSize: 18, fontWeight: "900", letterSpacing: -0.3 },
   themeTagline: { fontSize: 12, fontWeight: "600" },
+  ambientChip: {
+    alignSelf: "flex-start",
+    marginTop: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  ambientChipText: { fontSize: 11, fontWeight: "700" },
   activeBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   activeBadgeText: { fontSize: 11, fontWeight: "800" },
 

@@ -3,10 +3,11 @@ import { Platform } from "react-native";
 import { Asset } from "expo-asset";
 import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import type { AudioPlayer } from "expo-audio";
+import type { AmbientSoundSpec } from "../presentation/themes/themeData";
 import { loggerWarn } from "./logger";
 
 /**
- * Efek suara game.
+ * Efek suara game + backsound tema.
  *
  * - Native: expo-audio (player dibuat LAZY, satu per suara, replay via seekTo(0)).
  * - Web: expo-audio WEB punya bug — `play()` memanggil `media.play()` tanpa
@@ -15,7 +16,12 @@ import { loggerWarn } from "./logger";
  *   web dipakai `HTMLAudioElement` manual + `Asset.fromModule` (URI valid) dan
  *   SEMUA error (load / autoplay / playback) ditangkap — tidak pernah bocor jadi
  *   unhandled rejection.
- * - Preferensi hidup/mati disimpan di AsyncStorage ("kotakata.soundEnabled").
+ * - BACKSOUND (setAmbientSound): loop pelan dari URL MP3 online, mengikuti tema
+ *   aplikasi aktif (lihat AmbientSoundSpec di themeData.ts). Di web, browser
+ *   memblokir autoplay sebelum ada interaksi user — kalau keblokir, diputar
+ *   otomatis saat gestur pertama (pointer/keyboard/touch).
+ * - Preferensi hidup/mati disimpan di AsyncStorage ("kotakata.soundEnabled");
+ *   saat dimatikan, backsound ikut di-pause.
  * - Semua akses native dibungkus try/catch — suara tidak pernah merusak aplikasi.
  */
 
@@ -43,6 +49,132 @@ let initStarted = false;
 // rate <1 lebih pelan/lembut, >1 lebih cepat/ceria; volume relatif 0–1.
 let currentRate = 1;
 let currentVolume = 1;
+
+// ---------------------------------------------------------------------------
+// Backsound tema (ambient) — loop pelan, satu sumber aktif per waktu.
+// ---------------------------------------------------------------------------
+let ambientSpec: AmbientSoundSpec | null = null;
+let nativeAmbientPlayer: AudioPlayer | null = null;
+let webAmbientAudio: HTMLAudioElement | null = null;
+/** Web: backsound siap tapi autoplay diblokir browser → tunggu gestur user. */
+let ambientPendingWeb = false;
+let ambientGestureBound = false;
+
+function clamp01(v: number): number {
+  if (Number.isFinite(v)) return Math.min(1, Math.max(0, v));
+  return 0.3;
+}
+
+function stopAmbientNative(): void {
+  try {
+    if (nativeAmbientPlayer) {
+      nativeAmbientPlayer.pause();
+      nativeAmbientPlayer.remove();
+      nativeAmbientPlayer = null;
+    }
+  } catch {
+    // abaikan — backsound hanya pemanis.
+  }
+}
+
+function startAmbientNative(): void {
+  if (!enabled || !ambientSpec) {
+    stopAmbientNative();
+    return;
+  }
+  try {
+    if (!nativeAmbientPlayer) {
+      nativeAmbientPlayer = createAudioPlayer({ uri: ambientSpec.url });
+      nativeAmbientPlayer.loop = true;
+    } else {
+      // Ganti sumber tanpa membuat player baru (kalau API tidak tersedia,
+      // fallback: buat ulang).
+      try {
+        nativeAmbientPlayer.replace({ uri: ambientSpec.url });
+      } catch {
+        stopAmbientNative();
+        nativeAmbientPlayer = createAudioPlayer({ uri: ambientSpec.url });
+        nativeAmbientPlayer.loop = true;
+      }
+    }
+    nativeAmbientPlayer.volume = clamp01(ambientSpec.volume ?? 0.3);
+    nativeAmbientPlayer.play();
+  } catch (err) {
+    loggerWarn("Backsound tema gagal diputar (native)", err);
+  }
+}
+
+function stopAmbientWeb(): void {
+  ambientPendingWeb = false;
+  try {
+    webAmbientAudio?.pause();
+  } catch {
+    // abaikan
+  }
+}
+
+function startAmbientWeb(): void {
+  if (!enabled || !ambientSpec) {
+    stopAmbientWeb();
+    return;
+  }
+  try {
+    if (!webAmbientAudio) {
+      webAmbientAudio = new Audio();
+      webAmbientAudio.loop = true;
+    }
+    if (webAmbientAudio.src !== ambientSpec.url) {
+      webAmbientAudio.src = ambientSpec.url;
+      webAmbientAudio.load();
+    }
+    webAmbientAudio.volume = clamp01(ambientSpec.volume ?? 0.3);
+    const p = webAmbientAudio.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        ambientPendingWeb = false;
+      }).catch(() => {
+        // Autoplay policy (belum ada interaksi user) → tunggu gestur pertama.
+        ambientPendingWeb = true;
+      });
+    } else {
+      ambientPendingWeb = false;
+    }
+  } catch {
+    ambientPendingWeb = true;
+  }
+}
+
+/** Web: coba mulai lagi backsound yang diblokir autoplay saat user berinteraksi. */
+function retryAmbientOnGesture(): void {
+  if (!ambientPendingWeb || !webAmbientAudio) return;
+  ambientPendingWeb = false;
+  try {
+    const p = webAmbientAudio.play();
+    if (p && typeof p.then === "function") p.catch(() => {});
+  } catch {
+    // tetap diam — user bisa ganti tema / nyalakan suara lagi.
+  }
+}
+
+function bindWebAmbientGesture(): void {
+  if (ambientGestureBound || typeof window === "undefined") return;
+  ambientGestureBound = true;
+  const events = ["pointerdown", "keydown", "touchstart"] as const;
+  for (const ev of events) {
+    window.addEventListener(ev, retryAmbientOnGesture, { passive: true });
+  }
+}
+
+/** Terapkan backsound sesuai spec aktif (no-op bila tidak ada / suara mati). */
+function applyAmbient(): void {
+  if (IS_WEB) startAmbientWeb();
+  else startAmbientNative();
+}
+
+function stopAmbient(): void {
+  if (IS_WEB) stopAmbientWeb();
+  else stopAmbientNative();
+}
 
 // ---------------------------------------------------------------------------
 // Web: HTMLAudioElement dengan error handling lengkap
@@ -76,6 +208,7 @@ async function resolveWebUri(source: unknown): Promise<string | null> {
 
 /** Siapkan semua efek suara web sekali (async, aman dipanggil berulang). */
 function initWebSounds(): Promise<void> {
+  bindWebAmbientGesture();
   if (!webInitPromise) {
     webInitPromise = (async () => {
       const entries = Object.keys(SOUND_SOURCES) as SoundName[];
@@ -144,6 +277,17 @@ export function setSoundTheme(spec?: { rate?: number; volume?: number } | null):
   currentVolume = volume;
 }
 
+/**
+ * Ganti BACKSOUND tema aktif (dipanggil ThemeProvider saat tema aplikasi
+ * berubah). `null`/`undefined` = hentikan backsound. Backsound ikut mati saat
+ * user mematikan suara (setSoundEnabled(false)) dan menyala lagi saat dihidupkan.
+ */
+export function setAmbientSound(spec?: AmbientSoundSpec | null): void {
+  ambientSpec = spec ?? null;
+  if (enabled) applyAmbient();
+  else stopAmbient();
+}
+
 /** Baca preferensi suara tersimpan (default: nyala). Panggil sekali di App. */
 export async function loadSoundPrefs(): Promise<void> {
   try {
@@ -156,6 +300,9 @@ export async function loadSoundPrefs(): Promise<void> {
 
 export async function setSoundEnabled(value: boolean): Promise<void> {
   enabled = value;
+  // Backsound ikut mati/nyala mengikuti toggle suara.
+  if (value) applyAmbient();
+  else stopAmbient();
   try {
     await AsyncStorage.setItem(SOUND_KEY, String(value));
   } catch {

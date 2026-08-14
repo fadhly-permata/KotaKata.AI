@@ -35,8 +35,26 @@ function jsonb(value) {
 }
 
 function rowSql(kind, sortOrder, theme) {
-  const light = theme.light;
-  const dark = theme.dark;
+  // Backsound tema (AmbientSoundSpec) dibawa di dalam jsonb palet (light &
+  // dark sama, karena backsound tidak tergantung mode) supaya katalog cloud
+  // ikut membawanya tanpa perlu kolom baru — dibaca StoreScreen sebagai
+  // badge "🎵 Backsound". Nilai volume dibakukan ke 0–1 (default 0.3).
+  const ambient = theme.ambient
+    ? {
+        ambient: {
+          label: theme.ambient.label,
+          url: theme.ambient.url,
+          volume:
+            typeof theme.ambient.volume === "number" &&
+            theme.ambient.volume >= 0 &&
+            theme.ambient.volume <= 1
+              ? theme.ambient.volume
+              : 0.3,
+        },
+      }
+    : {};
+  const light = { ...theme.light, ...ambient };
+  const dark = { ...theme.dark, ...ambient };
   return [
     `  (${sqlStr(theme.id)}, ${sqlStr(kind)}, ${sqlStr(theme.name)},`,
     `   ${sqlStr(theme.tagline)}, ${sqlStr(theme.description)},`,

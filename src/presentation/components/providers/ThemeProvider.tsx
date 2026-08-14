@@ -20,7 +20,7 @@ import {
   hydrateThemeSelection,
   useThemeSelectionStore,
 } from "../../stores/themeSelectionStore";
-import { setSoundTheme } from "../../../utils/sound";
+import { setAmbientSound, setSoundTheme } from "../../../utils/sound";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -126,9 +126,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const appTheme = getAppThemeById(appThemeId);
   const theme = isDark ? appTheme.dark : appTheme.light;
 
-  // Kepribadian suara mengikuti tema aplikasi aktif (lihat SoundSpec).
+  // Kepribadian suara + backsound mengikuti tema aplikasi aktif (SoundSpec & AmbientSoundSpec).
   useEffect(() => {
     setSoundTheme(appTheme.sound);
+    setAmbientSound(appTheme.ambient ?? null);
   }, [appTheme]);
   const boardTheme = getBoardThemeById(boardThemeId);
   const boardPalette = isDark ? boardTheme.dark : boardTheme.light;
