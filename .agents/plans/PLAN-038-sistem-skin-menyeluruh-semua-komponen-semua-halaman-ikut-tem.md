@@ -1,6 +1,6 @@
 # Sistem skin menyeluruh: semua komponen semua halaman ikut tema (Winamp-like)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 038`
@@ -28,40 +28,40 @@ dipasangi shadow yang ikut tema, sisanya tetap warna mati.
 
 ## Langkah
 
-- [ ] **1. Perluas token tema (fondasi skin)** — tambahkan token generik di
+- [x] **1. Perluas token tema (fondasi skin)** — tambahkan token generik di
   tipe `Theme`: `radius` (skala radius permukaan, opsional), `shadow`
   (sudah ada, PLAN-037), plus pastikan SEMUA warna UI punya token (mis.
   `surfaceRaised`, `controlBackground`, `controlText`, `inputBackground`,
   `overlay`, `chipBackground`, `badgeBackground`…). Registry tema lama mengisi
   nilai default; tema baru cukup definisikan token yang mau diubah.
-- [ ] **2. Helper skin di `useTheme`** — sediakan helper terpusat, mis.
+- [x] **2. Helper skin di `useTheme`** — sediakan helper terpusat, mis.
   `surfaceStyle(tone?)` / `controlStyle(variant)` / `neumorphicShadow` yang
   menggabungkan warna + radius + shadow sesuai tema — komponen tinggal
   memanggil, tidak lagi merakit manual.
-- [ ] **3. Sapu bersih warna hardcoded di semua halaman & komponen** — ganti
+- [x] **3. Sapu bersih warna hardcoded di semua halaman & komponen** — ganti
   hex mati dengan token tema: AuthScreen, MainMenuScreen, SettingsScreen,
   ProfileScreen, AiProviderScreen, LogViewerScreen, ThemePreviewModal,
   CompletionOverlay, AppModal, ConfirmDialog, GameTopBar, SavedBoardList,
   TooltipButton, ErrorBoundary(opsional), dsb. Ikon/emoji/contoh warna tetap
   (mis. tombol "Mode AI", konfeti) boleh dikecualikan dengan catatan.
-- [ ] **4. Terapkan efek skin (shadow/radius) ke semua permukaan** — kartu,
+- [x] **4. Terapkan efek skin (shadow/radius) ke semua permukaan** — kartu,
   panel, tombol, input, chip, modal/dialog, list item, keyboard, grid —
   konsisten di semua halaman (bukan hanya yang sudah terpasang).
-- [ ] **5. Verifikasi & rilis** — tsc + tes + lint, cek visual semua halaman di
+- [x] **5. Verifikasi & rilis** — tsc + tes + lint, cek visual semua halaman di
   web (light/dark, beberapa tema), regenerate seed SQL + push, commit, deploy.
 
 ## Tahapan pengerjaan (keputusan pemilik: dikerjakan BERTAHAP + catatan tiap tahap)
 
 | Tahap | Isi | Status |
 | :--- | :--- | :--- |
-| **T1** | Fondasi skin: token `radius` + warna generik (overlay/chip/input/textOnPrimary) di tipe `Theme`, helper `skin.ts` (surfaceStyle/chipStyle/inputStyle/overlayColor/textOnPrimary), nilai untuk tema Neumorfik | ⬜ |
-| **T2** | Sapuan halaman utama: AuthScreen + MainMenuScreen (warna hardcoded → token/helper) | ⬜ |
-| **T3** | Sapuan halaman: Settings, Profile, AiProvider, LogViewer | ⬜ |
-| **T4** | Sapuan komponen bersama & in-game: Store/ThemePreviewModal, AppModal, ConfirmDialog, CompletionOverlay, TooltipButton, SavedBoardList, GameTopBar | ⬜ |
-| **T5** | Efek skin (shadow/radius) merata via helper di semua permukaan + verifikasi visual + seed regen/push + deploy web | ⬜ |
+| **T1** | Fondasi skin: token `radius` + warna generik (overlay/chip/input/textOnPrimary) di tipe `Theme`, helper `skin.ts` (surfaceStyle/chipStyle/inputStyle/overlayColor/textOnPrimary), nilai untuk tema Neumorfik | ✅ commit `2b07949` |
+| **T2** | Sapuan halaman utama: AuthScreen + MainMenuScreen (warna hardcoded → token/helper). AuthScreen: palet AUTH_LIGHT/DARK dihapus, warna dari tema aktif, logo/tombol pakai surfaceStyle. MainMenu: orb/hero/bento/XP pill dari token tema + contrastText (helper baru di skin.ts), bayangan neumorphic di hero/action/pasar | ✅ commit `d03b6e8` |
+| **T3** | Sapuan halaman: Settings, Profile, AiProvider, LogViewer (warna mati → token tema: error/success/border/overlay/textOnPrimary/contrastText; Switch off-track pakai border; chip filter pakai textOnPrimary) | ✅ commit `7645556` |
+| **T4** | Sapuan komponen bersama & in-game: Store (tombol Aktifkan contrastText(accent), swatch), AppModal (overlay + kartu surfaceStyle), ConfirmDialog, CompletionOverlay (overlay/textOnPrimary), GameTopBar (badge AI & XP pill token), SavedBoardList (success/gold/textOnPrimary). ThemePreviewModal fallback palet sengaja dibiarkan (fallback untuk tema yang di-preview); Tooltip netral gelap (pengecualian tercatat) | ✅ commit `f3d3eaa` |
+| **T5** | Efek skin (shadow/radius) merata via helper di semua permukaan + verifikasi visual + seed regen/push + deploy web. Sapuan akhir: HistoryScreen (backdrop/clueCard), BoardViewer (contrastText), Markdown/GameScreen (textOnPrimary), CrosswordGrid (papan timbul neumorfik). tsc ✅ 43 tes ✅ lint ✅ | ✅ commit `8cabc09` |
 
 Pengecualian yang TIDAK di-theme (dengan alasan): ikon SVG brand (KeyboardIcon dll), Confetti (warna konfeti tetap), ErrorBoundary (layar fallback).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 038 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan bertahap T1-T5, semua commit per tahap (lihat tabel)
