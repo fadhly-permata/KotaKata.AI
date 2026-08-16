@@ -9,7 +9,8 @@
  * USAGE
  * ----
  *   bun .agents/plans/plan.mjs list
- *       Daftar semua plan + status & progresnya.
+ *       Daftar semua plan + status & progresnya (plan ber-status `skipped`
+ *       disembunyikan — tampilkan dengan `list --all`).
  *
  *   bun .agents/plans/plan.mjs new "Judul plan baru"
  *       Buat plan baru (nomor otomatis PLAN-NNN). Langkahnya diisi manual
@@ -18,6 +19,8 @@
  *   bun .agents/plans/plan.mjs start <file>        # mulai / lanjutkan pengerjaan
  *   bun .agents/plans/plan.mjs pause <file>        # jeda sementara
  *   bun .agents/plans/plan.mjs stop <file>         # tandai plan SELESAI
+ *   bun .agents/plans/plan.mjs skip <file>         # tandai plan DI-SKIP (tidak dikerjakan
+ *                                                  #   untuk sekarang — disembunyikan dari list)
  *       <file> bisa nama file (PLAN-001-...md) atau nomor (001).
  *       Status tersimpan di baris `<!-- status: ... -->` file markdown.
  *
@@ -49,7 +52,7 @@
  *   - **1.** 2026-08-08: catatan revisi langkah 1
  *
  * Aturan:
- *   - Status valid: pending | in-progress | paused | done
+ *   - Status valid: pending | in-progress | paused | done | skipped
  *   - Nomor langkah WAJIB ditulis `**N. ...**` setelah checkbox `- [ ]` / `- [x]`.
  *   - Catatan revisi: format `- **N.** <tanggal>: <teks>` di bawah "## Catatan Revisi".
  * ============================================================================ */
@@ -141,18 +144,25 @@ function cmdList() {
     console.log("Belum ada plan. Buat dengan: bun .agents/plans/plan.mjs new \"Judul\"");
     return;
   }
-  console.log(`Plan di .agents/plans/ (${files.length}):\n`);
-  for (const f of files) {
+  const showAll = process.argv.includes("--all");
+  const shown = files.filter((f) => showAll || getStatus(read(f)) !== "skipped");
+  if (shown.length === 0) {
+    console.log("Tidak ada plan yang ditampilkan (semua skipped). Gunakan: bun .agents/plans/plan.mjs list --all");
+    return;
+  }
+  console.log(`Plan di .agents/plans/ (${shown.length}${files.length !== shown.length ? `, ${files.length - shown.length} skipped` : ""}):\n`);
+  for (const f of shown) {
     const c = read(f);
     const status = getStatus(c);
     const done = doneCount(c);
     const total = itemCount(c);
     const pct = total ? Math.round((done / total) * 100) : 0;
-    const icon = { pending: "○", "in-progress": "▶", paused: "⏸", done: "✓" }[status] ?? "?";
+    const icon = { pending: "○", "in-progress": "▶", paused: "⏸", done: "✓", skipped: "⊘" }[status] ?? "?";
     console.log(`  ${icon} ${f}  [${status}] ${done}/${total} (${pct}%)`);
     console.log(`      ${getTitle(c)}`);
   }
   console.log("\nLihat detail: bun .agents/plans/plan.mjs status <file>");
+  if (!showAll) console.log("Plan skipped disembunyikan — tampilkan semua: bun .agents/plans/plan.mjs list --all");
 }
 
 function nextPlanNumber() {
@@ -304,6 +314,9 @@ switch (cmd) {
     break;
   case "stop":
     cmdSetStatus(a, "done", "Selesai");
+    break;
+  case "skip":
+    cmdSetStatus(a, "skipped", "Tandai SKIP");
     break;
   case "status":
     cmdStatus(a);

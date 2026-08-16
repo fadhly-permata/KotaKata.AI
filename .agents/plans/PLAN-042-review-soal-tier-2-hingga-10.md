@@ -1,6 +1,7 @@
 # Review soal tier 2 hingga 10
 
-<!-- status: pending -->
+<!-- status: skipped -->
+<!-- skip-reason: diminta pemilik 2026-08-16 — "Plan 42 kita skip dulu, dan kasih flag bahwa dia belum dikerjakan. Gak usah ditampilkan terus kecuali gua tanya sisa pendingan kerjaan kita." -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 042`
@@ -42,4 +43,6 @@ placeholder, atau bocor jawaban. Hasilnya dicatat per tier dan diperbaiki.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 042 <no> "teks"`)_
+- **SKIP.** 2026-08-16: Di-skip sementara atas permintaan pemilik (belum dikerjakan).
+  Status `skipped` menyembunyikannya dari `plan.mjs list` biasa; tampil lagi via
+  `plan.mjs list --all` atau saat pemilik menanyakan sisa pekerjaan pending.
