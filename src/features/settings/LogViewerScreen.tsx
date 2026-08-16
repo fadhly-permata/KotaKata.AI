@@ -11,7 +11,7 @@ import {
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
-import { textOnPrimary } from "../../utils/skin";
+import { buttonShadow, textOnPrimary } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { timeAgo } from "../../utils/timeAgo";
@@ -236,7 +236,7 @@ export default function LogViewerScreen() {
         {/* Aksi — DI ATAS supaya Muat Ulang / Salin / Hapus tidak perlu di-scroll */}
         <View style={styles.logActionsRow}>
           <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => {
               setLogsLoading(true);
@@ -246,7 +246,7 @@ export default function LogViewerScreen() {
             <Text style={[styles.logBtnText, { color: theme.colors.secondary }]}>🔄 Muat Ulang</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            style={[styles.logBtn, { backgroundColor: theme.colors.secondaryContainer }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={handleCopyLogs}
           >
@@ -255,7 +255,7 @@ export default function LogViewerScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: theme.colors.tertiaryContainer }]}
+            style={[styles.logBtn, { backgroundColor: theme.colors.tertiaryContainer }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => {
               void handlePrepareSendLogs();
@@ -267,7 +267,7 @@ export default function LogViewerScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: theme.colors.error + "1A" }]}
+            style={[styles.logBtn, { backgroundColor: theme.colors.error + "1A" }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => setShowClearLogConfirm(true)}
           >
@@ -307,6 +307,7 @@ export default function LogViewerScreen() {
                     backgroundColor: active ? theme.colors.primary : theme.colors.secondaryContainer,
                     borderColor: active ? theme.colors.primary : theme.colors.border,
                   },
+                  buttonShadow(theme),
                 ]}
               >
                 <Text
@@ -388,6 +389,7 @@ export default function LogViewerScreen() {
                   backgroundColor: theme.colors.secondaryContainer,
                   opacity: currentPage <= 1 ? 0.4 : 1,
                 },
+                buttonShadow(theme),
               ]}
               activeOpacity={0.7}
               disabled={currentPage <= 1}
@@ -413,6 +415,7 @@ export default function LogViewerScreen() {
                   backgroundColor: theme.colors.secondaryContainer,
                   opacity: currentPage >= totalPages ? 0.4 : 1,
                 },
+                buttonShadow(theme),
               ]}
               activeOpacity={0.7}
               disabled={currentPage >= totalPages}
@@ -435,6 +438,7 @@ export default function LogViewerScreen() {
                           ? theme.colors.primary
                           : theme.colors.secondaryContainer,
                       },
+                      buttonShadow(theme),
                     ]}
                     activeOpacity={0.7}
                     onPress={() => setPageSize(size)}

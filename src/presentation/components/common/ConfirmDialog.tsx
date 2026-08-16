@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, useWindowDimensions
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { overlayColor, textOnPrimary } from "../../../utils/skin";
+import { buttonShadow, overlayColor, textOnPrimary } from "../../../utils/skin";
 import { useEscapeClose } from "./useEscapeClose";
 
 interface ConfirmDialogProps {
@@ -96,7 +96,12 @@ export default function ConfirmDialog({
 
         <View style={[styles.buttons, isNarrow ? styles.buttonsNarrow : styles.buttonsWide]}>
           <TouchableOpacity
-            style={[styles.btn, styles.cancelBtn, { borderColor: theme.colors.border }]}
+            style={[
+              styles.btn,
+              styles.cancelBtn,
+              { borderColor: theme.colors.border },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.6}
             onPress={() => {
               play("tap");
@@ -109,7 +114,7 @@ export default function ConfirmDialog({
             </View>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: confirmColor }]}
+            style={[styles.btn, { backgroundColor: confirmColor }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");

@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
-import { contrastText } from "../../utils/skin";
+import { buttonShadow, contrastText } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { neumorphicShadow } from "../../utils/neumorphic";
@@ -253,7 +253,7 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
           <TouchableOpacity
             activeOpacity={0.75}
             onPress={onPreview}
-            style={[styles.previewButton, { backgroundColor: C.secondaryContainer }]}
+            style={[styles.previewButton, { backgroundColor: C.secondaryContainer }, buttonShadow(theme)]}
           >
             <Text style={[styles.previewButtonText, { color: C.secondary }]}>👁 Preview</Text>
           </TouchableOpacity>
@@ -265,7 +265,7 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => onActivate(card.id)}
-              style={[styles.activateButton, { backgroundColor: accent }]}
+              style={[styles.activateButton, { backgroundColor: accent }, buttonShadow(theme)]}
             >
               <Text style={[styles.activateButtonText, { color: contrastText(accent) }]}>Aktifkan</Text>
             </TouchableOpacity>

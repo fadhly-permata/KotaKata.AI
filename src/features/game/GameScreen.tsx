@@ -33,7 +33,7 @@ import {
 } from "../../utils/boardProgress";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { play, ensureAmbientPlaying } from "../../utils/sound";
-import { textOnPrimary } from "../../utils/skin";
+import { buttonShadow, textOnPrimary } from "../../utils/skin";
 import { playLetterPressFeedback, playDeleteFeedback } from "../../utils/soundFeedback";
 
 const CELL_GAP = 3;
@@ -873,7 +873,7 @@ export default function GameScreen() {
               : "Gagal menyusun papan kata. Periksa koneksi internetmu, lalu coba lagi."}
           </Text>
           <TouchableOpacity
-            style={[styles.retryBtn, { backgroundColor: theme.colors.primary }]}
+            style={[styles.retryBtn, { backgroundColor: theme.colors.primary }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");

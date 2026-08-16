@@ -11,6 +11,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { buttonShadow } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import {
   isSoundEnabled,
@@ -120,7 +121,7 @@ export default function SettingsScreen() {
               : "Main dengan soal yang dibuat AI. Belum ada provider diatur."}
           </Text>
           <TouchableOpacity
-            style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");
@@ -141,7 +142,7 @@ export default function SettingsScreen() {
             dibutuhkan.
           </Text>
           <TouchableOpacity
-            style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => navigation.navigate("LogViewer")}
           >

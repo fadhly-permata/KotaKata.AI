@@ -41,7 +41,7 @@ import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
 import { neumorphicShadow } from "../../utils/neumorphic";
-import { chipStyle, chipTextColor, contrastText, textOnPrimary } from "../../utils/skin";
+import { buttonShadow, chipStyle, chipTextColor, contrastText, textOnPrimary } from "../../utils/skin";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
@@ -519,7 +519,11 @@ export default function MainMenuScreen() {
         </View>
 
         {/* ═══ Main Action: Mulai Bermain ═══ */}          <TouchableOpacity
-            style={[styles.playButton, { backgroundColor: C.primary }]}
+            style={[
+              styles.playButton,
+              { backgroundColor: C.primary },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.9}
             onPress={handlePlay}
           >
@@ -612,6 +616,7 @@ export default function MainMenuScreen() {
                 style={[
                   styles.bentoLargeCard,
                   { backgroundColor: C.primary, height: bentoLargeH },
+                  buttonShadow(theme),
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -631,6 +636,7 @@ export default function MainMenuScreen() {
                 style={[
                   styles.bentoSmallCard,
                   { backgroundColor: C.secondary, height: bentoSmallH },
+                  buttonShadow(theme),
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -653,6 +659,7 @@ export default function MainMenuScreen() {
                 style={[
                   styles.bentoSmallCard,
                   { backgroundColor: C.tertiary, height: bentoSmallH },
+                  buttonShadow(theme),
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -672,6 +679,7 @@ export default function MainMenuScreen() {
                 style={[
                   styles.bentoLargeCard,
                   { backgroundColor: C.accent, height: bentoLargeH },
+                  buttonShadow(theme),
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -739,7 +747,7 @@ export default function MainMenuScreen() {
 
         <View style={styles.magicButtons}>
           <TouchableOpacity
-            style={[styles.magicBtn, { backgroundColor: C.primary }]}
+            style={[styles.magicBtn, { backgroundColor: C.primary }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");
@@ -786,7 +794,11 @@ export default function MainMenuScreen() {
               Provider sedang membuat kata & petunjuk untuk papanku.
             </Text>
             <TouchableOpacity
-              style={[styles.aiCancelBtn, { backgroundColor: C.secondaryContainer }]}
+              style={[
+                styles.aiCancelBtn,
+                { backgroundColor: C.secondaryContainer },
+                buttonShadow(theme),
+              ]}
               activeOpacity={0.7}
               onPress={() => {
                 play("tap");
@@ -812,7 +824,11 @@ export default function MainMenuScreen() {
         </Text>
         <View style={styles.aiErrorButtons}>
           <TouchableOpacity
-            style={[styles.aiErrorBtn, { backgroundColor: C.primary }]}
+            style={[
+              styles.aiErrorBtn,
+              { backgroundColor: C.primary },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.8}
             onPress={() => {
               play("tap");
@@ -825,7 +841,11 @@ export default function MainMenuScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.aiErrorBtn, { backgroundColor: C.secondaryContainer }]}
+            style={[
+              styles.aiErrorBtn,
+              { backgroundColor: C.secondaryContainer },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.8}
             onPress={() => {
               play("tap");

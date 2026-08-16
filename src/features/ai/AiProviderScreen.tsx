@@ -11,7 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
-import { textOnPrimary } from "../../utils/skin";
+import { buttonShadow, textOnPrimary } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { play } from "../../utils/sound";
@@ -194,6 +194,7 @@ export default function AiProviderScreen() {
                     {
                       backgroundColor: active ? C.primary : C.secondaryContainer,
                     },
+                    buttonShadow(theme),
                   ]}
                   activeOpacity={0.7}
                   onPress={() => selectProvider(p)}
@@ -262,7 +263,7 @@ export default function AiProviderScreen() {
         {/* Aksi */}
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: C.secondaryContainer }]}
+            style={[styles.actionBtn, { backgroundColor: C.secondaryContainer }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={handleTest}
             disabled={testing || saving}
@@ -275,7 +276,7 @@ export default function AiProviderScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: C.primary }]}
+            style={[styles.actionBtn, { backgroundColor: C.primary }, buttonShadow(theme)]}
             activeOpacity={0.8}
             onPress={handleSave}
             disabled={testing || saving}

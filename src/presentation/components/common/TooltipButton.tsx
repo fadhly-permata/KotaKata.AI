@@ -9,6 +9,8 @@ import {
   type TouchableOpacityProps,
   type ViewStyle,
 } from "react-native";
+import { useTheme } from "../providers/ThemeProvider";
+import { buttonShadow } from "../../../utils/skin";
 
 declare const require: (id: string) => any;
 
@@ -60,6 +62,7 @@ export default function TooltipButton({
   children,
   ...rest
 }: TooltipButtonProps) {
+  const { theme } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const [visible, setVisible] = useState(false);
   // Posisi tombol relatif viewport (web) untuk penempatan portal.
@@ -118,6 +121,7 @@ export default function TooltipButton({
     <View ref={wrapRef} style={[styles.wrap, wrapperStyle]}>
       <TouchableOpacity
         {...rest}
+        style={[rest.style as ViewStyle, buttonShadow(theme)]}
         onLongPress={showTooltip}
         onPressOut={hideTooltip}
         delayLongPress={LONG_PRESS_MS}

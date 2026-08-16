@@ -5,6 +5,7 @@ import { useTheme } from "../providers/ThemeProvider";
 import { useGameStore } from "../../stores/gameStore";
 import { useAuth } from "../../../features/auth/useAuth";
 import { neumorphicShadow } from "../../../utils/neumorphic";
+import { buttonShadow } from "../../../utils/skin";
 import UserAvatar from "./UserAvatar";
 
 interface TopBarProps {
@@ -45,7 +46,7 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
         <View style={styles.topBarLeft}>
           {showBack && (
             <TouchableOpacity
-              style={[styles.backBtn, { backgroundColor: C.secondaryContainer }]}
+              style={[styles.backBtn, { backgroundColor: C.secondaryContainer }, buttonShadow(theme)]}
               activeOpacity={0.7}
               onPress={handleBack}
             >

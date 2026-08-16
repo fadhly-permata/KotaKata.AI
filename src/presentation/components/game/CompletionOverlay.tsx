@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { overlayColor, textOnPrimary } from "../../../utils/skin";
+import { buttonShadow, overlayColor, textOnPrimary } from "../../../utils/skin";
 import Confetti from "../common/Confetti";
 import { useEscapeClose } from "../common/useEscapeClose";
 
@@ -143,7 +143,11 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
 
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.iconBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            style={[
+              styles.iconBtn,
+              { backgroundColor: theme.colors.secondaryContainer },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");
@@ -154,7 +158,11 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
             <Text style={[styles.iconBtnLabel, { color: theme.colors.textSecondary }]}>Lihat Papan</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.iconBtn, { backgroundColor: theme.colors.secondaryContainer }]}
+            style={[
+              styles.iconBtn,
+              { backgroundColor: theme.colors.secondaryContainer },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");
@@ -165,7 +173,11 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
             <Text style={[styles.iconBtnLabel, { color: theme.colors.textSecondary }]}>Beranda</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.iconBtn, { backgroundColor: theme.colors.primary }]}
+            style={[
+              styles.iconBtn,
+              { backgroundColor: theme.colors.primary },
+              buttonShadow(theme),
+            ]}
             activeOpacity={0.7}
             onPress={() => {
               play("tap");

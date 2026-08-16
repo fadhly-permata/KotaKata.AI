@@ -73,6 +73,16 @@ export function textOnPrimary(theme: Theme): string {
 }
 
 /**
+ * Bayangan TOMBOL dari token tema (PLAN-039): tema yang membawa `shadow`
+ * (mis. Neumorfik) → semua tombol dapat efek timbul yang sama; tema lain →
+ * `{}` (tidak ada efek). Warna tombol TIDAK diubah — helper hanya menambah
+ * bayangan. Aman disebar di semua tombol tanpa syarat.
+ */
+export function buttonShadow(theme: Theme): ViewStyle {
+  return neumorphicShadow(theme.shadow);
+}
+
+/**
  * Pilih warna teks yang kontras untuk latar warna ARBITRER (PLAN-038):
  * hitung relative luminance (WCAG) dari hex, lalu kembalikan putih atau
  * gelap. Dipakai kartu berwarna yang mengikuti token tema (mis. kartu bento

@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
-import { textOnPrimary } from "../../../utils/skin";
+import { buttonShadow, textOnPrimary } from "../../../utils/skin";
 import { TIER_NAMES, TIER_COLORS } from "../../../domain/usecases/xpEngine";
 
 interface SavedBoard {
@@ -65,7 +65,7 @@ export default function SavedBoardList({ boards, onResume, onDelete }: SavedBoar
 
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.resumeBtn, { backgroundColor: theme.colors.primary }]}
+            style={[styles.resumeBtn, { backgroundColor: theme.colors.primary }, buttonShadow(theme)]}
             activeOpacity={0.7}
             onPress={() => onResume(item.id)}
           >

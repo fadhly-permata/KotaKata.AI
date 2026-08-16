@@ -11,7 +11,7 @@ import Markdown, { type MarkdownProps } from "react-native-markdown-display";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
-import { textOnPrimary } from "../../utils/skin";
+import { buttonShadow, textOnPrimary } from "../../utils/skin";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Markdown">;
@@ -126,7 +126,7 @@ export default function MarkdownScreen({ route }: Props) {
           <View style={styles.center}>
             <Text style={[styles.error, { color: C.error }]}>{error}</Text>
             <TouchableOpacity
-              style={[styles.retryBtn, { backgroundColor: C.primary }]}
+              style={[styles.retryBtn, { backgroundColor: C.primary }, buttonShadow(theme)]}
               activeOpacity={0.8}
               onPress={() => void load()}
             >
