@@ -396,7 +396,77 @@ const hutan: AppThemeDefinition = {
   },
 };
 
-export const APP_THEMES: AppThemeDefinition[] = [puitis, samudra, senja, hutan];
+const neumorfik: AppThemeDefinition = {
+  id: "neumorfik",
+  name: "Neumorfik",
+  tagline: "Soft UI lembut — permukaan senada & bayangan timbul",
+  description:
+    "Tema neumorphism: latar abu lembut dengan permukaan senada yang timbul (soft shadow), aksen biru baja tenang. Minimalis, bersih, dan nyaman dipakai lama.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  sound: { label: "Lembut", rate: 0.85, volume: 0.75 },
+  ambient: {
+    label: "Kicau burung pagi",
+    url: "https://assets.mixkit.co/active_storage/sfx/2472/2472-preview.mp3",
+    volume: 0.28,
+  },
+  light: {
+    mode: "light",
+    background: { gradient: ["#eef1f6", "#e3e8f0"] },
+    colors: {
+      background: "#e4e9f0",
+      surface: "#edf1f6",
+      text: "#2f3542",
+      textSecondary: "#7a8494",
+      border: "#d3dae3",
+      primary: "#6a8ec7",
+      secondary: "#8a9bb8",
+      secondaryContainer: "#dde4ee",
+      tertiary: "#7fb8a0",
+      tertiaryContainer: "#d8ece2",
+      accent: "#6a8ec7",
+      gold: "#e0b45a",
+      success: "#63b58a",
+      error: "#d97a7a",
+      cellActive: "#f1f4f8",
+      cellBorder: "#d3dae3",
+      cellText: "#2f3542",
+      cellBlocked: "#2f3542",
+      cellLocked: "#d3dae3",
+      cellSolved: "#d7e3f5",
+      cellSolvedText: "#3f5f8f",
+    },
+  },
+  dark: {
+    mode: "dark",
+    background: { gradient: ["#1a1e26", "#14171d"] },
+    colors: {
+      background: "#171a21",
+      surface: "#1e232c",
+      text: "#e6eaf2",
+      textSecondary: "#98a2b3",
+      border: "#333a47",
+      primary: "#8fb3e8",
+      secondary: "#a8b8d0",
+      secondaryContainer: "#2a3240",
+      tertiary: "#7fbfa8",
+      tertiaryContainer: "#1f3a30",
+      accent: "#8fb3e8",
+      gold: "#e0b45a",
+      success: "#6cc49a",
+      error: "#e08a8a",
+      cellActive: "#20252f",
+      cellBorder: "#333a47",
+      cellText: "#e6eaf2",
+      cellBlocked: "#14171d",
+      cellLocked: "#333a47",
+      cellSolved: "#2c3a52",
+      cellSolvedText: "#9db8e6",
+    },
+  },
+};
+
+export const APP_THEMES: AppThemeDefinition[] = [puitis, samudra, senja, hutan, neumorfik];
 
 /* ─────────────────────────── Tema Papan (Halaman Game) ─────────────────────────── */
 
@@ -911,7 +981,83 @@ const papanHutan: BoardThemeDefinition = {
   },
 };
 
-export const BOARD_THEMES: BoardThemeDefinition[] = [papanPuitis, papanSamudra, papanSenja, papanHutan, papanTinta, papanNeon];
+const papanNeumorfik: BoardThemeDefinition = {
+  id: "neumorfik",
+  name: "Neumorfik",
+  tagline: "Papan soft UI lembut senada tema aplikasi",
+  description:
+    "Papan senada tema aplikasi Neumorfik: sel aktif abu lembut, kata terjawab biru baja, soal & panel petunjuk minimalis.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    boardBackground: "#edf1f6",
+    background: { gradient: ["#e9edf3", "#e2e8ef"] },
+    boardBorder: "#d3dae3",
+    cellActive: "#f1f4f8",
+    cellActiveText: "#2f3542",
+    cellBorder: "#d3dae3",
+    cellSelected: "#6a8ec7",
+    cellSelectedText: "#ffffff",
+    cellHighlight: "#dfe6f0",
+    cellHighlightBorder: "#6a8ec7",
+    cellSolved: "#d7e3f5",
+    cellSolvedText: "#3f5f8f",
+    cellBlocked: "#2f3542",
+    cellNumber: "#7a8494",
+    clueBackground: "#6a8ec7",
+    clueText: "#ffffff",
+    clueTextMuted: "rgba(255,255,255,0.8)",
+    clueBadgeBackground: "#ffffff",
+    clueBadgeText: "#6a8ec7",
+    clueArrowBackground: "rgba(255,255,255,0.18)",
+    clueDivider: "rgba(255,255,255,0.35)",
+    hintBackground: "#edf1f6",
+    hintBorder: "#d3dae3",
+    hintPrimary: "#6a8ec7",
+    hintPrimaryText: "#ffffff",
+    hintSecondary: "#dfe6f0",
+    hintIcon: "#5c7399",
+    hintText: "#2f3542",
+    hintTextSecondary: "#7a8494",
+    hintBadgeBackground: "#d3dae3",
+    hintBadgeText: "#4a5f80",
+  },
+  dark: {
+    boardBackground: "#1e232c",
+    background: { gradient: ["#1e232c", "#171a21"] },
+    boardBorder: "#333a47",
+    cellActive: "#20252f",
+    cellActiveText: "#e6eaf2",
+    cellBorder: "#333a47",
+    cellSelected: "#8fb3e8",
+    cellSelectedText: "#171a21",
+    cellHighlight: "#2a3240",
+    cellHighlightBorder: "#8fb3e8",
+    cellSolved: "#2c3a52",
+    cellSolvedText: "#9db8e6",
+    cellBlocked: "#14171d",
+    cellNumber: "#98a2b3",
+    clueBackground: "#8fb3e8",
+    clueText: "#1c2333",
+    clueTextMuted: "rgba(28,35,51,0.8)",
+    clueBadgeBackground: "#1c2333",
+    clueBadgeText: "#8fb3e8",
+    clueArrowBackground: "rgba(28,35,51,0.15)",
+    clueDivider: "rgba(28,35,51,0.3)",
+    hintBackground: "#1e232c",
+    hintBorder: "#333a47",
+    hintPrimary: "#8fb3e8",
+    hintPrimaryText: "#171a21",
+    hintSecondary: "#2a3240",
+    hintIcon: "#9db8e6",
+    hintText: "#e6eaf2",
+    hintTextSecondary: "#98a2b3",
+    hintBadgeBackground: "#333a47",
+    hintBadgeText: "#9db8e6",
+  },
+};
+
+export const BOARD_THEMES: BoardThemeDefinition[] = [papanPuitis, papanSamudra, papanSenja, papanHutan, papanTinta, papanNeon, papanNeumorfik];
 
 /* ─────────────────────────── Tema Keyboard ─────────────────────────── */
 
@@ -1144,6 +1290,40 @@ const keyboardHutan: KeyboardThemeDefinition = {
   },
 };
 
+const keyboardNeumorfik: KeyboardThemeDefinition = {
+  id: "neumorfik",
+  name: "Neumorfik",
+  tagline: "Keyboard soft UI lembut senada tema aplikasi",
+  description:
+    "Keyboard senada tema aplikasi Neumorfik: tombol abu lembut, navigasi biru baja — bersih dan minimalis.",
+  isDefault: false,
+  priceLabel: "Gratis",
+  light: {
+    panelBackground: "#e9edf3",
+    panelBorder: "#d3dae3",
+    keyBackground: "#edf1f6",
+    keyBorder: "#d3dae3",
+    keyText: "#2f3542",
+    specialBackground: "#d3dae3",
+    background: { gradient: ["#e9edf3", "#e2e8ef"] },
+    navBackground: "#edf1f6",
+    navBorder: "#6a8ec7",
+    navText: "#6a8ec7",
+  },
+  dark: {
+    panelBackground: "#1e232c",
+    panelBorder: "#333a47",
+    keyBackground: "#20252f",
+    keyBorder: "#333a47",
+    keyText: "#e6eaf2",
+    specialBackground: "#333a47",
+    background: { gradient: ["#1e232c", "#171a21"] },
+    navBackground: "#20252f",
+    navBorder: "#8fb3e8",
+    navText: "#8fb3e8",
+  },
+};
+
 export const KEYBOARD_THEMES: KeyboardThemeDefinition[] = [
   keyboardPuitis,
   keyboardSamudra,
@@ -1151,6 +1331,7 @@ export const KEYBOARD_THEMES: KeyboardThemeDefinition[] = [
   keyboardHutan,
   keyboardPastel,
   keyboardKlasik,
+  keyboardNeumorfik,
 ];
 
 /* ─────────────────────────── Resolver ─────────────────────────── */

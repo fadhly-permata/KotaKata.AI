@@ -61,7 +61,6 @@ export default function GameScreen() {
   // dapat 2 baris; tablet/desktop ≥ 480px satu baris.
   const { width: winW, height: winH } = useWindowDimensions();
   const compactBar = winW < 480;
-  const [toolsExpanded, setToolsExpanded] = useState(true);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
@@ -1011,12 +1010,6 @@ export default function GameScreen() {
 
         <GameActionBar
           colors={boardColors}
-          compactBar={compactBar}
-          toolsExpanded={toolsExpanded}
-          onToggleTools={() => {
-            play("tap");
-            setToolsExpanded((v) => !v);
-          }}
           zoomLevel={zoomLevel}
           onZoomOut={() => {
             play("tap");
