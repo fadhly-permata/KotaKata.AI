@@ -11,6 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { textOnPrimary } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { play } from "../../utils/sound";
@@ -200,7 +201,7 @@ export default function AiProviderScreen() {
                   <Text
                     style={[
                       styles.presetBtnText,
-                      { color: active ? "#FFFFFF" : C.textSecondary },
+                      { color: active ? textOnPrimary(theme) : C.textSecondary },
                     ]}
                   >
                     {providerLabel(p)}
@@ -280,9 +281,9 @@ export default function AiProviderScreen() {
             disabled={testing || saving}
           >
             {saving ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={textOnPrimary(theme)} size="small" />
             ) : (
-              <Text style={styles.actionBtnPrimaryText}>
+              <Text style={[styles.actionBtnPrimaryText, { color: textOnPrimary(theme) }]}>
                 {savedFlash ? "✓ Tersimpan" : "Simpan"}
               </Text>
             )}
@@ -291,21 +292,20 @@ export default function AiProviderScreen() {
 
         {/* Hasil tes / status */}
         {testResult && (
-          <View
-            style={[
-              styles.resultBox,
-              {
-                backgroundColor: testResult.ok
-                  ? "rgba(46, 204, 113, 0.12)"
-                  : "rgba(231, 76, 60, 0.12)",
-                borderColor: testResult.ok ? "#2ECC71" : "#E74C3C",
-              },
-            ]}
-          >
+          <View              style={[
+                styles.resultBox,
+                {
+                  backgroundColor: testResult.ok
+                    ? C.success + "1F"
+                    : C.error + "1F",
+                  borderColor: testResult.ok ? C.success : C.error,
+                },
+              ]}
+            >
             <Text
               style={[
                 styles.resultText,
-                { color: testResult.ok ? "#2ECC71" : "#E74C3C" },
+                { color: testResult.ok ? C.success : C.error },
               ]}
             >
               {testResult.message}
@@ -314,7 +314,7 @@ export default function AiProviderScreen() {
         )}
 
         <TouchableOpacity style={styles.removeBtn} activeOpacity={0.6} onPress={handleRemove}>
-          <Text style={styles.removeText}>🗑 Hapus Provider Tersimpan</Text>
+          <Text style={[styles.removeText, { color: C.error }]}>🗑 Hapus Provider Tersimpan</Text>
         </TouchableOpacity>
       </ScrollView>
     </ScreenFade>

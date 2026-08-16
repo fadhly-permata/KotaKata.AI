@@ -12,6 +12,7 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { contrastText, overlayColor } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import TierBadge from "../../presentation/components/common/TierBadge";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
@@ -199,7 +200,7 @@ export default function ProfileScreen() {
             )}
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Ditemukan</Text>
           </TouchableOpacity>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
           <TouchableOpacity
             style={styles.statItem}
             activeOpacity={0.6}
@@ -215,7 +216,7 @@ export default function ProfileScreen() {
             )}
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Sejarah Permainan</Text>
           </TouchableOpacity>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{totalXp}</Text>
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Total XP</Text>
@@ -259,7 +260,7 @@ export default function ProfileScreen() {
               setShowDeleteConfirm(true);
             }}
           >
-            <Text style={[styles.actionText, { color: "#E74C3C" }]}>Hapus Akun (Permanen)</Text>
+            <Text style={[styles.actionText, { color: theme.colors.error }]}>Hapus Akun (Permanen)</Text>
             <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>
               Hapus semua data & akun ini selamanya
             </Text>
@@ -302,7 +303,7 @@ export default function ProfileScreen() {
           if (!deleting) setShowDeleteCode(false);
         }}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: overlayColor(theme) }]}>
           <View style={[styles.deleteCard, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.deleteEmoji}>🛑</Text>
             <Text style={[styles.deleteTitle, { color: theme.colors.text }]}>Konfirmasi Terakhir</Text>
@@ -330,16 +331,18 @@ export default function ProfileScreen() {
             />
 
             {typedCode.length > 0 && !codeMatches && !deleting && (
-              <Text style={styles.mismatchText}>
+              <Text style={[styles.mismatchText, { color: theme.colors.error }]}>
                 Kode belum cocok — periksa kembali hurufnya.
               </Text>
             )}
-            {deleteError && <Text style={styles.mismatchText}>{deleteError}</Text>}
+            {deleteError && (
+              <Text style={[styles.mismatchText, { color: theme.colors.error }]}>{deleteError}</Text>
+            )}
 
             <TouchableOpacity
               style={[
                 styles.deleteBtn,
-                { backgroundColor: codeMatches && !deleting ? "#E74C3C" : theme.colors.border },
+                { backgroundColor: codeMatches && !deleting ? theme.colors.error : theme.colors.border },
               ]}
               activeOpacity={0.8}
               disabled={!codeMatches || deleting}
@@ -349,9 +352,21 @@ export default function ProfileScreen() {
               }}
             >
               {deleting ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={contrastText(theme.colors.error)} />
               ) : (
-                <Text style={styles.deleteBtnText}>Hapus Akun Permanen</Text>
+                <Text
+                  style={[
+                    styles.deleteBtnText,
+                    {
+                      color:
+                        codeMatches && !deleting
+                          ? contrastText(theme.colors.error)
+                          : theme.colors.textSecondary,
+                    },
+                  ]}
+                >
+                  Hapus Akun Permanen
+                </Text>
               )}
             </TouchableOpacity>
 

@@ -11,6 +11,7 @@ import {
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { textOnPrimary } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { timeAgo } from "../../utils/timeAgo";
@@ -266,7 +267,7 @@ export default function LogViewerScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.logBtn, { backgroundColor: "rgba(231, 76, 60, 0.1)" }]}
+            style={[styles.logBtn, { backgroundColor: theme.colors.error + "1A" }]}
             activeOpacity={0.7}
             onPress={() => setShowClearLogConfirm(true)}
           >
@@ -311,7 +312,7 @@ export default function LogViewerScreen() {
                 <Text
                   style={[
                     styles.filterChipText,
-                    { color: active ? "#fff" : theme.colors.textSecondary },
+                    { color: active ? textOnPrimary(theme) : theme.colors.textSecondary },
                   ]}
                 >
                   {f.label}
@@ -441,7 +442,7 @@ export default function LogViewerScreen() {
                     <Text
                       style={[
                         styles.pageSizeChipText,
-                        { color: active ? "#fff" : theme.colors.textSecondary },
+                        { color: active ? textOnPrimary(theme) : theme.colors.textSecondary },
                       ]}
                     >
                       {size}

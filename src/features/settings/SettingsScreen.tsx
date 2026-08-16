@@ -80,7 +80,7 @@ export default function SettingsScreen() {
             <Switch
               value={isDark}
               onValueChange={toggleTheme}
-              trackColor={{ false: "#ccc", true: theme.colors.primary }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
@@ -90,7 +90,7 @@ export default function SettingsScreen() {
             <Switch
               value={soundEnabled}
               onValueChange={toggleSound}
-              trackColor={{ false: "#ccc", true: theme.colors.primary }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
@@ -105,7 +105,7 @@ export default function SettingsScreen() {
             <Switch
               value={ambientEnabled}
               onValueChange={toggleAmbient}
-              trackColor={{ false: "#ccc", true: theme.colors.primary }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
