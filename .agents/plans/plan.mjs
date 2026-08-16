@@ -155,10 +155,19 @@ function cmdList() {
   console.log("\nLihat detail: bun .agents/plans/plan.mjs status <file>");
 }
 
+function nextPlanNumber() {
+  // Nomor = max nomor yang sudah ada + 1 (bukan hitung file, supaya aman
+  // walau ada nomor yang terlewat seperti PLAN-012 atau nomor tertinggi > jumlah file).
+  const nums = listPlanFiles()
+    .map((f) => f.match(/^PLAN-(\d{3})/)?.[1])
+    .filter(Boolean)
+    .map(Number);
+  return (nums.length ? Math.max(...nums) : 0) + 1;
+}
+
 function cmdNew(title) {
   if (!title) fail("Judul wajib diisi: bun .agents/plans/plan.mjs new \"Judul\"");
-  const next = listPlanFiles().length + 1;
-  const num = String(next).padStart(3, "0");
+  const num = String(nextPlanNumber()).padStart(3, "0");
   const name = `PLAN-${num}-${slugify(title)}.md`;
   const today = new Date().toISOString().slice(0, 10);
   const body = `# ${title}
