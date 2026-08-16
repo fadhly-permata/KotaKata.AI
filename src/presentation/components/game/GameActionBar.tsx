@@ -15,12 +15,13 @@ import ZoomIcon from "../icons/ZoomIcon";
 import KeyboardIcon from "../icons/KeyboardIcon";
 import ListNumbersIcon from "../icons/ListNumbersIcon";
 import NextIcon from "../icons/NextIcon";
+import { neumorphicShadow } from "../../../utils/neumorphic";
 import {
   XP_PENALTY_CLUE_2,
   XP_PENALTY_CLUE_3,
   XP_PENALTY_REVEAL,
 } from "../../../domain/usecases/xpEngine";
-import type { BoardColors } from "../../themes/themeData";
+import type { BoardColors, NeumorphicShadowSpec } from "../../themes/themeData";
 
 /** Rentang & langkah zoom papan — dipakai juga oleh GameScreen (animateZoom). */
 export const ZOOM_MIN = 0.5;
@@ -33,6 +34,8 @@ const PAGE_COUNT = 3;
 interface GameActionBarProps {
   /** Palet PAPAN (tema papan aktif) — panel hint ikut berganti tema papan. */
   colors: BoardColors;
+  /** Bayangan neumorphic tema aktif (PLAN-037) — opsional, hanya neumorfik. */
+  shadow?: NeumorphicShadowSpec;
   zoomLevel: number;
   onZoomOut: () => void;
   onResetZoom: () => void;
@@ -66,6 +69,7 @@ interface GameActionBarProps {
  */
 export default function GameActionBar({
   colors: C,
+  shadow,
   zoomLevel,
   onZoomOut,
   onResetZoom,
@@ -147,6 +151,8 @@ export default function GameActionBar({
       style={[
         styles.actionBar,
         { backgroundColor: C.hintBackground, borderColor: C.hintBorder },
+        // PLAN-037: tema neumorphic — panel hint senada latar tampak "timbul".
+        neumorphicShadow(shadow),
       ]}
     >
       {/* ◀ Panah kiri — pindah ke halaman tombol sebelumnya */}
@@ -156,7 +162,7 @@ export default function GameActionBar({
         disabled={page === 0}
         activeOpacity={0.7}
         onPress={() => goToPage(page - 1)}
-        style={[styles.arrowBtn, { backgroundColor: C.hintSecondary }]}
+        style={[styles.arrowBtn, { backgroundColor: C.hintSecondary }, neumorphicShadow(shadow)]}
       >
         <Animated.View style={{ opacity: leftArrowOpacity }}>
           <NextIcon flipped size={16} color={C.hintIcon} />
@@ -188,6 +194,7 @@ export default function GameActionBar({
               style={[
                 styles.zoomBtnSmall,
                 { backgroundColor: C.hintSecondary, opacity: zoomLevel <= ZOOM_MIN ? 0.4 : 1 },
+                neumorphicShadow(shadow),
               ]}
               activeOpacity={0.7}
               onPress={onZoomOut}
@@ -214,6 +221,7 @@ export default function GameActionBar({
               style={[
                 styles.zoomBtnSmall,
                 { backgroundColor: C.hintSecondary, opacity: zoomLevel >= ZOOM_MAX ? 0.4 : 1 },
+                neumorphicShadow(shadow),
               ]}
               activeOpacity={0.7}
               onPress={onZoomIn}
@@ -249,6 +257,7 @@ export default function GameActionBar({
                   backgroundColor: allCluesOpened ? C.hintBackground : C.hintPrimary,
                   opacity: revealClueDisabled ? 0.4 : 1,
                 },
+                neumorphicShadow(shadow),
               ]}
               activeOpacity={0.7}
               onPress={() => {
@@ -284,6 +293,7 @@ export default function GameActionBar({
                   backgroundColor: C.hintSecondary,
                   opacity: revealLetterDisabled ? 0.4 : 1,
                 },
+                neumorphicShadow(shadow),
               ]}
               activeOpacity={0.7}
               onPress={() => {
@@ -309,6 +319,7 @@ export default function GameActionBar({
                   backgroundColor: C.hintSecondary,
                   opacity: revealWordDisabled ? 0.4 : 1,
                 },
+                neumorphicShadow(shadow),
               ]}
               activeOpacity={0.7}
               onPress={() => {
@@ -324,7 +335,7 @@ export default function GameActionBar({
             <TooltipButton
               tooltip="Reset papan — kosongkan jawaban & XP"
               icon="🔄"
-              style={[styles.actionItem, { backgroundColor: C.hintSecondary }]}
+              style={[styles.actionItem, { backgroundColor: C.hintSecondary }, neumorphicShadow(shadow)]}
               activeOpacity={0.7}
               onPress={onReset}
             >
@@ -338,6 +349,7 @@ export default function GameActionBar({
               style={[
                 styles.actionItem,
                 { backgroundColor: C.hintBackground, borderWidth: 1, borderColor: C.hintBorder },
+                neumorphicShadow(shadow),
               ]}
               activeOpacity={0.7}
               onPress={onToggleKeyboard}
@@ -368,7 +380,7 @@ export default function GameActionBar({
         disabled={page === PAGE_COUNT - 1}
         activeOpacity={0.7}
         onPress={() => goToPage(page + 1)}
-        style={[styles.arrowBtn, { backgroundColor: C.hintSecondary }]}
+        style={[styles.arrowBtn, { backgroundColor: C.hintSecondary }, neumorphicShadow(shadow)]}
       >
         <Animated.View style={{ opacity: rightArrowOpacity }}>
           <NextIcon size={16} color={C.hintIcon} />

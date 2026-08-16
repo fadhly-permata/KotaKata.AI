@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import ThemedBackground from "../common/ThemedBackground";
 import { useGameStore } from "../../stores/gameStore";
+import { neumorphicShadow } from "../../../utils/neumorphic";
 import { playLetterPressFeedback, playDeleteFeedback } from "../../../utils/soundFeedback";
 import { play } from "../../../utils/sound";
 
@@ -13,7 +14,10 @@ const ROWS = [
 
 export default function InGameKeyboard() {
   // Palet KEYBOARD (tema keyboard aktif) — terpisah dari tema aplikasi & papan.
-  const { keyboardColors: K, keyboardBackground } = useTheme();
+  // Bayangan neumorphic diambil dari tema APLIKASI (PLAN-037) — hanya tema
+  // neumorfik yang membawanya.
+  const { keyboardColors: K, keyboardBackground, theme } = useTheme();
+  const kbShadow = neumorphicShadow(theme.shadow);
   const inputLetter = useGameStore((s) => s.inputLetter);
   const deleteLetter = useGameStore((s) => s.deleteLetter);
   const navigateToCell = useGameStore((s) => s.navigateToCell);
@@ -62,6 +66,7 @@ export default function InGameKeyboard() {
             style={[
               styles.key,
               { backgroundColor: K.keyBackground, borderColor: K.keyBorder },
+              kbShadow,
             ]}
           >
             <Text style={[styles.keyText, { color: K.keyText }]}>
@@ -87,6 +92,7 @@ export default function InGameKeyboard() {
                   borderColor: K.keyBorder,
                   flex: isBackspace ? 1.3 : 1,
                 },
+                kbShadow,
               ]}
             >
               <Text
@@ -112,6 +118,7 @@ export default function InGameKeyboard() {
             style={[
               styles.key,
               { backgroundColor: K.keyBackground, borderColor: K.keyBorder },
+              kbShadow,
             ]}
           >
             <Text style={[styles.keyText, { color: K.keyText }]}>
@@ -127,6 +134,7 @@ export default function InGameKeyboard() {
               style={[
                 styles.navKey,
                 { backgroundColor: K.navBackground, borderColor: K.navBorder },
+                kbShadow,
               ]}
             >
               <Text style={[styles.navText, { color: K.navText }]}>◀</Text>
@@ -137,6 +145,7 @@ export default function InGameKeyboard() {
               style={[
                 styles.navKey,
                 { backgroundColor: K.navBackground, borderColor: K.navBorder },
+                kbShadow,
               ]}
             >
               <Text style={[styles.navText, { color: K.navText }]}>▶</Text>
@@ -150,6 +159,7 @@ export default function InGameKeyboard() {
               style={[
                 styles.navKey,
                 { backgroundColor: K.navBackground, borderColor: K.navBorder },
+                kbShadow,
               ]}
             >
               <Text style={[styles.navText, { color: K.navText }]}>▲</Text>
@@ -160,6 +170,7 @@ export default function InGameKeyboard() {
               style={[
                 styles.navKey,
                 { backgroundColor: K.navBackground, borderColor: K.navBorder },
+                kbShadow,
               ]}
             >
               <Text style={[styles.navText, { color: K.navText }]}>▼</Text>

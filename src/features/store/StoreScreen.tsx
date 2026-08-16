@@ -10,6 +10,7 @@ import {
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import TopBar from "../../presentation/components/common/TopBar";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import { neumorphicShadow } from "../../utils/neumorphic";
 import {
   APP_THEMES,
   BOARD_THEMES,
@@ -211,6 +212,8 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
           backgroundColor: C.surface,
           borderColor: active ? accent : C.border,
         },
+        // PLAN-037: tema neumorphic — permukaan senada latar tampak "timbul".
+        neumorphicShadow(theme.shadow),
       ]}
     >
       <View style={styles.themeCardHeader}>

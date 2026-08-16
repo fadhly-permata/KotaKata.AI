@@ -916,6 +916,7 @@ export default function GameScreen() {
           currentXp={currentXp}
           fillProgress={fillProgress}
           topInset={Platform.OS === "web" ? 0 : insets.top}
+          shadow={theme.shadow}
           onBack={() => {
             play("tap");
             navigation.goBack();
@@ -1010,6 +1011,7 @@ export default function GameScreen() {
 
         <GameActionBar
           colors={boardColors}
+          shadow={theme.shadow}
           zoomLevel={zoomLevel}
           onZoomOut={() => {
             play("tap");

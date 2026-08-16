@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 import TooltipButton from "../common/TooltipButton";
 import ProgressRing from "./ProgressRing";
+import { neumorphicShadow } from "../../../utils/neumorphic";
 import type { Theme } from "../providers/ThemeProvider";
+import type { NeumorphicShadowSpec } from "../../themes/themeData";
 
 interface GameTopBarProps {
   colors: Theme["colors"];
@@ -16,6 +18,8 @@ interface GameTopBarProps {
    *  tidak masuk ke balik status bar (looks fullscreen di Android edge-to-edge). */
   topInset: number;
   onBack: () => void;
+  /** Bayangan neumorphic tema aktif (PLAN-037) — opsional, hanya neumorfik. */
+  shadow?: NeumorphicShadowSpec;
 }
 
 /**
@@ -34,6 +38,7 @@ export default function GameTopBar({
   fillProgress,
   topInset,
   onBack,
+  shadow,
 }: GameTopBarProps) {
   return (
     <View
@@ -48,6 +53,8 @@ export default function GameTopBar({
           paddingVertical: compactBar ? 10 : 12,
           gap: compactBar ? 6 : 8,
         },
+        // PLAN-037: permukaan senada latar tampak "timbul" pada tema neumorfik.
+        neumorphicShadow(shadow),
       ]}
     >
       <View style={[styles.topBarLeft, { flexShrink: 1, minWidth: 0, gap: compactBar ? 8 : 10 }]}>

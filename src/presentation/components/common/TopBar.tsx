@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import { useGameStore } from "../../stores/gameStore";
 import { useAuth } from "../../../features/auth/useAuth";
+import { neumorphicShadow } from "../../../utils/neumorphic";
 import UserAvatar from "./UserAvatar";
 
 interface TopBarProps {
@@ -40,7 +41,7 @@ export default function TopBar({ showBack = true, onBack }: TopBarProps) {
         },
       ]}
     >
-      <View style={[styles.topBar, { backgroundColor: C.surface }]}>
+      <View style={[styles.topBar, { backgroundColor: C.surface }, neumorphicShadow(theme.shadow)]}>
         <View style={styles.topBarLeft}>
           {showBack && (
             <TouchableOpacity

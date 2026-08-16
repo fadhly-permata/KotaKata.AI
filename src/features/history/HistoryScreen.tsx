@@ -26,6 +26,7 @@ import {
   masonryWideHeight,
   isWideMasonryCard,
 } from "../../utils/masonry";
+import { neumorphicShadow } from "../../utils/neumorphic";
 import type { WordDiscoveryDoc, VocabularyDoc } from "../../data/models/schemas";
 
 interface DiscoveryItem {
@@ -75,6 +76,8 @@ function DiscoveryCard({
           flex: wide ? undefined : 1,
           width: wide ? "100%" : undefined,
         },
+        // PLAN-037: tema neumorphic — kartu senada latar tampak "timbul".
+        neumorphicShadow(theme.shadow),
       ]}
     >
       <View style={[styles.cardAccent, { backgroundColor: C.primary }]} />

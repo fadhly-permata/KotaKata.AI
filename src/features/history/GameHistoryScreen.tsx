@@ -26,6 +26,7 @@ import {
   masonryWideHeight,
   isWideMasonryCard,
 } from "../../utils/masonry";
+import { neumorphicShadow } from "../../utils/neumorphic";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "GameHistory">;
 
@@ -87,6 +88,8 @@ function BoardCard({
           flex: wide ? undefined : 1,
           width: wide ? "100%" : undefined,
         },
+        // PLAN-037: tema neumorphic — kartu senada latar tampak "timbul".
+        neumorphicShadow(theme.shadow),
       ]}
     >
       <View style={[styles.cardAccent, { backgroundColor: C.primary }]} />

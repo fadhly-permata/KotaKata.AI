@@ -15,6 +15,7 @@ import {
   type BackgroundSpec,
   type BoardColors,
   type KeyboardColors,
+  type NeumorphicShadowSpec,
 } from "../../themes/themeData";
 import {
   hydrateThemeSelection,
@@ -28,6 +29,10 @@ export type Theme = {
   mode: "light" | "dark";
   /** Latar GLOBAL (halaman) — gradien/gambar opsional di atas warna solid. */
   background?: BackgroundSpec;
+  /** Bayangan neumorphic (opsional, PLAN-037) — dipakai elemen permukaan
+   *  (kartu/panel/tombol) agar tampak "timbul". Hanya tema bergaya
+   *  neumorphism yang membawanya; tema lain tidak terpengaruh. */
+  shadow?: NeumorphicShadowSpec;
   colors: {
     background: string;
     surface: string;
