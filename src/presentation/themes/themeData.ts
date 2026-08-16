@@ -52,6 +52,25 @@ export interface BackgroundSpec {
   overlay?: string;
 }
 
+/* ─────────────────────────── Efek Latar Ambien (PLAN-044) ─────────────────────────── */
+
+/**
+ * Efek partikel ambien yang mengikuti SUASANA backsound tema (PLAN-044):
+ * hujan → rintik turun, angin → garis melintas, api unggun → bara naik,
+ * jangkrik → kelap-kelip, ombak → garis bergelombang, burung/angin sepoi →
+ * dedaunan melayang. Dirender oleh komponen ringan `AmbientFx` menggantikan
+ * orb saat tema mendefinisikannya (performa: native driver, partikel sedikit,
+ * hanya saat layar fokus).
+ */
+export type AmbientFxKind =
+  | "rain"
+  | "wind"
+  | "embers"
+  | "fireflies"
+  | "waves"
+  | "breeze"
+  | "none";
+
 /* ─────────────────────────── Bayangan Neumorphic (PLAN-037) ─────────────────────────── */
 
 /**
@@ -117,6 +136,9 @@ export interface AppThemeDefinition {
   sound: SoundSpec;
   /** Backsound latar tema (loop, URL audio online) — opsional; dipakai sound.ts. */
   ambient?: AmbientSoundSpec;
+  /** Efek partikel latar yang MENGIKUTI suasana backsound (PLAN-044) — opsional;
+   *  "none"/kosong → orb biasa. Dirender AmbientFx di ScreenFade. */
+  ambientFx?: AmbientFxKind;
   light: Theme;
   dark: Theme;
 }
@@ -135,6 +157,7 @@ const puitis: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/2393/2393-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "rain",
   light: {
     mode: "light",
     background: { gradient: ["#fef7ff", "#f7eaff", "#eef3ff"] },
@@ -205,6 +228,7 @@ const samudra: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/1196/1196-preview.mp3",
     volume: 0.35,
   },
+  ambientFx: "waves",
   light: {
     mode: "light",
     background: {
@@ -283,6 +307,7 @@ const senja: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/1789/1789-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "fireflies",
   light: {
     mode: "light",
     background: {
@@ -361,6 +386,7 @@ const hutan: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/1225/1225-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "rain",
   light: {
     mode: "light",
     background: { gradient: ["#f0f7ee", "#e5f2e1", "#ecf5f0"] },
@@ -431,6 +457,7 @@ const neumorfik: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/2472/2472-preview.mp3",
     volume: 0.28,
   },
+  ambientFx: "breeze",
   light: {
     mode: "light",
     // Gaya neumorphism.io klasik: latar abu #e0e5ec, surface = SAMA dengan
@@ -539,6 +566,7 @@ const glassmorphism: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "wind",
   light: {
     mode: "light",
     // Latar gradien CERAH + veil putih tipis (overlay) supaya teks gelap tetap
@@ -650,6 +678,7 @@ const claymorphism: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/1329/1329-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "embers",
   light: {
     mode: "light",
     background: { gradient: ["#fdeee2", "#f9e2e6", "#efe4f5"] },
@@ -752,6 +781,7 @@ const neoBrutalism: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/2505/2505-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "none",
   light: {
     mode: "light",
     background: { gradient: ["#fbf7ec", "#f4efe0"] },
@@ -857,6 +887,7 @@ const minimalist: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/1237/1237-preview.mp3",
     volume: 0.25,
   },
+  ambientFx: "breeze",
   light: {
     mode: "light",
     background: { gradient: ["#ffffff", "#f6f6f6"] },
@@ -944,6 +975,7 @@ const frost: AppThemeDefinition = {
     url: "https://assets.mixkit.co/active_storage/sfx/1172/1172-preview.mp3",
     volume: 0.3,
   },
+  ambientFx: "wind",
   light: {
     mode: "light",
     background: {

@@ -12,6 +12,7 @@ import {
   getAppThemeById,
   getBoardThemeById,
   getKeyboardThemeById,
+  type AmbientFxKind,
   type BackgroundSpec,
   type BoardColors,
   type KeyboardColors,
@@ -36,6 +37,9 @@ export type Theme = {
   /** Radius dasar permukaan (kartu/panel/input) — token SKIN (PLAN-038).
    *  Tema boleh mengubah untuk gaya berbeda; fallback 14. */
   radius?: number;
+  /** Efek latar ambien yang mengikuti SUASANA backsound tema (PLAN-044):
+   *  rain/wind/embers/fireflies/waves/breeze — menggantikan orb saat ada. */
+  ambientFx?: AmbientFxKind;
   colors: {
     background: string;
     surface: string;
@@ -145,7 +149,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Resolve palet dari registry tema (offline-first). Fallback otomatis ke
   // tema default "puitis" bila id tidak dikenal (lihat get*ThemeById).
   const appTheme = getAppThemeById(appThemeId);
-  const theme = isDark ? appTheme.dark : appTheme.light;
+  // ambientFx (PLAN-044) dibawa di level DEFINISI tema (bukan per mode) —
+  // disuntikkan ke tema ter-resolve supaya ScreenFade tinggal membacanya.
+  const theme: Theme = {
+    ...(isDark ? appTheme.dark : appTheme.light),
+    ambientFx: appTheme.ambientFx,
+  };
 
   // Kepribadian suara + backsound mengikuti tema aplikasi aktif (SoundSpec &
   // AmbientSoundSpec). Backsound pertama kali ditunda sampai preferensi

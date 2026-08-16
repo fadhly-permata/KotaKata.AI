@@ -1,6 +1,6 @@
 # Hapus kata vulgar (aman anak) + ganti agar tiap tier tetap 1000 soal
 
-<!-- status: pending -->
+<!-- status: in-progress -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 041`

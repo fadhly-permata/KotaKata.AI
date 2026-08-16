@@ -10,6 +10,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import ThemedBackground from "./ThemedBackground";
 import AmbientOrbs from "./AmbientOrbs";
+import AmbientFx from "./AmbientFx";
 import AmbientSoundHint from "./AmbientSoundHint";
 import type { BackgroundSpec } from "../../themes/themeData";
 
@@ -47,7 +48,8 @@ interface ScreenFadeProps {
  * (backgroundColor) tetap dipakai sebagai dasar di bawah lapisan itu.
  */
 export default function ScreenFade({ children, style, background, orbs = true }: ScreenFadeProps) {
-  const { background: appBackground } = useTheme();
+  const { theme: activeTheme, background: appBackground } = useTheme();
+  const ambientFx = activeTheme.ambientFx;
   const anim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
@@ -67,7 +69,10 @@ export default function ScreenFade({ children, style, background, orbs = true }:
   return (
     <Animated.View style={[styles.fill, { opacity: anim, transform: [{ translateY }] }, style]}>
       <ThemedBackground spec={background ?? appBackground} />
-      {orbs && <AmbientOrbs />}
+      {/* PLAN-044: tema yang punya suasana backsound spesifik (hujan/angin/
+          bara/dll) menggantikan orb dengan partikel yang mengikuti suasana
+          itu; tema lain tetap pakai orb biasa. */}
+      {orbs && (ambientFx && ambientFx !== "none" ? <AmbientFx fx={ambientFx} /> : <AmbientOrbs />)}
       {children}
       {/* Web: hint saat backsound diblokir autoplay (native: tidak dirender). */}
       <AmbientSoundHint />
