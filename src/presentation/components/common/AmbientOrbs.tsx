@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 
 interface AmbientOrbsProps {
@@ -41,6 +42,13 @@ interface OrbSpec {
 export default function AmbientOrbs({ count = 24, colors, intensity = 1 }: AmbientOrbsProps) {
   const { theme } = useTheme();
   const C = theme.colors;
+  // Mitigasi force close (PLAN-023/024/027): orb HANYA dianimasikan saat layar
+  // mendapat fokus. React Navigation menjaga layar tetap terpasang di stack,
+  // jadi tanpa guard ini setiap halaman menjalankan satu native-driver loop
+  // 24 orb selamanya walau tertutup layar lain — beban animasi & node native
+  // menumpuk di perangkat kelas menengah saat user menjelajah antar halaman.
+  // Dengan guard ini hanya layar yang sedang terlihat yang beranimasi.
+  const isFocused = useIsFocused();
   const palette =
     colors ?? [C.primary, C.secondary, C.tertiary, C.accent, C.gold, C.success, C.tertiaryContainer];
 
@@ -65,6 +73,7 @@ export default function AmbientOrbs({ count = 24, colors, intensity = 1 }: Ambie
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!isFocused) return; // layar tertutup: diam, tidak menumpuk beban animasi.
     // Gelombang naik-turun kontinu 0→1→0; interpolasi tiap orb memakai
     // inputRange [phase, phase+1] + extrapolate extend sehingga gerakannya
     // bergeser fase (tidak serempak) tapi tetap kontinu di titik balik.
@@ -84,9 +93,10 @@ export default function AmbientOrbs({ count = 24, colors, intensity = 1 }: Ambie
         }),
       ]),
     );
+    anim.setValue(0);
     loop.start();
     return () => loop.stop();
-  }, [anim]);
+  }, [anim, isFocused]);
 
   return (
     <View style={styles.container} pointerEvents="none">

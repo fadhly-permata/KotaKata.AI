@@ -16,10 +16,16 @@ import { loggerWarn } from "./logger";
  *   web dipakai `HTMLAudioElement` manual + `Asset.fromModule` (URI valid) dan
  *   SEMUA error (load / autoplay / playback) ditangkap — tidak pernah bocor jadi
  *   unhandled rejection.
- * - BACKSOUND (setAmbientSound): loop pelan dari URL MP3 online, mengikuti tema
- *   aplikasi aktif (lihat AmbientSoundSpec di themeData.ts). Di web, browser
- *   memblokir autoplay sebelum ada interaksi user — kalau keblokir, diputar
- *   otomatis saat gestur pertama (pointer/keyboard/touch).
+ * - BACKSOUND (setAmbientSound): loop halus dari URL MP3 online, mengikuti tema
+ *   aplikasi aktif (lihat AmbientSoundSpec di themeData.ts). Supaya perulangan
+ *   tidak terasa "putus" (PLAN-029), loop memakai CROSSFADE dua slot: satu slot
+ *   memutar, lalu ~2 detik sebelum habis slot kedua mulai dari awal dengan
+ *   volume naik sementara slot pertama turun — perpindahan tidak terdengar.
+ *   Properti `loop` tetap diset sebagai jaring pengaman kalau metadata durasi
+ *   belum tersedia (perilaku lama), bukan sumber utama kelancaran.
+ * - Di web, browser memblokir autoplay sebelum ada interaksi user — kalau
+ *   keblokir, diputar otomatis saat gestur pertama (pointer/keyboard/touch) dan
+ *   juga dicoba lagi saat layar game mendapat fokus (ensureAmbientPlaying).
  * - Preferensi hidup/mati disimpan di AsyncStorage ("kotakata.soundEnabled");
  *   saat dimatikan, backsound ikut di-pause.
  * - BACKSOUND punya toggle sendiri ("kotakata.ambientEnabled") di halaman
@@ -78,114 +84,308 @@ let currentRate = 1;
 let currentVolume = 1;
 
 // ---------------------------------------------------------------------------
-// Backsound tema (ambient) — loop pelan, satu sumber aktif per waktu.
+// Backsound tema (ambient) — crossfade loop, dua slot, satu sumber aktif.
 // ---------------------------------------------------------------------------
 let ambientSpec: AmbientSoundSpec | null = null;
-let nativeAmbientPlayer: AudioPlayer | null = null;
-let webAmbientAudio: HTMLAudioElement | null = null;
+/** URL yang sedang dimuat di slot (untuk deteksi ganti sumber). */
+let ambientLoadedUrl: string | null = null;
 /** Web: backsound siap tapi autoplay diblokir browser → tunggu gestur user. */
 let ambientPendingWeb = false;
 let ambientGestureBound = false;
+/** Backsound sedang terdengar (bukan pause/blokir). */
+let ambientAudible = false;
+/** Crossfade sedang berjalan (slot kedua fade-in, slot pertama fade-out). */
+let ambientFading = false;
+let crossfadeStartMs = 0;
+let ambientTick: ReturnType<typeof setInterval> | null = null;
+
+/** Lama crossfade loop (detik) — cukup pendek agar perpindahan tidak terasa. */
+const AMBIENT_FADE_SECONDS = 2.0;
+/** Frekuensi pengecekan posisi playback (ms). */
+const AMBIENT_TICK_MS = 250;
+
+/** Abstraksi satu slot audio backsound (web: HTMLAudioElement, native: expo-audio). */
+interface AmbientSlot {
+  play(): void;
+  pause(): void;
+  seekTo(sec: number): void;
+  setVolume(v: number): void;
+  /** Posisi playback saat ini (detik; NaN bila belum tersedia). */
+  getCurrentTime(): number;
+  /** Durasi sumber (detik; NaN bila belum tersedia). */
+  getDuration(): number;
+  dispose(): void;
+}
 
 function clamp01(v: number): number {
   if (Number.isFinite(v)) return Math.min(1, Math.max(0, v));
   return 0.3;
 }
 
-function stopAmbientNative(): void {
-  try {
-    if (nativeAmbientPlayer) {
-      nativeAmbientPlayer.pause();
-      nativeAmbientPlayer.remove();
-      nativeAmbientPlayer = null;
-    }
-  } catch {
-    // abaikan — backsound hanya pemanis.
-  }
-}
-
-function startAmbientNative(): void {
-  if (!enabled || !ambientEnabled || !ambientSpec) {
-    stopAmbientNative();
-    return;
-  }
-  try {
-    if (!nativeAmbientPlayer) {
-      nativeAmbientPlayer = createAudioPlayer({ uri: ambientSpec.url });
-      nativeAmbientPlayer.loop = true;
-    } else {
-      // Ganti sumber tanpa membuat player baru (kalau API tidak tersedia,
-      // fallback: buat ulang).
-      try {
-        nativeAmbientPlayer.replace({ uri: ambientSpec.url });
-      } catch {
-        stopAmbientNative();
-        nativeAmbientPlayer = createAudioPlayer({ uri: ambientSpec.url });
-        nativeAmbientPlayer.loop = true;
-      }
-    }
-    nativeAmbientPlayer.volume = clamp01(ambientSpec.volume ?? 0.3);
-    nativeAmbientPlayer.play();
-  } catch (err) {
-    loggerWarn("Backsound tema gagal diputar (native)", err);
-  }
-}
-
-function stopAmbientWeb(): void {
-  ambientPendingWeb = false;
-  try {
-    webAmbientAudio?.pause();
-  } catch {
-    // abaikan
-  }
-  emitAmbientStatus();
-}
-
-function startAmbientWeb(): void {
-  if (!enabled || !ambientEnabled || !ambientSpec) {
-    stopAmbientWeb();
-    return;
-  }
-  try {
-    if (!webAmbientAudio) {
-      webAmbientAudio = new Audio();
-      webAmbientAudio.loop = true;
-    }
-    if (webAmbientAudio.src !== ambientSpec.url) {
-      webAmbientAudio.src = ambientSpec.url;
-      webAmbientAudio.load();
-    }
-    webAmbientAudio.volume = clamp01(ambientSpec.volume ?? 0.3);
-    const p = webAmbientAudio.play();
-    if (p && typeof p.then === "function") {
-      p.then(() => {
+function makeWebSlot(url: string): AmbientSlot {
+  const audio = new Audio();
+  audio.src = url;
+  audio.load();
+  audio.loop = true; // jaring pengaman — crossfade yang utama
+  return {
+    play: () => {
+      const p = audio.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          ambientPendingWeb = false;
+          ambientAudible = true;
+          emitAmbientStatus();
+        }).catch(() => {
+          // Autoplay policy (belum ada interaksi user) → tunggu gestur pertama.
+          if (!ambientAudible) {
+            ambientPendingWeb = true;
+            emitAmbientStatus();
+          }
+        });
+      } else {
         ambientPendingWeb = false;
+        ambientAudible = true;
         emitAmbientStatus();
-      }).catch(() => {
-        // Autoplay policy (belum ada interaksi user) → tunggu gestur pertama.
-        ambientPendingWeb = true;
-        emitAmbientStatus();
-      });
-    } else {
-      ambientPendingWeb = false;
-    }
+      }
+    },
+    pause: () => audio.pause(),
+    seekTo: (sec) => {
+      try {
+        audio.currentTime = sec;
+      } catch {
+        // abaikan
+      }
+    },
+    setVolume: (v) => {
+      try {
+        audio.volume = clamp01(v);
+      } catch {
+        // abaikan
+      }
+    },
+    getCurrentTime: () => (Number.isFinite(audio.currentTime) ? audio.currentTime : NaN),
+    getDuration: () => (Number.isFinite(audio.duration) ? audio.duration : NaN),
+    dispose: () => {
+      try {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      } catch {
+        // abaikan
+      }
+    },
+  };
+}
+
+function makeNativeSlot(url: string): AmbientSlot {
+  let player: AudioPlayer | null = null;
+  try {
+    player = createAudioPlayer({ uri: url });
+    player.loop = true; // jaring pengaman — crossfade yang utama
   } catch {
-    ambientPendingWeb = true;
+    player = null;
   }
+  return {
+    play: () => {
+      try {
+        player?.play();
+        ambientPendingWeb = false;
+        ambientAudible = true;
+      } catch {
+        // abaikan — backsound hanya pemanis
+      }
+    },
+    pause: () => {
+      try {
+        player?.pause();
+      } catch {
+        // abaikan
+      }
+    },
+    seekTo: (sec) => {
+      try {
+        player?.seekTo(sec).catch(() => {});
+      } catch {
+        // abaikan
+      }
+    },
+    setVolume: (v) => {
+      try {
+        if (player) player.volume = clamp01(v);
+      } catch {
+        // abaikan
+      }
+    },
+    getCurrentTime: () => {
+      try {
+        return player ? player.currentTime : NaN;
+      } catch {
+        return NaN;
+      }
+    },
+    getDuration: () => {
+      try {
+        return player ? player.duration : NaN;
+      } catch {
+        return NaN;
+      }
+    },
+    dispose: () => {
+      try {
+        player?.pause();
+        player?.remove();
+      } catch {
+        // abaikan
+      }
+      player = null;
+    },
+  };
+}
+
+let ambientSlots: [AmbientSlot | null, AmbientSlot | null] = [null, null];
+/** Slot yang sedang terdengar (0 atau 1). */
+let ambientActiveIndex = 0;
+
+function ambientVolume(): number {
+  return clamp01(ambientSpec?.volume ?? 0.3);
+}
+
+/** Buat ulang kedua slot untuk URL saat ini (dipanggil saat ganti tema). */
+function rebuildAmbientSlots(): void {
+  for (const slot of ambientSlots) slot?.dispose();
+  ambientSlots = [null, null];
+  ambientFading = false;
+  ambientActiveIndex = 0;
+  if (!ambientSpec) return;
+  ambientLoadedUrl = ambientSpec.url;
+  ambientSlots = [makeSlot(ambientSpec.url), makeSlot(ambientSpec.url)];
+}
+
+function makeSlot(url: string): AmbientSlot {
+  return IS_WEB ? makeWebSlot(url) : makeNativeSlot(url);
+}
+
+function startAmbientTick(): void {
+  if (ambientTick) return;
+  ambientTick = setInterval(() => {
+    try {
+      tickAmbient();
+    } catch {
+      // jangan biarkan error timer merusak aplikasi
+    }
+  }, AMBIENT_TICK_MS);
+}
+
+function stopAmbientTick(): void {
+  if (ambientTick) {
+    clearInterval(ambientTick);
+    ambientTick = null;
+  }
+}
+
+/** Volume target slot saat crossfade selesai (0 = senyap). */
+function slotVolume(index: number): number {
+  return index === ambientActiveIndex ? ambientVolume() : 0;
+}
+
+/** Posisi slot aktif: [currentTime, duration]. */
+function activePosition(): [number, number] {
+  const slot = ambientSlots[ambientActiveIndex];
+  if (!slot) return [NaN, NaN];
+  return [slot.getCurrentTime(), slot.getDuration()];
+}
+
+function beginCrossfade(): void {
+  const active = ambientSlots[ambientActiveIndex];
+  if (!active || ambientFading) return;
+  const incomingIndex = (ambientActiveIndex + 1) % 2;
+  if (!ambientSlots[incomingIndex]) {
+    if (ambientLoadedUrl) ambientSlots[incomingIndex] = makeSlot(ambientLoadedUrl);
+  }
+  const incoming = ambientSlots[incomingIndex];
+  if (!incoming) return;
+  ambientFading = true;
+  crossfadeStartMs = Date.now();
+  // Slot kedua mulai dari awal, volume 0, lalu naik selama fade.
+  incoming.seekTo(0);
+  incoming.setVolume(0);
+  incoming.play();
+}
+
+/**
+ * Tick berkala backsound: (1) jalankan ramp crossfade yang sedang berjalan,
+ * (2) deteksi mendekati akhir durasi → mulai crossfade ke slot lain supaya
+ * perulangan tidak terdengar putus (PLAN-029).
+ */
+function tickAmbient(): void {
+  if (!enabled || !ambientEnabled || !ambientSpec) return;
+  const volume = ambientVolume();
+  const active = ambientSlots[ambientActiveIndex];
+  const incomingIndex = (ambientActiveIndex + 1) % 2;
+  const incoming = ambientSlots[incomingIndex];
+  if (!active) return;
+
+  if (ambientFading && incoming) {
+    const p = Math.min(1, (Date.now() - crossfadeStartMs) / (AMBIENT_FADE_SECONDS * 1000));
+    active.setVolume(volume * (1 - p));
+    incoming.setVolume(volume * p);
+    if (p >= 1) {
+      // Selesai: slot lama berhenti & kembali ke awal, slot baru jadi aktif.
+      active.pause();
+      active.seekTo(0);
+      active.setVolume(0);
+      ambientActiveIndex = incomingIndex;
+      ambientFading = false;
+    }
+    return;
+  }
+
+  // Tidak sedang fade — cek apakah sudah mendekati akhir durasi.
+  const [cur, dur] = activePosition();
+  if (!Number.isFinite(cur) || !Number.isFinite(dur) || dur <= 0) return; // metadata belum siap
+  if (ambientLoadedUrl && ambientSlots[incomingIndex] === null) {
+    ambientSlots[incomingIndex] = makeSlot(ambientLoadedUrl);
+  }
+  // Fade tidak boleh lebih dari ~20% durasi (aman untuk loop pendek).
+  const fade = Math.min(AMBIENT_FADE_SECONDS, dur * 0.2);
+  if (fade > 0.2 && dur - cur <= fade) {
+    beginCrossfade();
+  }
+}
+
+function startAmbient(): void {
+  if (!enabled || !ambientEnabled || !ambientSpec) {
+    stopAmbient();
+    return;
+  }
+  try {
+    if (ambientLoadedUrl !== ambientSpec.url) rebuildAmbientSlots();
+    if (!ambientSlots[0]) rebuildAmbientSlots();
+    const active = ambientSlots[ambientActiveIndex];
+    if (!active) return;
+    active.setVolume(ambientVolume());
+    active.play();
+    startAmbientTick();
+    bindWebAmbientGesture();
+  } catch (err) {
+    loggerWarn("Backsound tema gagal diputar", err);
+  }
+}
+
+function stopAmbient(): void {
+  ambientPendingWeb = false;
+  ambientAudible = false;
+  ambientFading = false;
+  stopAmbientTick();
+  for (const slot of ambientSlots) slot?.pause();
   emitAmbientStatus();
 }
 
 /** Web: coba mulai lagi backsound yang diblokir autoplay saat user berinteraksi. */
 function retryAmbientOnGesture(): void {
-  if (!ambientPendingWeb || !webAmbientAudio) return;
-  ambientPendingWeb = false;
-  try {
-    const p = webAmbientAudio.play();
-    if (p && typeof p.then === "function") p.catch(() => {});
-  } catch {
-    // tetap diam — user bisa ganti tema / nyalakan suara lagi.
+  if (IS_WEB && enabled && ambientEnabled && ambientSpec && !ambientAudible) {
+    startAmbient();
   }
-  emitAmbientStatus();
 }
 
 function bindWebAmbientGesture(): void {
@@ -199,13 +399,7 @@ function bindWebAmbientGesture(): void {
 
 /** Terapkan backsound sesuai spec aktif (no-op bila tidak ada / suara mati). */
 function applyAmbient(): void {
-  if (IS_WEB) startAmbientWeb();
-  else startAmbientNative();
-}
-
-function stopAmbient(): void {
-  if (IS_WEB) stopAmbientWeb();
-  else stopAmbientNative();
+  startAmbient();
 }
 
 // ---------------------------------------------------------------------------
@@ -237,11 +431,25 @@ export function subscribeAmbientStatus(listener: AmbientStatusListener): () => v
   };
 }
 
+/**
+ * Pastikan backsound sedang diputar (PLAN-028): dipanggil saat layar game
+ * mendapat fokus. Di web, masuk ke layar game terjadi dalam konteks gestur
+ * user (ketukan tombol), jadi peluang autoplay disetujui browser lebih besar —
+ * kalau sebelumnya diblokir, ini mencoba lagi.
+ */
+export function ensureAmbientPlaying(): void {
+  if (enabled && ambientEnabled && ambientSpec && !ambientAudible) {
+    startAmbient();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Web: HTMLAudioElement dengan error handling lengkap
 // ---------------------------------------------------------------------------
 let webAudios: Partial<Record<SoundName, HTMLAudioElement>> = {};
 let webInitPromise: Promise<void> | null = null;
+/** Efek yang diminta sebelum inisialisasi selesai — diputar ulang begitu siap. */
+let webPendingPlays = new Set<SoundName>();
 
 /** Resolve URI asset yang valid untuk web (path absolut di bundle web). */
 async function resolveWebUri(source: unknown): Promise<string | null> {
@@ -291,6 +499,11 @@ function initWebSounds(): Promise<void> {
           loggerWarn("Gagal menyiapkan efek suara (web)", r.reason);
         }
       }
+      // Efek yang sempat diminta saat init belum selesai (user tap sangat
+      // cepat di awal) — putar ulang sekali sekarang supaya tidak "hilang".
+      const pending = [...webPendingPlays];
+      webPendingPlays = new Set();
+      for (const name of pending) playWeb(name);
     })();
   }
   return webInitPromise;
@@ -298,16 +511,25 @@ function initWebSounds(): Promise<void> {
 
 function playWeb(name: SoundName): void {
   // Jaring pengaman: kalau play() dipanggil sebelum init selesai (user tap
-  // sangat cepat), pastikan inisialisasi tetap berjalan — promise disimpan,
-  // jadi tidak pernah dobel kerja.
+  // sangat cepat), catat dulu — diputar ulang setelah init selesai — dan
+  // pastikan inisialisasi tetap berjalan (promise disimpan, tidak dobel kerja).
   if (!webInitPromise) void initWebSounds();
   const audio = webAudios[name];
-  if (!audio) return;
+  if (!audio) {
+    if (webInitPromise) webPendingPlays.add(name);
+    return;
+  }
   try {
     audio.currentTime = 0;
-    // Kepribadian suara tema aktif (rate & volume relatif).
-    audio.playbackRate = currentRate;
+    // Kepribadian suara tema aktif (rate & volume relatif). Playback rate
+    // diset terpisah: di sebagian browser, set sebelum media siap bisa
+    // melempar — play() harus tetap dicoba apa pun yang terjadi.
     audio.volume = currentVolume;
+    try {
+      audio.playbackRate = currentRate;
+    } catch {
+      // non-fatal — rate tetap normal
+    }
     // Autoplay policy / source error → rejection. Ditangkap: jangan pernah
     // jadi unhandled rejection (ini akar 50 error log dari expo-audio web).
     audio.play().catch(() => {
@@ -346,7 +568,7 @@ export function setSoundTheme(spec?: { rate?: number; volume?: number } | null):
  */
 export function setAmbientSound(spec?: AmbientSoundSpec | null): void {
   ambientSpec = spec ?? null;
-  if (enabled && ambientEnabled) applyAmbient();
+  if (enabled && ambientEnabled && ambientSpec) applyAmbient();
   else stopAmbient();
 }
 

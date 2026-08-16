@@ -202,7 +202,7 @@ const alloc = (queue) => {
 };
 
 for (const p of plan) {
-  let rep = null;
+  let rep;
   if (p.tier === 2) {
     rep = alloc(poolQueueB) ?? alloc(poolQueueA);
   } else {

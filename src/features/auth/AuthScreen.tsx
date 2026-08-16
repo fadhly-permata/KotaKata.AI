@@ -5,14 +5,13 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Easing,
   useWindowDimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
@@ -68,7 +67,7 @@ const AUTH_DARK = {
 export default function AuthScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user, loading: authLoading, signInAnonymously, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle } = useAuth();
 
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
@@ -76,9 +75,11 @@ export default function AuthScreen() {
   const isDark = theme.mode === "dark";
   const C = isDark ? AUTH_DARK : AUTH_LIGHT;
 
-  // Navigate to MainMenu once authenticated
+  // Navigate to MainMenu once authenticated. Hanya user Google yang diizinkan
+  // masuk (PLAN-030): session anonim ditolak — tidak boleh melewati halaman
+  // login (RootNavigator otomatis mengeluarkan session anonim).
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !user.isAnonymous && !authLoading) {
       navigation.reset({ index: 0, routes: [{ name: "MainMenu" }] });
     }
   }, [user, authLoading, navigation]);
@@ -98,6 +99,11 @@ export default function AuthScreen() {
   // Parallax orb saat scroll — sama seperti main menu (Animated.event).
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // Hanya beranimasi saat layar mendapat fokus (mitigasi force close
+  // PLAN-023/024/027 — jangan menumpuk native-driver loop saat tertutup
+  // layar lain di stack navigasi).
+  const isFocused = useIsFocused();
+
   // Orb animations — idle bounce dengan fase & durasi berbeda supaya terlihat
   // hidup (dulu hanya float 12–15s yang nyaris tidak terasa).
   const orbBounce = [
@@ -107,6 +113,7 @@ export default function AuthScreen() {
     useRef(new Animated.Value(0)).current,
   ];
   useEffect(() => {
+    if (!isFocused) return;
     const loops = orbBounce.map((anim, i) =>
       Animated.loop(
         Animated.sequence([
@@ -125,12 +132,13 @@ export default function AuthScreen() {
         ]),
       ),
     );
+    orbBounce.forEach((a) => a.setValue(0));
     const starts = loops.map((loop, i) => setTimeout(() => loop.start(), i * 500));
     return () => {
       loops.forEach((l) => l.stop());
       starts.forEach(clearTimeout);
     };
-  }, [orbBounce]);
+  }, [orbBounce, isFocused]);
 
   // Ukuran orb proporsional terhadap layar (HP kecil s/d tablet/web lebar).
   const orbSize = (base: number) =>
@@ -193,18 +201,6 @@ export default function AuthScreen() {
       Animated.timing(footerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
   }, []);
-
-  const handleAnonymous = async () => {
-    setError("");
-    setActionLoading(true);
-    try {
-      await signInAnonymously();
-    } catch (e: any) {
-      setError(e.message || "Gagal masuk sebagai tamu");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleGoogle = async () => {
     setError("");
@@ -308,32 +304,6 @@ export default function AuthScreen() {
                 <Text style={[styles.chevron, { color: C.outlineVariant }]}>›</Text>
               </TouchableOpacity>
             </Animated.View>
-
-            {/* ── Divider: Atau ── */}
-            <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: C.outlineVariant }]} />
-              <Text style={[styles.dividerText, { color: C.onSurfaceVariant }]}>Atau</Text>
-              <View style={[styles.dividerLine, { backgroundColor: C.outlineVariant }]} />
-            </View>
-
-            {/* Guest */}
-            <TouchableOpacity
-              style={[styles.guestBtn, { backgroundColor: C.secondaryContainer }]}
-              activeOpacity={0.8}
-              onPress={handleAnonymous}
-              disabled={actionLoading}
-            >
-              {actionLoading ? (
-                <ActivityIndicator color={C.onSecondaryContainer} />
-              ) : (
-                <>
-                  <Text style={[styles.guestIcon, { color: C.onSecondaryContainer }]}>👤</Text>
-                  <Text style={[styles.guestBtnText, { color: C.onSecondaryContainer }]}>
-                    Lanjut sebagai Tamu
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
 
           </View>
 
@@ -441,32 +411,6 @@ const styles = StyleSheet.create({
   },
   socialBtnText: { flex: 1, fontSize: 16, fontWeight: "700" },
   chevron: { fontSize: 22, fontWeight: "300", marginLeft: 8 },
-
-  // Divider
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    marginVertical: 8,
-  },
-  dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontSize: 13, fontWeight: "600", letterSpacing: 2, textTransform: "uppercase" },
-
-  // Guest button
-  guestBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 999,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  guestIcon: { fontSize: 18 },
-  guestBtnText: { fontSize: 16, fontWeight: "700" },
 
 
   // Footer

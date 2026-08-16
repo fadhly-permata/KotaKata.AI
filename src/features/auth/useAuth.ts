@@ -3,8 +3,7 @@ import { Linking, Platform } from "react-native";
 import Constants from "expo-constants";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata, avatarUrlFromMetadata } from "../../utils/userMetadata";
-import { getOrCreateDeviceId } from "../../utils/deviceIdentity";
-import type { Session, AuthError } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 
 export type AuthUser = {
   id: string;
@@ -31,19 +30,6 @@ export function useAuth() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  /** Sign in anonymously — no credentials needed */
-  const signInAnonymously = useCallback(async () => {
-    // Tempel UUID device ke metadata user anon — jangkar identitas guest lintas
-    // session. Kalau session anonim berganti (hilang/terhapus), device_id yang
-    // sama dipakai restoreGuestIdentity untuk memulihkan riwayat & eksklusi kata.
-    const deviceId = await getOrCreateDeviceId();
-    const { data, error } = await supabase.auth.signInAnonymously({
-      options: { data: { device_id: deviceId } },
-    });
-    if (error) throw error;
-    return data;
   }, []);
 
   /**
@@ -134,7 +120,6 @@ export function useAuth() {
   return {
     user,
     loading,
-    signInAnonymously,
     signInWithGoogle,
     signOut,
   };

@@ -12,7 +12,7 @@ import {
   Easing,
   useWindowDimensions,
 } from "react-native";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
@@ -77,18 +77,25 @@ export default function MainMenuScreen() {
   }, [currentTier, totalXp]);
   const isMaxTier = currentTier >= TIER_THRESHOLDS.length;
 
+  // Hanya beranimasi saat layar mendapat fokus (mitigasi force close
+  // PLAN-023/024/027 — jangan menumpuk native-driver loop saat menu tertutup
+  // layar lain di stack navigasi).
+  const isFocused = useIsFocused();
+
   // ─── Bounce animation for play button icon ───
   const bounceAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (!isFocused) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
         Animated.timing(bounceAnim, { toValue: 0, duration: 1000, useNativeDriver: true }),
       ]),
     );
+    bounceAnim.setValue(0);
     loop.start();
     return () => loop.stop();
-  }, [bounceAnim]);
+  }, [bounceAnim, isFocused]);
 
   const bounceTranslate = bounceAnim.interpolate({
     inputRange: [0, 1],
@@ -110,6 +117,7 @@ export default function MainMenuScreen() {
     useRef(new Animated.Value(0)).current,
   ];
   useEffect(() => {
+    if (!isFocused) return;
     const loops = orbBounce.map((anim, i) =>
       Animated.loop(
         Animated.sequence([
@@ -128,12 +136,13 @@ export default function MainMenuScreen() {
         ]),
       ),
     );
+    orbBounce.forEach((a) => a.setValue(0));
     const starts = loops.map((loop, i) => setTimeout(() => loop.start(), i * 900));
     return () => {
       loops.forEach((l) => l.stop());
       starts.forEach(clearTimeout);
     };
-  }, [orbBounce]);
+  }, [orbBounce, isFocused]);
 
   const orbSpecs: FloatingOrbSpec[] = [
     {

@@ -21,7 +21,7 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 📴 **Offline-First** | Progress board + log tersimpan lokal (AsyncStorage + sql.js), sinkron ke cloud saat online |
 | ☁️ **Cloud Sync** | Supabase Auth + PostgreSQL + RLS; riwayat kata, XP, dan board tersimpan per user |
 | 🏆 **10 Tier Puitis** | Dari *Eja Awal* hingga *Keabadian Seloka* — progres XP naik lewat menyelesaikan kata |
-| 👤 **Identitas Guest** | Guest anonim memakai UUID perangkat sebagai jangkar identitas (tanpa permission MAC/IMEI) |
+| 🔐 **Login Google Wajib** | Game hanya bisa dimainkan oleh user yang login Google (mode tamu dihapus) — progres tersinkronisasi cloud antar perangkat |
 | ✨ **Kata Ajaib** | Popup kata acak + clue (otomatis mengecualikan clue sinonim/antonim) |
 | 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
 | 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
@@ -69,7 +69,7 @@ Setiap kata punya 3 clue yang selalu berbeda dan tidak pernah memuat jawaban:
 - **Sejarah Permainan** — daftar papan selesai + viewer read-only (sel hitam, nomor clue, grup Mendatar/Menurun).
 - **Kata Ajaib** — popup kata acak + clue dari seluruh tier (clue Antonim/Sinonim dikecualikan).
 - **Auto-save** — progres board tersimpan otomatis (500 ms setelah perubahan + saat menutup/refresh); board belum selesai bisa dilanjutkan dari "Mulai Bermain".
-- **Guest & Akun** — main tanpa akun (identitas per perangkat) atau login Google; progres tersinkronisasi cloud. "Hubungkan Akun" (Profil) menyatukan data guest ke akun permanen.
+- **Login Google** — game hanya bisa dimainkan oleh user yang login Google (mode tamu dihapus sejak PLAN-030); progres (XP, tier, riwayat) tersinkronisasi cloud antar perangkat.
 
 ## 🤖 Mode AI (Main Mode AI)
 
@@ -89,7 +89,7 @@ Main dengan soal yang dibuat AI dari provider pilihanmu (**Bring Your Own Key**)
 - **Backend & Auth:** Supabase (PostgreSQL + RLS + Auth)
 - **State Management:** Zustand
 - **Navigation:** React Navigation (native-stack)
-- **Local Storage:** AsyncStorage (progress, session, identitas guest) + sql.js (log lokal)
+- **Local Storage:** AsyncStorage (progress, session, preferensi) + sql.js (log lokal)
 - **Web:** react-native-web (satu kode untuk mobile & web)
 
 ## 📁 Project Structure
@@ -259,8 +259,8 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 
 **Akun & Data**
 
-- **Apakah data hilang saat login?** Tidak. Login tidak menghapus data guest. Untuk menggabungkan progres guest ke akun, gunakan **Profil → Hubungkan Akun** (guest anonim menyatukan XP, riwayat, dan board ke akun Google).
-- **Bagaimana cara keluar akun?** Profil → **Keluar Akun** (hanya tampil untuk user yang login; guest cukup menutup sesi).
+- **Kenapa harus login Google?** Sejak PLAN-030 game hanya bisa dimainkan oleh user yang login Google (mode tamu dihapus) — progres (XP, tier, riwayat kata, board) tersimpan di akun dan bisa dilanjutkan dari perangkat mana pun.
+- **Bagaimana cara keluar akun?** Profil → **Keluar Akun** (kembali ke halaman login).
 - **Bagaimana cara menghapus akun?** Profil → **Hapus Akun (Permanen)** — konfirmasi 2 level: peringatan, lalu ketik **kode acak 10 huruf** (case-insensitive). Menghapus seluruh data cloud + lokal secara permanen.
 - **Apakah progres tersimpan otomatis?** Ya. Board disimpan 500 ms setelah perubahan + saat menutup/refresh tab. Board yang belum selesai bisa dilanjutkan dari "Mulai Bermain".
 

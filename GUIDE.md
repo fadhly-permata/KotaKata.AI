@@ -24,11 +24,8 @@
 ## 🚀 Memulai
 
 1. Buka aplikasi → layar **Masuk**.
-2. Bisa langsung main **tanpa akun** (mode guest): progres tersimpan per perangkat secara anonim.
-3. Untuk menyimpan progres antar perangkat, **login Google** (sinkron ke cloud Supabase).
-4. Dari layar masuk, tekan **Mulai Bermain** — papan TTS baru langsung digenerate.
-
-> Guest yang sudah main lalu login, bisa menyatukan datanya lewat **Profil → "Hubungkan Akun"** (lihat [Akun & Data](#-akun--data)).
+2. **Login Google** — game hanya bisa dimainkan oleh user yang login Google (sinkron ke cloud Supabase).
+3. Dari layar masuk, tekan **Mulai Bermain** — papan TTS baru langsung digenerate.
 
 ---
 
@@ -233,14 +230,12 @@ Tap tombol, pop huruf, "ding-ding" kata benar, dengung kata salah, fanfare menan
 
 | Aksi | Lokasi | Cara |
 | :--- | :--- | :--- |
-| **Hubungkan Akun** | Profil | Hanya tampil untuk **guest anonim**. Menyatukan data guest (XP, riwayat, board) ke akun Google. |
-| **Keluar Akun** | Profil | Konfirmasi → keluar ke layar Masuk. Hanya tampil untuk user yang login. |
+| **Keluar Akun** | Profil | Konfirmasi → keluar ke layar Masuk. |
 | **Hapus Akun (Permanen)** | Profil | ⚠️ Konfirmasi 2 level: (1) peringatan data hilang permanen → (2) ketik **kode acak 10 huruf** yang ditampilkan. Tombol aktif hanya jika kode cocok (case-insensitive). Menghapus seluruh data cloud (riwayat, board, profil, akun) + data lokal perangkat. |
 
-### Guest & sinkronisasi
+### Login & sinkronisasi
 
-- **Mode guest**: identitas berbasis UUID perangkat (tanpa permission MAC/IMEI). Data tersimpan lokal + sinkron ke cloud saat online.
-- **Login Google**: data tersimpan per akun — bisa diakses dari perangkat mana pun.
+- **Login Google**: game hanya bisa dimainkan oleh user yang login Google (mulai PLAN-030 mode tamu dihapus). Data tersimpan per akun — bisa diakses dari perangkat mana pun.
 - **Offline-first**: progres board dan log tetap jalan saat offline; sinkron otomatis saat online kembali.
 - **Auto-save**: progres board disimpan otomatis (500 ms setelah perubahan + saat menutup/refresh/menutup tab). Board yang belum selesai bisa dilanjutkan dari tombol "Mulai Bermain".
 
@@ -274,8 +269,8 @@ A: Ini keputusan desain: Mode AI adalah mode eksplorasi/latihan dengan soal tak 
 **Q: Kenapa soal di papan baru terasa lebih sulit?**
 A: Kemungkinan kamu baru **naik tier**. Papan mengambil kosakata sesuai tier aktifmu (lihat tabel tier). Turun sementara ke tier di bawah jika ingin lebih santai — tapi ingat, XP menyesuaikan.
 
-**Q: Data saya hilang setelah login?**
-A: Tidak. Login tidak menghapus data guest — tapi untuk **menggabungkan** progres guest ke akun, gunakan **Profil → Hubungkan Akun** sebelum atau sesudah login (data guest disalin ke akun).
+**Q: Kenapa harus login Google untuk bermain?**
+A: Sejak versi terbaru, game hanya bisa dimainkan oleh user yang **login Google** (mode tamu dihapus). Login dibutuhkan supaya progres (XP, tier, riwayat kata, board) tersimpan di akun dan bisa dilanjutkan dari perangkat mana pun.
 
 **Q: Bagaimana cara melaporkan bug?**
 A: Buka **Pengaturan → Log Aplikasi → Salin**, lalu kirim isinya bersama deskripsi masalah. Log memudahkan pengembang menemukan akar masalah.

@@ -1,11 +1,15 @@
 import { useEffect } from "react";
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  createNavigationContainerRef,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "../components/providers/ThemeProvider";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { userRepository } from "../../data/repositories/userRepository";
-import { getOrCreateDeviceId } from "../../utils/deviceIdentity";
 import { syncAiProviderConfigWithCloud } from "../../utils/aiProvider";
 import { loggerWarn } from "../../utils/logger";
 import { useGameStore } from "../stores/gameStore";
@@ -39,6 +43,34 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// ─── Title tab browser (web) ───
+// Halaman web menampilkan "KotaKata AI - <Nama Halaman>" di title tab, mis.
+// "KotaKata AI - Beranda" (lihat PLAN-031). Native tidak memakai ini.
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+const ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
+  Auth: "Masuk",
+  MainMenu: "Beranda",
+  Game: "Bermain",
+  History: "Kata Ditemukan",
+  GameHistory: "Sejarah Permainan",
+  BoardViewer: "Detail Papan",
+  Profile: "Profil",
+  Settings: "Pengaturan",
+  AiProvider: "Provider AI",
+  LogViewer: "Log Aplikasi",
+  Markdown: "Dokumen",
+  Store: "Pasar",
+};
+
+/** Set judul tab browser sesuai rute aktif (web). No-op di native. */
+function updateDocumentTitle(): void {
+  if (typeof document === "undefined" || !navigationRef.isReady()) return;
+  const route = navigationRef.getCurrentRoute();
+  const page = route ? ROUTE_TITLES[route.name as keyof RootStackParamList] : undefined;
+  document.title = page ? `KotaKata AI - ${page}` : "KotaKata AI";
+}
+
 export default function RootNavigator() {
   const { theme } = useTheme();
 
@@ -48,6 +80,15 @@ export default function RootNavigator() {
   // database lokal / scheduler sync.
   useEffect(() => {
     let disposed = false;
+
+    // Session anonim yang tersisa dari build lama (PLAN-030: game hanya untuk
+    // login Google) langsung dikeluarkan saat app dibuka.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (disposed) return;
+      if (session?.user?.is_anonymous) {
+        void supabase.auth.signOut().catch(() => {});
+      }
+    });
 
     const {
       data: { subscription },
@@ -60,23 +101,17 @@ export default function RootNavigator() {
         useGameStore.getState().setProfileReady(false);
         return;
       }
+      // Sejak PLAN-030 game hanya boleh dimainkan user yang login Google —
+      // session anonim (tamu) tidak diterima: langsung dikeluarkan kembali ke
+      // halaman login. Data guest lama tidak dipulihkan lagi.
+      if (session.user.is_anonymous) {
+        void supabase.auth.signOut().catch(() => {});
+        useGameStore.getState().setProfileReady(false);
+        return;
+      }
       const uid = session.user.id;
       (async () => {
         try {
-          // Guest anonim: pulihkan dulu identitas device sebelum membaca profil,
-          // supaya kalau session anonim berganti (hilang/terhapus) data lama
-          // (riwayat word_discoveries, board, XP) ikut pindah ke uid yang baru.
-          const guestDeviceId = session.user.is_anonymous
-            ? await getOrCreateDeviceId()
-            : undefined;
-          if (guestDeviceId) {
-            try {
-              await userRepository.restoreGuestIdentity(guestDeviceId, uid);
-            } catch (err) {
-              loggerWarn("Gagal memulihkan identitas tamu", err);
-            }
-          }
-
           const { data: profile, error } = await supabase
             .from("users")
             .select("user_id, display_name, email, total_xp, current_tier, coins, updated_at")
@@ -95,7 +130,6 @@ export default function RootNavigator() {
                 user_id: profile.user_id,
                 display_name: realName,
                 email: profile.email ?? undefined,
-                device_id: guestDeviceId,
                 total_xp: profile.total_xp ?? 0,
                 current_tier: profile.current_tier ?? 1,
                 coins: profile.coins ?? 0,
@@ -106,7 +140,6 @@ export default function RootNavigator() {
                 user_id: profile.user_id,
                 display_name: profile.display_name ?? "Pemain",
                 email: profile.email ?? undefined,
-                device_id: guestDeviceId,
                 total_xp: profile.total_xp ?? 0,
                 current_tier: profile.current_tier ?? 1,
                 coins: profile.coins ?? 0,
@@ -121,7 +154,6 @@ export default function RootNavigator() {
               user_id: uid,
               display_name: realName ?? "Pemain",
               email: session.user.email ?? undefined,
-              device_id: guestDeviceId,
               total_xp: 0,
               current_tier: 1,
               coins: 0,
@@ -164,7 +196,12 @@ export default function RootNavigator() {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      theme={navTheme}
+      ref={navigationRef}
+      onReady={updateDocumentTitle}
+      onStateChange={updateDocumentTitle}
+    >
       <Stack.Navigator
         initialRouteName="Auth"
         screenOptions={{

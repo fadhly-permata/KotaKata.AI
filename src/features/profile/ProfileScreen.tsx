@@ -222,23 +222,15 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Account actions — hubungkan akun hanya relevan untuk guest */}
+        {/* Account status — game hanya untuk user login Google (PLAN-030),
+            jadi status akun selalu "terhubung". */}
         <View style={[styles.actions, { backgroundColor: theme.colors.surface }]}>
-          {user?.isAnonymous ? (
-            <TouchableOpacity style={styles.actionRow} activeOpacity={0.6}>
-              <Text style={[styles.actionText, { color: theme.colors.text }]}>Hubungkan Akun</Text>
-              <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]}>
-                Simpan progres ke cloud
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.actionRow}>
-              <Text style={[styles.actionText, { color: theme.colors.text }]}>✓ Akun Terhubung</Text>
-              <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {user?.email ?? "Masuk sebagai pemain terdaftar"}
-              </Text>
-            </View>
-          )}
+          <View style={styles.actionRow}>
+            <Text style={[styles.actionText, { color: theme.colors.text }]}>✓ Akun Terhubung</Text>
+            <Text style={[styles.actionHint, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              {user?.email ?? "Masuk sebagai pemain terdaftar"}
+            </Text>
+          </View>
         </View>
 
         {/* Keluar Akun + Hapus Akun (Permanen) */}

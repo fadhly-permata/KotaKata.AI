@@ -7,8 +7,7 @@ Kebijakan Privasi ini menjelaskan data apa saja yang dikumpulkan aplikasi **Kota
 ## 1. Data yang Kami Kumpulkan
 
 ### Data akun
-- **Guest (anonim):** kami membuat **UUID perangkat** yang disimpan lokal di perangkat Anda sebagai jangkar identitas. UUID ini tidak memuat informasi pribadi (bukan MAC/IMEI) dan tidak meminta permission apa pun.
-- **Login Google:** nama tampilan, alamat email, dan foto profil (jika diizinkan oleh penyedia login Anda) yang dikembalikan oleh Google.
+- **Login Google:** nama tampilan, alamat email, dan foto profil (jika diizinkan oleh penyedia login Anda) yang dikembalikan oleh Google. Game hanya bisa dimainkan oleh user yang login Google (mode tamu/anonim tidak lagi tersedia).
 
 ### Data permainan
 - Total XP, tier saat ini, dan riwayat perubahan tier.

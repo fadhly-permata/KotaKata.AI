@@ -32,7 +32,7 @@ import {
   IN_PROGRESS_BOARD_ID,
 } from "../../utils/boardProgress";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
-import { play } from "../../utils/sound";
+import { play, ensureAmbientPlaying } from "../../utils/sound";
 import { playLetterPressFeedback, playDeleteFeedback } from "../../utils/soundFeedback";
 
 const CELL_GAP = 3;
@@ -227,6 +227,15 @@ export default function GameScreen() {
     // Zoom 1: scroll immediately so auto-focused cells stay visible while typing.
     scrollToFocusedCell();
   }, [selectedCell, zoomLevel, scrollToFocusedCell]);
+
+  // Backsound tema: saat masuk ke dalam game, pastikan suara latar diputar
+  // (PLAN-028). Di web ini berada dalam konteks gestur user (ketukan tombol
+  // "Mulai Bermain"), jadi browser lebih mungkin menyetujui autoplay — kalau
+  // sebelumnya diblokir, langsung dicoba lagi.
+  useEffect(() => {
+    ensureAmbientPlaying();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const animateZoom = useCallback((newZoom: number) => {
     const oldZoom = prevZoomLevel.current;
