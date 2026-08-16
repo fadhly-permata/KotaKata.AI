@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { contrastText } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import { boardRepository } from "../../data/repositories/boardRepository";
 import { TIER_NAMES } from "../../domain/usecases/xpEngine";
@@ -206,7 +207,7 @@ export default function BoardViewerScreen({ route }: Props) {
                 <Text style={[styles.title, { color: C.text }]}>Papan Selesai</Text>
                 <View style={styles.headerMeta}>
                   <View style={[styles.tierBadge, { backgroundColor: C.primary }]}>
-                    <Text style={styles.tierBadgeText}>
+                    <Text style={[styles.tierBadgeText, { color: contrastText(C.primary) }]}>
                       Tier {tierAtGeneration} · {tierName}
                     </Text>
                   </View>
@@ -322,7 +323,7 @@ export default function BoardViewerScreen({ route }: Props) {
                       style={[styles.clueItem, { backgroundColor: C.surface }]}
                     >
                       <View style={[styles.clueNumber, { backgroundColor: C.primary }]}>
-                        <Text style={[styles.clueNumberText, { color: "#FFFFFF" }]}>
+                        <Text style={[styles.clueNumberText, { color: contrastText(C.primary) }]}>
                           {nw.number}
                         </Text>
                       </View>

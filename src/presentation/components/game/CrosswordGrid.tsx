@@ -10,6 +10,7 @@ import {
   Animated,
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
+import { neumorphicShadow } from "../../../utils/neumorphic";
 import type { Board, BoardCell } from "../../../domain/entities/board";
 
 interface CrosswordGridProps {
@@ -45,7 +46,7 @@ export default function CrosswordGrid({
 }: CrosswordGridProps) {
   // Palet PAPAN (tema papan aktif) — terpisah dari palet global aplikasi
   // supaya user bisa mengganti desain papan tanpa mengubah tema aplikasi.
-  const { boardColors: B } = useTheme();
+  const { boardColors: B, theme } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
   const baseCellSize = useMemo(() => {
@@ -262,6 +263,9 @@ export default function CrosswordGrid({
           borderColor: B.boardBorder,
           shadowColor: "#000",
         },
+        // Skin (PLAN-038): papan "timbul" di tema neumorfik (shadow legacy
+        // dinetralkan otomatis oleh neumorphicShadow).
+        ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
       ]}
     >
       {board.grid.map((row, r) => (

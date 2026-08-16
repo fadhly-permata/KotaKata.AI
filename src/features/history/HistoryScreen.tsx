@@ -19,6 +19,7 @@ import { useAuth } from "../auth/useAuth";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { timeAgo } from "../../utils/timeAgo";
+import { overlayColor } from "../../utils/skin";
 import { loggerWarn } from "../../utils/logger";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import {
@@ -380,7 +381,10 @@ export default function HistoryScreen() {
         onRequestClose={() => setSelected(null)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} onPress={() => setSelected(null)} />
+          <TouchableOpacity
+            style={[styles.modalBackdrop, { backgroundColor: overlayColor(theme) }]}
+            onPress={() => setSelected(null)}
+          />
           <View
             style={[
               styles.sheet,
@@ -396,20 +400,20 @@ export default function HistoryScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.clueCard}>
+                <View style={[styles.clueCard, { backgroundColor: theme.colors.secondaryContainer }]}>
                   <Text style={[styles.clueNum, { color: theme.colors.primary }]}>Petunjuk 1</Text>
                   <Text style={[styles.clueText, { color: theme.colors.text }]}>{selected.clue_1}</Text>
                 </View>
 
                 {selected.clue_2 && (
-                  <View style={styles.clueCard}>
+                  <View style={[styles.clueCard, { backgroundColor: theme.colors.secondaryContainer }]}>
                     <Text style={[styles.clueNum, { color: theme.colors.primary }]}>Petunjuk 2</Text>
                     <Text style={[styles.clueText, { color: theme.colors.text }]}>{selected.clue_2}</Text>
                   </View>
                 )}
 
                 {selected.clue_3 && (
-                  <View style={styles.clueCard}>
+                  <View style={[styles.clueCard, { backgroundColor: theme.colors.secondaryContainer }]}>
                     <Text style={[styles.clueNum, { color: theme.colors.primary }]}>Petunjuk 3</Text>
                     <Text style={[styles.clueText, { color: theme.colors.text }]}>{selected.clue_3}</Text>
                   </View>

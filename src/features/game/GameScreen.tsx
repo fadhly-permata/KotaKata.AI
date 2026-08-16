@@ -33,6 +33,7 @@ import {
 } from "../../utils/boardProgress";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { play, ensureAmbientPlaying } from "../../utils/sound";
+import { textOnPrimary } from "../../utils/skin";
 import { playLetterPressFeedback, playDeleteFeedback } from "../../utils/soundFeedback";
 
 const CELL_GAP = 3;
@@ -879,7 +880,7 @@ export default function GameScreen() {
               setRetryNonce((n) => n + 1);
             }}
           >
-            <Text style={styles.retryBtnText}>🔄 Coba Lagi</Text>
+            <Text style={[styles.retryBtnText, { color: textOnPrimary(theme) }]}>🔄 Coba Lagi</Text>
           </TouchableOpacity>
         </View>
       );
