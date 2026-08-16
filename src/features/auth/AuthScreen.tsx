@@ -21,6 +21,7 @@ import ScreenFade from "../../presentation/components/common/ScreenFade";
 import FloatingOrbs, {
   type FloatingOrbSpec,
 } from "../../presentation/components/common/FloatingOrbs";
+import { surfaceStyle } from "../../utils/skin";
 
 // Dokumen legal dimuat dari raw.githubusercontent.com (pengganti rawgit.com
 // yang sudah berhenti beroperasi). Markdown di-render oleh MarkdownScreen.
@@ -28,41 +29,6 @@ const TERMS_URL =
   "https://raw.githubusercontent.com/fadhly-permata/KotaKata.AI/main/docs/TERMS.md";
 const PRIVACY_URL =
   "https://raw.githubusercontent.com/fadhly-permata/KotaKata.AI/main/docs/PRIVACY.md";
-
-// LoginScreen.html inspired palette
-const AUTH_LIGHT = {
-  bg: "#fef7ff",
-  primary: "#e040a0",
-  secondary: "#7c52aa",
-  tertiary: "#0096cc",
-  onSurface: "#2e1a28",
-  onSurfaceVariant: "#604868",
-  surface: "#FFFFFF",
-  outlineVariant: "#dcc8e0",
-  secondaryContainer: "#eedcff",
-  onSecondaryContainer: "#2e2040",
-  error: "#e53e3e",
-  orbPink: "#ffd6ee",
-  orbBlue: "#c8eaff",
-  orbPurple: "#eedcff",
-};
-
-const AUTH_DARK = {
-  bg: "#1a1020",
-  primary: "#f0a0cc",
-  secondary: "#c8a8e8",
-  tertiary: "#80d0f0",
-  onSurface: "#fef7ff",
-  onSurfaceVariant: "#b8a0b8",
-  surface: "#2a1a30",
-  outlineVariant: "#4a3850",
-  secondaryContainer: "#3a2850",
-  onSecondaryContainer: "#eedcff",
-  error: "#ff6b6b",
-  orbPink: "#4a2040",
-  orbBlue: "#204060",
-  orbPurple: "#402060",
-};
 
 export default function AuthScreen() {
   const { theme } = useTheme();
@@ -72,8 +38,9 @@ export default function AuthScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isDark = theme.mode === "dark";
-  const C = isDark ? AUTH_DARK : AUTH_LIGHT;
+  // PLAN-038: halaman login ikut tema aplikasi aktif (bukan palet hardcoded
+  // lagi) — warna, radius, dan bayangan permukaan diambil dari token tema.
+  const C = theme.colors;
 
   // Navigate to MainMenu once authenticated. Hanya user Google yang diizinkan
   // masuk (PLAN-030): session anonim ditolak — tidak boleh melewati halaman
@@ -147,7 +114,7 @@ export default function AuthScreen() {
     {
       width: orbSize(180),
       height: orbSize(180),
-      backgroundColor: C.orbPink,
+      backgroundColor: C.secondaryContainer,
       top: -64,
       left: -64,
       parallaxRange: [0, -70],
@@ -157,7 +124,7 @@ export default function AuthScreen() {
     {
       width: orbSize(220),
       height: orbSize(220),
-      backgroundColor: C.orbBlue,
+      backgroundColor: C.tertiaryContainer,
       bottom: -80,
       right: -64,
       parallaxRange: [0, -100],
@@ -167,7 +134,7 @@ export default function AuthScreen() {
     {
       width: orbSize(120),
       height: orbSize(120),
-      backgroundColor: C.orbPurple,
+      backgroundColor: C.accent,
       top: "36%",
       right: "-8%",
       parallaxRange: [0, -50],
@@ -177,7 +144,7 @@ export default function AuthScreen() {
     {
       width: orbSize(84),
       height: orbSize(84),
-      backgroundColor: C.orbPink,
+      backgroundColor: C.secondaryContainer,
       top: "58%",
       left: "-4%",
       parallaxRange: [0, -40],
@@ -217,7 +184,7 @@ export default function AuthScreen() {
   // Splash while checking session
   if (authLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: C.bg }]}>
+      <View style={[styles.container, { backgroundColor: C.background }]}>
         <View style={styles.splashContainer}>
           <Text style={styles.splashIcon}>✨</Text>
           <Text style={[styles.splashTitle, { color: C.primary }]}>KotaKata AI</Text>
@@ -227,7 +194,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <ScreenFade orbs={false} style={{ backgroundColor: C.bg }}>
+    <ScreenFade orbs={false} style={{ backgroundColor: C.background }}>
       {/* orbs={false}: halaman login punya FloatingOrbs parallax sendiri. */}
       <KeyboardAvoidingView
         style={styles.container}
@@ -264,7 +231,13 @@ export default function AuthScreen() {
             },
           ]}
         >
-          <View style={[styles.logoBox, { backgroundColor: C.surface, shadowColor: C.primary }]}>
+          <View
+            style={[
+              styles.logoBox,
+              { shadowColor: C.primary },
+              surfaceStyle(theme, "raised", 16),
+            ]}
+          >
             <Text style={[styles.logoIcon, { color: C.primary }]}>✨</Text>
           </View>
         </Animated.View>
@@ -278,7 +251,7 @@ export default function AuthScreen() {
           }}
         >
           <Text style={[styles.title, { color: C.primary }]}>KotaKata AI</Text>
-          <Text style={[styles.subtitle, { color: C.onSurfaceVariant }]}>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>
             Masuk untuk mengukir seloka.
           </Text>
         </Animated.View>
@@ -286,22 +259,26 @@ export default function AuthScreen() {
         {/* ── Auth Buttons ── */}
         <View style={styles.authSection}>
             {error ? (
-              <View style={[styles.errorBanner, { backgroundColor: isDark ? "#3D1A1A" : "#ffe8e8" }]}>
-                <Text style={styles.errorBannerText}>{error}</Text>
+              <View style={[styles.errorBanner, { backgroundColor: C.error + "1A" }]}>
+                <Text style={[styles.errorBannerText, { color: C.error }]}>{error}</Text>
               </View>
             ) : null}
 
             {/* Google */}
             <Animated.View style={{ opacity: buttonsOpacity[0], width: "100%" }}>
               <TouchableOpacity
-                style={[styles.socialBtn, { backgroundColor: C.surface, shadowColor: "#000" }]}
+                style={[
+                  styles.socialBtn,
+                  { shadowColor: "#000" },
+                  surfaceStyle(theme, "raised", 999),
+                ]}
                 activeOpacity={0.8}
                 onPress={handleGoogle}
                 disabled={actionLoading}
               >
                 <Text style={styles.googleIcon}>G</Text>
-                <Text style={[styles.socialBtnText, { color: C.onSurface }]}>Masuk dengan Google</Text>
-                <Text style={[styles.chevron, { color: C.outlineVariant }]}>›</Text>
+                <Text style={[styles.socialBtnText, { color: C.text }]}>Masuk dengan Google</Text>
+                <Text style={[styles.chevron, { color: C.border }]}>›</Text>
               </TouchableOpacity>
             </Animated.View>
 
@@ -309,7 +286,7 @@ export default function AuthScreen() {
 
         {/* ── Footer ── */}
         <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
-          <Text style={[styles.footerText, { color: C.onSurfaceVariant }]}>
+          <Text style={[styles.footerText, { color: C.textSecondary }]}>
             Dengan masuk, Anda menyetujui{" "}
             <Text
               style={[styles.footerLink, { color: C.primary }]}

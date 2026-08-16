@@ -40,6 +40,8 @@ import FloatingOrbs, {
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
+import { neumorphicShadow } from "../../utils/neumorphic";
+import { chipStyle, chipTextColor, contrastText, textOnPrimary } from "../../utils/skin";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
@@ -148,7 +150,7 @@ export default function MainMenuScreen() {
     {
       width: 160,
       height: 160,
-      backgroundColor: isDark ? "#3a2050" : "#ffd6ee",
+      backgroundColor: C.secondaryContainer,
       top: "-5%",
       left: "-10%",
       opacity: 0.5,
@@ -179,7 +181,7 @@ export default function MainMenuScreen() {
     {
       width: 96,
       height: 96,
-      backgroundColor: isDark ? "#4a2a5e" : "#ffd6a5",
+      backgroundColor: C.accent,
       top: "6%",
       right: "6%",
       opacity: 0.4,
@@ -189,7 +191,7 @@ export default function MainMenuScreen() {
     {
       width: 64,
       height: 64,
-      backgroundColor: isDark ? "#245046" : "#a5e8d8",
+      backgroundColor: C.tertiaryContainer,
       top: "52%",
       left: "2%",
       opacity: 0.4,
@@ -199,7 +201,7 @@ export default function MainMenuScreen() {
     {
       width: 110,
       height: 110,
-      backgroundColor: isDark ? "#3a2f5a" : "#c9b6ff",
+      backgroundColor: C.tertiary,
       bottom: "2%",
       right: "10%",
       opacity: 0.4,
@@ -209,7 +211,7 @@ export default function MainMenuScreen() {
     {
       width: 52,
       height: 52,
-      backgroundColor: isDark ? "#5a3244" : "#ffb4c8",
+      backgroundColor: C.secondary,
       top: "22%",
       left: "18%",
       opacity: 0.45,
@@ -427,7 +429,9 @@ export default function MainMenuScreen() {
     }
   }, [navigation, reset]);
 
-  const heroBg = isDark ? "rgba(42,26,48,0.85)" : "rgba(255,255,255,0.7)";
+  // Hero card mengikuti token tema (PLAN-038): surface tema + transparansi
+  // ringan supaya latar/gradien tema tetap terlihat di baliknya.
+  const heroBg = C.surface + (isDark ? "D9" : "B3");
 
   // Tinggi kartu bento proporsional terhadap layar (layar pendek tidak
   // membuat konten terpotong / terlalu berjarak).
@@ -473,14 +477,20 @@ export default function MainMenuScreen() {
               </Text>
             </View>
           </View>
-          <View style={[styles.xpPill, { backgroundColor: C.secondaryContainer }]}>
-            <Text style={[styles.xpPillText, { color: C.secondary }]}>⭐ {totalXp} XP</Text>
+          <View style={[styles.xpPill, chipStyle(theme)]}>
+            <Text style={[styles.xpPillText, { color: chipTextColor(theme) }]}>⭐ {totalXp} XP</Text>
           </View>
         </View>
 
         {/* ═══ Hero Tier Card ═══ */}
         <View style={styles.heroCard}>
-          <View style={[styles.heroInner, { backgroundColor: heroBg, borderColor: C.surface }]}>
+          <View
+            style={[
+              styles.heroInner,
+              { backgroundColor: heroBg, borderColor: C.surface },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
+          >
             <View style={[styles.tierIconCircle, { backgroundColor: C.primary }]}>
               <Text style={styles.tierIconText}>📖</Text>
             </View>
@@ -514,7 +524,9 @@ export default function MainMenuScreen() {
             onPress={handlePlay}
           >
           <View style={styles.playButtonContent}>
-            <Text style={styles.playButtonText}>Mulai Bermain</Text>
+            <Text style={[styles.playButtonText, { color: textOnPrimary(theme) }]}>
+              Mulai Bermain
+            </Text>
             <Animated.Text
               style={[
                 styles.playButtonIcon,
@@ -530,7 +542,11 @@ export default function MainMenuScreen() {
         {/* ═══ Action Grid: Misi Harian + Kata Ajaib — lebar 48% (sama dgn bento) ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
+            style={[
+              styles.actionCard,
+              { backgroundColor: C.tertiaryContainer },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
             activeOpacity={0.8}
             onPress={handlePlayAi}
           >
@@ -539,7 +555,11 @@ export default function MainMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
+            style={[
+              styles.actionCard,
+              { backgroundColor: C.secondaryContainer },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
             activeOpacity={0.8}
             onPress={openMagicWord}
           >
@@ -551,7 +571,11 @@ export default function MainMenuScreen() {
         {/* ═══ Action Grid 2: Daftar Tier + Leaderboard ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: C.secondaryContainer }]}
+            style={[
+              styles.actionCard,
+              { backgroundColor: C.secondaryContainer },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
             activeOpacity={0.8}
             onPress={() => {
               play("tap");
@@ -563,7 +587,11 @@ export default function MainMenuScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: C.tertiaryContainer }]}
+            style={[
+              styles.actionCard,
+              { backgroundColor: C.tertiaryContainer },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
             activeOpacity={0.8}
             onPress={() => {
               void openLeaderboard();
@@ -583,7 +611,7 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[
                   styles.bentoLargeCard,
-                  { backgroundColor: "#FF8A65", height: bentoLargeH },
+                  { backgroundColor: C.primary, height: bentoLargeH },
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -593,14 +621,16 @@ export default function MainMenuScreen() {
               >
                 <View style={styles.bentoLargeContent}>
                   <Text style={styles.bentoLargeEmoji}>🎨</Text>
-                  <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Profil</Text>
+                  <Text style={[styles.bentoLargeLabel, { color: contrastText(C.primary) }]}>
+                    Profil
+                  </Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.bentoSmallCard,
-                  { backgroundColor: "#74B9FF", height: bentoSmallH },
+                  { backgroundColor: C.secondary, height: bentoSmallH },
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -610,7 +640,9 @@ export default function MainMenuScreen() {
               >
                 <View style={styles.bentoSmallContent}>
                   <Text style={styles.bentoSmallEmoji}>⚙️</Text>
-                  <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Pengaturan</Text>
+                  <Text style={[styles.bentoSmallLabel, { color: contrastText(C.secondary) }]}>
+                    Pengaturan
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -620,7 +652,7 @@ export default function MainMenuScreen() {
               <TouchableOpacity
                 style={[
                   styles.bentoSmallCard,
-                  { backgroundColor: "#00B894", height: bentoSmallH },
+                  { backgroundColor: C.tertiary, height: bentoSmallH },
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -630,14 +662,16 @@ export default function MainMenuScreen() {
               >
                 <View style={styles.bentoSmallContent}>
                   <Text style={styles.bentoSmallEmoji}>🔍</Text>
-                  <Text style={[styles.bentoSmallLabel, { color: "#FFFFFF" }]}>Kata Ditemukan</Text>
+                  <Text style={[styles.bentoSmallLabel, { color: contrastText(C.tertiary) }]}>
+                    Kata Ditemukan
+                  </Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.bentoLargeCard,
-                  { backgroundColor: "#8E6CC9", height: bentoLargeH },
+                  { backgroundColor: C.accent, height: bentoLargeH },
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -647,7 +681,9 @@ export default function MainMenuScreen() {
               >
                 <View style={styles.bentoLargeContent}>
                   <Text style={styles.bentoLargeEmoji}>🕹️</Text>
-                  <Text style={[styles.bentoLargeLabel, { color: "#FFFFFF" }]}>Sejarah Permainan</Text>
+                  <Text style={[styles.bentoLargeLabel, { color: contrastText(C.accent) }]}>
+                    Sejarah Permainan
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -658,6 +694,7 @@ export default function MainMenuScreen() {
           style={[
             styles.pasarBtn,
             { backgroundColor: C.surface, borderColor: C.border },
+            ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
           ]}
           activeOpacity={0.85}
           onPress={() => {
@@ -710,7 +747,7 @@ export default function MainMenuScreen() {
             }}
             disabled={magicLoading}
           >
-            <Text style={[styles.magicBtnText, { color: "#FFFFFF" }]}>
+            <Text style={[styles.magicBtnText, { color: textOnPrimary(theme) }]}>
               {magicLoading ? "Memuat…" : "🔄 Kata Lain"}
             </Text>
           </TouchableOpacity>
@@ -783,7 +820,9 @@ export default function MainMenuScreen() {
               void handlePlayAi();
             }}
           >
-            <Text style={styles.aiErrorBtnPrimaryText}>🔄 Coba Lagi</Text>
+            <Text style={[styles.aiErrorBtnPrimaryText, { color: textOnPrimary(theme) }]}>
+              🔄 Coba Lagi
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.aiErrorBtn, { backgroundColor: C.secondaryContainer }]}
@@ -915,7 +954,7 @@ export default function MainMenuScreen() {
                       ]}
                     >
                       <View style={styles.lbRankWrap}>
-                        <Text style={[styles.lbRank, { color: rank <= 3 ? "#D4AF37" : C.textSecondary }]}>
+                        <Text style={[styles.lbRank, { color: rank <= 3 ? C.gold : C.textSecondary }]}>
                           {rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : `#${rank}`}
                         </Text>
                       </View>
@@ -948,7 +987,7 @@ export default function MainMenuScreen() {
                 </Text>
                 <View style={styles.lbMyRankContent}>
                   <View style={styles.lbRankWrap}>
-                    <Text style={[styles.lbRank, { color: "#D4AF37" }]}>#{leaderboardMyRank.rank}</Text>
+                    <Text style={[styles.lbRank, { color: C.gold }]}>#{leaderboardMyRank.rank}</Text>
                   </View>
                   <View style={styles.lbRowCol}>
                     <Text style={[styles.lbName, { color: C.text }]} numberOfLines={1}>
@@ -1306,8 +1345,6 @@ const styles = StyleSheet.create({
   tierRowYou: { fontSize: 11, fontWeight: "800" },
   tierRowXp: { fontSize: 11, fontWeight: "600" },
   tierRowPhil: { fontSize: 11, lineHeight: 16 },
-  tierModalClose: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  tierModalCloseText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
   lbSubtitle: { fontSize: 12, textAlign: "center", marginTop: -6 },
   lbLoading: { marginVertical: 32 },
   lbError: { fontSize: 13, textAlign: "center", marginVertical: 24, lineHeight: 18 },

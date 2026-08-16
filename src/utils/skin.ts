@@ -72,5 +72,22 @@ export function textOnPrimary(theme: Theme): string {
   return theme.colors.textOnPrimary ?? "#FFFFFF";
 }
 
+/**
+ * Pilih warna teks yang kontras untuk latar warna ARBITRER (PLAN-038):
+ * hitung relative luminance (WCAG) dari hex, lalu kembalikan putih atau
+ * gelap. Dipakai kartu berwarna yang mengikuti token tema (mis. kartu bento
+ * Main Menu) supaya teks tetap terbaca di tema mana pun, terang atau gelap.
+ */
+export function contrastText(bg: string): string {
+  const hex = bg.replace("#", "");
+  if (hex.length < 6) return "#FFFFFF";
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const l = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return l > 0.35 ? "#111827" : "#FFFFFF";
+}
+
 /** Re-export tipe state shadow biar pemakai skin tidak perlu import 2x. */
 export type { NeumorphicState };
