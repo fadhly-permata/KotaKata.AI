@@ -173,7 +173,7 @@ export const TIER_9_WORDS: [string, string, string, string][] = [
   ["kesediaan", "kesanggupan (kerelaan) untuk berbuat sesuatu", "kerelaan untuk berbuat sesuatu", "Sinonim: kesudian"],
   ["mengepang", "menganyak (tentang rambut, dan sebagainya)", "menganyak", "menganyak tentang rambut dan sebagainya ; mengelabang"],
   ["pemenuhan", "proses memenuhi", "perbuatan melengkapi kebutuhan", "pengadaan apa yang diperlukan"],
-  ["penggaris", "alat untuk membuat garis", "mistar kayu atau plastik", "belebas untuk meluruskan tulisan"],
+  ["rias", "hati batang pisang", "hias; berhias", "Sinonim: hias"],
   ["pertokoan", "tempat atau kompleks toko", "Contoh: para pedagang banyak yang bertempat tinggal di daerah", "hal yang berkaitan dengan atau kompleks toko"],
   ["terpencar", "terserak atau berpisah", "tersebar tidak beraturan", "Antonim: terkumpul"],
   ["diafragma", "sekat antara rongga dada", "dinding tipis berlubang kecil bundar, untuk mengatur masuknya cahaya pada teropong atau kamera", "rongga perut"],

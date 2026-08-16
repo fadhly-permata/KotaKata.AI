@@ -13,7 +13,7 @@ export const TIER_10_WORDS: [string, string, string, string][] = [
   ["bertanda", "ada tandanya; ada cirinya", "ada mereknya", "sudah bercincin kawin"],
   ["ganjaran", "hadiah (sebagai pembalas jasa)", "hukuman; balasan", "Sinonim: hukuman"],
   ["pencabut", "orang yang mencabut (menghunus, dan sebagainya)", "alat untuk mencabut", "orang yang mencabut menghunus, mengutip"],
-  ["seadanya", "apa adanya; apa yang ada saja", "Contoh: silakan makan", "apa adanya"],
+  ["sriti", "burung layang-layang kecil", "burung yang terbang cepat di sore hari", "Sinonim: burung walet kecil"],
   ["diameter", "garis lurus melalui titik tengah lingkaran dari satu sisi ke sisi lainnya; garis tengah", "garis yang menghubungkan dua titik pada lingkaran melalui titik pusatnya", "tali busur terpanjang dalam lingkaran"],
   ["mendikte", "menyuruh orang menulis apa yang dibacakan atau dikatakan", "Kiasan menyuruh berbuat dan menurut saja seperti yang dikatakannya dengan tidak boleh membantah", "Contoh: jangan terus … , berikan kepadanya kebebasan berpikir"],
   ["pemulung", "orang yang mencari nafkah dengan jalan mencari", "memungut", "memanfaatkan barang bekas"],
