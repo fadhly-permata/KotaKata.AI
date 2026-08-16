@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-038 — semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-039 — semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -267,6 +267,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-036 | ✅ done | Tema Neumorfik (neumorphism) di Pasar — soft-UI abu lembut + biru baja, light/dark, papan & keyboard senada, backsound "Kicau burung pagi" + sound efek "Lembut" |
 | PLAN-037 | ✅ done | Neumorfik dirombak gaya neumorphism.io — surface = warna latar + bayangan timbul (terang kiri-atas, gelap kanan-bawah) di kartu Pasar/header/panel hint/keyboard/kartu riwayat; aksen biru |
 | PLAN-038 | ✅ done | Sistem skin menyeluruh (Winamp-like) — efek tema (warna/radius/bayangan) merata ke semua komponen semua halaman; token skin generik (overlay/chip/input/textOnPrimary) + helper skin.ts (surfaceStyle/contrastText dll); login & main menu ikut tema; fondasi agar tema baru cukup definisikan token |
+| PLAN-039 | ✅ done | Semua tombol dapat efek neumorphism yang sama saat tema Neumorfik aktif — warna tombol dipertahankan; helper buttonShadow(theme) disapu ke semua tombol semua halaman, TooltipButton jadi titik pusat otomatis |
 
 ## ❓ FAQ
 

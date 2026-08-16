@@ -1,6 +1,6 @@
 # Semua tombol dapat efek neumorphism (pertahankan warna)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 039`
@@ -37,8 +37,12 @@ primary, secondaryContainer tetap secondaryContainer, dst).
 
 ## Langkah
 
-- [ ] Helper `buttonShadow(theme)` di `skin.ts`
-- [ ] Sapuan tombol halaman: MainMenu (play/bento/magic/aiError), Auth, Store
-- [ ] Sapuan tombol komponen bersama: ConfirmDialog, CompletionOverlay, AppModal (close), TopBar, TooltipButton trigger
-- [ ] Sapuan tombol halaman lain: Settings, Profile, AiProvider, LogViewer, SavedBoardList, GameScreen retry, Markdown retry, GameTopBar (back/themeToggle), BoardViewer
-- [ ] Verifikasi tsc + tes + lint + commit + push + deploy web
+- [x] **1. Helper `buttonShadow(theme)` di `skin.ts`** — `neumorphicShadow(theme.shadow)`, no-op untuk tema tanpa shadow
+- [x] **2. Sapuan tombol halaman** — MainMenu (play/bento/magic/aiError), Store (preview/aktifkan)
+- [x] **3. Sapuan tombol komponen bersama** — ConfirmDialog, CompletionOverlay, TopBar, TooltipButton trigger (otomatis mencakup GameTopBar back/themeToggle, CluePill arrows, GameActionBar)
+- [x] **4. Sapuan tombol halaman lain** — Settings, Profile (hapus akun), AiProvider (preset/aksi), LogViewer (log/filter/pager), SavedBoardList (resume), GameScreen retry, Markdown retry
+- [x] **5. Verifikasi tsc + tes + lint + commit + push + deploy web**
+
+## Catatan Revisi
+
+- **2.** 2026-08-16: Dikerjakan tuntas: helper buttonShadow + sapuan semua tombol (commit c7927af)
