@@ -40,6 +40,9 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-029** | ✅ done | Transisi looping suara latar lebih halus | 3 langkah: loop backsound memakai **crossfade dua slot** (fade 2 dtk, maks 20% durasi) — slot kedua mulai dari awal saat slot pertama hampir habis, perpindahan tidak terasa putus; properti `loop` tetap jadi jaring pengaman |
 | **PLAN-030** | ✅ done | Hapus login tamu — wajib login Google | 3 langkah: tombol & handler guest dihapus (AuthScreen/useAuth), **session anonim dikeluarkan otomatis** (RootNavigator — termasuk yang tersisa dari build lama), Profil tidak lagi menampilkan "Hubungkan Akun", dokumen (README/GUIDE/TERMS/PRIVACY) disinkronkan |
 | **PLAN-031** | ✅ done | Title HTML web "KotaKata AI" | 3 langkah: `public/index.html` (title dasar) + **title per rute** "KotaKata AI - <Halaman>" (mis. "KotaKata AI - Beranda") via `onStateChange` di RootNavigator |
+| **PLAN-032** | ✅ done | Sejarah & kata ditemukan jadi card masonry ukuran acak | 3 langkah: **card masonry** di HistoryScreen (kata ditemukan) & GameHistoryScreen (sejarah permainan) — bukan list baris lagi: tinggi card acak tapi **deterministik** (util `src/utils/masonry.ts`, hash FNV-1a dari id item: normal 132–204px, lebar 156–216px), ~18% card memenuhi satu baris penuh (variasi width), pasangan 2 kolom flex; **lazy load tetap** (FlatList + paging 25 + onEndReached/onScroll + footer); verifikasi tsc + 43 tes + lint lolos |
+| **PLAN-033** | ✅ done | Hapus tema papan & keyboard dari pasar | 3 langkah: Pasar hanya menjual **Tema Aplikasi** (seksi papan/keyboard dihapus dari StoreScreen, teks hero diperbarui); **papan & keyboard selalu mengikuti tema aplikasi** — ThemeProvider me-resolve `getBoardThemeById(appThemeId)` / `getKeyboardThemeById(appThemeId)`; registry data tetap ada untuk rencana desain ulang; verifikasi tsc + 43 tes + lint lolos |
+| **PLAN-034** | ✅ done | Toolbar In-Game responsif (fix Android 9) | 3 langkah: `GameActionBar` radius pill 999 → **22** (panel membungkus 2 baris di layar sempit — pill 999 tampak kapsul raksasa/offset di Android 9); `GameTopBar` responsif (padding/gap mengecil saat compact, divider disembunyikan, ProgressRing 30px, XP pill flexShrink, `maxFontSizeMultiplier` 1.2); verifikasi tsc + 43 tes + lint lolos |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
@@ -55,6 +58,12 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🔄 **Looping suara latar mulus (PLAN-029)** — backsound kini memakai **crossfade dua slot**: ~2 detik sebelum akhir, slot kedua mulai dari awal dengan volume naik sementara slot pertama turun — perulangan tidak lagi terasa "putus". Properti `loop` tetap sebagai jaring pengaman.
 - 🔐 **Login Google wajib (PLAN-030)** — tombol "Lanjut sebagai Tamu" dihapus; game hanya bisa dimainkan user yang login Google. Session anonim yang tersisa (dari build lama) otomatis dikeluarkan saat app dibuka. Profil tidak lagi menampilkan "Hubungkan Akun"; dokumen (README/GUIDE/TERMS/PRIVACY) disinkronkan.
 - 🌐 **Title tab web (PLAN-031)** — title HTML kini "KotaKata AI" dan berganti per halaman: "KotaKata AI - Beranda", "KotaKata AI - Bermain", dst.
+
+### v1.3.3 — Card Masonry Riwayat, Pasar Hanya Tema Aplikasi & Toolbar In-Game Responsif (PLAN-032–034)
+
+- 🧱 **Halaman Sejarah Permainan & Kata Ditemukan jadi card masonry (PLAN-032)** — bukan list baris lagi: setiap card punya tinggi & lebar yang bervariasi (acak tapi stabil — tidak berubah saat scroll), tetap rapi dalam tata letak 2 kolom + sesekali card lebar penuh. Lazy load (paging 25) tetap berjalan.
+- 🎨 **Pasar hanya menjual Tema Aplikasi (PLAN-033)** — seksi "Tema Papan" & "Tema Keyboard" dihapus untuk sementara (menunggu rencana desain ulang pemilik). **Papan & keyboard kini selalu mengikuti tema aplikasi yang aktif** — ganti tema aplikasi otomatis mewarnai papan & keyboard senada.
+- 📐 **Toolbar In-Game responsif (PLAN-034)** — panel aksi tidak lagi tampak kebesaran/offset di layar Android lama (Infinix Hot 8): radius panel diperbaiki untuk tampilan 2 baris, header menyusut di layar sempit, dan teks tidak membesar berlebihan saat font-scale besar.
 
 ### v1.3.1 — Backsound Suara Latar per Tema (PLAN-019)
 

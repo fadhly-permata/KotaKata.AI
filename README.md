@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-031 — semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-034 — semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -260,6 +260,9 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-029 | ✅ done | Looping suara latar mulus — crossfade dua slot (fade 2 dtk, maks 20% durasi); perulangan tidak terasa putus |
 | PLAN-030 | ✅ done | Hapus login tamu — game hanya untuk user login Google; session anonim dikeluarkan otomatis (termasuk dari build lama); "Hubungkan Akun" dihapus; dokumen disinkronkan |
 | PLAN-031 | ✅ done | Title HTML web "KotaKata AI - <Halaman>" (mis. "KotaKata AI - Beranda") — `public/index.html` + title per rute |
+| PLAN-032 | ✅ done | Sejarah permainan & kata ditemukan jadi card masonry ukuran acak (tinggi/lebar acak tapi stabil, 2 kolom + sesekali card lebar penuh) — lazy load tetap |
+| PLAN-033 | ✅ done | Tema papan & keyboard dihapus dari pasar — papan & keyboard selalu mengikuti tema aplikasi yang aktif |
+| PLAN-034 | ✅ done | Toolbar In-Game responsif — tidak kebesaran/offset di Android lama (Infinix Hot 8); radius panel, header, & skala teks disesuaikan |
 
 ## ❓ FAQ
 

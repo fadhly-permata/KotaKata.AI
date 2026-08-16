@@ -1,6 +1,6 @@
 # Toolbar papan kebesaran & offset di Android 9 (Infinix Hot 8) — buat responsif
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 034`
@@ -19,15 +19,15 @@ Buat responsif agar rapi di berbagai ukuran layar.
 
 ## Langkah
 
-- [ ] **1. Reproduksi & identifikasi layout** — periksa komponen toolbar
+- [x] **1. Reproduksi & identifikasi layout** — periksa komponen toolbar
   halaman In-Game, ukuran (padding, margin, font, dimensi tetap) dan cara
   layout saat ini; catat dimensi Infinix Hot 8 (720x1560, ~6.5", Android 9).
-- [ ] **2. Buat responsif** — sesuaikan ukuran toolbar (skala/fluid sizing,
+- [x] **2. Buat responsif** — sesuaikan ukuran toolbar (skala/fluid sizing,
   hitung dari `useWindowDimensions`, hindari offset) agar proporsional di
   layar kecil/lama maupun layar besar.
-- [ ] **3. Verifikasi** — tsc + tes, cek tampilan di berbagai ukuran (mode
+- [x] **3. Verifikasi** — tsc + tes, cek tampilan di berbagai ukuran (mode
   responsive web preview) & pastikan tidak ada offset.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 034 <no> "teks"`)_
+- **2.** 2026-08-16: Dikerjakan batch 2026-08-16: GameActionBar radius 999 (pill) diganti 22 — panel membungkus 2 baris di layar ponsel sempit, pill 999 membuat kapsul raksasa (tampak kebesaran/offset di Android 9); GameTopBar responsif: padding/gap mengecil saat compactBar, divider disembunyikan, ProgressRing 30px (dari 34), XP pill flexShrink + numberOfLines, maxFontSizeMultiplier 1.2 pada teks agar tidak meledak di font scale besar.
