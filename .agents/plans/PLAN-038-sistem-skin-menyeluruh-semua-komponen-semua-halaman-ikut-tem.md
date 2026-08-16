@@ -50,6 +50,18 @@ dipasangi shadow yang ikut tema, sisanya tetap warna mati.
 - [ ] **5. Verifikasi & rilis** — tsc + tes + lint, cek visual semua halaman di
   web (light/dark, beberapa tema), regenerate seed SQL + push, commit, deploy.
 
+## Tahapan pengerjaan (keputusan pemilik: dikerjakan BERTAHAP + catatan tiap tahap)
+
+| Tahap | Isi | Status |
+| :--- | :--- | :--- |
+| **T1** | Fondasi skin: token `radius` + warna generik (overlay/chip/input/textOnPrimary) di tipe `Theme`, helper `skin.ts` (surfaceStyle/chipStyle/inputStyle/overlayColor/textOnPrimary), nilai untuk tema Neumorfik | ⬜ |
+| **T2** | Sapuan halaman utama: AuthScreen + MainMenuScreen (warna hardcoded → token/helper) | ⬜ |
+| **T3** | Sapuan halaman: Settings, Profile, AiProvider, LogViewer | ⬜ |
+| **T4** | Sapuan komponen bersama & in-game: Store/ThemePreviewModal, AppModal, ConfirmDialog, CompletionOverlay, TooltipButton, SavedBoardList, GameTopBar | ⬜ |
+| **T5** | Efek skin (shadow/radius) merata via helper di semua permukaan + verifikasi visual + seed regen/push + deploy web | ⬜ |
+
+Pengecualian yang TIDAK di-theme (dengan alasan): ikon SVG brand (KeyboardIcon dll), Confetti (warna konfeti tetap), ErrorBoundary (layar fallback).
+
 ## Catatan Revisi
 
 - _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 038 <no> "teks"`)_
