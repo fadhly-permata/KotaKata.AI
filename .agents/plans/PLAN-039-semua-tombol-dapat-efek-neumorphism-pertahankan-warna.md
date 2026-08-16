@@ -46,3 +46,9 @@ primary, secondaryContainer tetap secondaryContainer, dst).
 ## Catatan Revisi
 
 - **2.** 2026-08-16: Dikerjakan tuntas: helper buttonShadow + sapuan semua tombol (commit c7927af)
+- **3.** 2026-08-16 (lanjutan "kerjain"): audit ulang menyeluruh — tersisa 2 tombol tanpa efek:
+  tombol [x] AppModal (semua dialog) & toggle Terang/Gelap di ThemePreviewModal;
+  keduanya diberi buttonShadow (commit 4d0d0c2). Audit lain: AuthScreen (Google via
+  surfaceStyle), GameActionBar/InGameKeyboard/CluePill/GameTopBar/History cards sudah
+  ter-cover; tombol outline (border-only) sengaja tetap tanpa emboss; ErrorBoundary
+  ternyata komponen tak terpakai (dead code). Verifikasi tsc + 43 tes + deploy web lolos.
