@@ -1,6 +1,6 @@
 # Animasi latar mengikuti suasana backsound (hujan/angin/dll) tanpa membebani performa
 
-<!-- status: in-progress -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 044`
@@ -44,4 +44,4 @@ close PLAN-023/024/027: animasi hanya jalan saat layar fokus).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 044 <no> "teks"`)_
+- **4.** 2026-08-16: Selesai 2026-08-16: AmbientFx diterapkan (rain/wind/embers/fireflies/waves/breeze), wire ke ScreenFade menggantikan orb, partikel <=12 + native driver + hanya saat layar fokus. tsc + 43 tes + lint lolos.

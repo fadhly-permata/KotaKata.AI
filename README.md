@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-041 — semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-044 — semuanya ✅ done, kecuali PLAN-042 yang di-skip oleh pemilik) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -270,6 +270,9 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-039 | ✅ done | Semua tombol dapat efek neumorphism yang sama saat tema Neumorfik aktif — warna tombol dipertahankan; helper buttonShadow(theme) disapu ke semua tombol semua halaman, TooltipButton jadi titik pusat otomatis |
 | PLAN-040 | ✅ done | 5 tema baru di Pasar: Glassmorphism (kaca transparan + gradien hidup), Claymorphism (pastel hangat radius besar), Neo-Brutalism (border tebal + bayangan keras), Minimalist UI (flat polos), Frost UI (kaca lembut es biru) — masing-masing light/dark + papan & keyboard senama + sound & backsound khas; themes.sql (34 tema) di-push ke Supabase |
 | PLAN-041 | ✅ done | Kosakata bersih & aman anak — 52 kata vulgar/tidak layak (makian, alat kelamin, tindakan seksual, narkoba) diganti kata kurasi (1000/tier tetap), 8 clue memuat kata vulgar ditulis ulang; scanner permanen vulgar-words.mjs + QA DB check-vulgar-db.mjs (0 vulgar di DB, tetap 1000 soal/tier) |
+| PLAN-042 | ⏭ skipped | Review soal tier 2–10 — di-skip oleh pemilik (belum dikerjakan; ditampilkan hanya saat diminta) |
+| PLAN-043 | ✅ done | Popup dialog dibuat solid/opaque agar teks terbaca — helper solidSurfaceColor() di skin.ts (rgba surface glass/frost di-blend jadi solid) dipakai semua kartu dialog: AppModal, ConfirmDialog, CompletionOverlay, sheet detail kata, modal hapus akun, kartu error AI; efek kaca tetap di elemen halaman |
+| PLAN-044 | ✅ done | Animasi latar mengikuti suasana backsound — tema hujan→rintik turun, angin→garis melintas, unggun→bara naik, jangkrik→kelap-kelip, ombak→gelombang, sepoi→dedaunan; komponen AmbientFx ringan (≤12 partikel, native driver, hanya saat layar fokus) menggantikan orb |
 
 ## ❓ FAQ
 
