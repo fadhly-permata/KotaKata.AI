@@ -1,6 +1,6 @@
 # Panel hint in-game ringkas: swipe kanan-kiri + panah navigasi
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 035`
@@ -21,18 +21,18 @@ panel ada **icon panah ◀ ▶** (seperti navigasi soal di CluePill).
 
 ## Langkah
 
-- [ ] **1. Identifikasi GameActionBar saat ini** — pahami susunan tombol (zoom,
+- [x] **1. Identifikasi GameActionBar saat ini** — pahami susunan tombol (zoom,
   reveal clue/huruf/kata, reset, keyboard), mode compact vs lebar, dan interaksi
   toggle tools; tentukan pembagian grup tombol jadi beberapa "halaman" yang
   bisa di-swipe.
-- [ ] **2. Implementasi swipe + panah** — panel hint jadi carousel horizontal:
+- [x] **2. Implementasi swipe + panah** — panel hint jadi carousel horizontal:
   swipe kiri/kanan (dan/atau panah ◀ ▶ di kanan-kiri) berpindah antar halaman
   tombol; transisi dengan animasi fluid (Animated/ScrollView paging halus,
   snap ke tiap halaman); pertahankan tooltip & state tombol yang sudah ada.
-- [ ] **3. Verifikasi** — tsc + tes, cek tampilan di berbagai ukuran layar
+- [x] **3. Verifikasi** — tsc + tes, cek tampilan di berbagai ukuran layar
   (compact ponsel & lebar), pastikan semua tombol tetap bisa diakses dan panel
   tidak lagi memakan ruang berlebih.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 035 <no> "teks"`)_
+- **2.** 2026-08-16: Dikerjakan batch 2026-08-16: GameActionBar dirombak jadi pager horizontal 3 halaman (Zoom / Petunjuk / Alat: Reset+Keyboard) — ScrollView pagingEnabled + snap halus per halaman, panah ◀ ▶ (NextIcon, flip) di kanan-kiri panel seperti CluePill, opacity panah mengikuti posisi scroll (interpolate Animated), indikator titik halaman di bawah, panel kini setinggi 1 baris; state toolsExpanded/onToggleTools dihapus dari GameScreen.
