@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-040 — semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-041 — semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -269,6 +269,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-038 | ✅ done | Sistem skin menyeluruh (Winamp-like) — efek tema (warna/radius/bayangan) merata ke semua komponen semua halaman; token skin generik (overlay/chip/input/textOnPrimary) + helper skin.ts (surfaceStyle/contrastText dll); login & main menu ikut tema; fondasi agar tema baru cukup definisikan token |
 | PLAN-039 | ✅ done | Semua tombol dapat efek neumorphism yang sama saat tema Neumorfik aktif — warna tombol dipertahankan; helper buttonShadow(theme) disapu ke semua tombol semua halaman, TooltipButton jadi titik pusat otomatis |
 | PLAN-040 | ✅ done | 5 tema baru di Pasar: Glassmorphism (kaca transparan + gradien hidup), Claymorphism (pastel hangat radius besar), Neo-Brutalism (border tebal + bayangan keras), Minimalist UI (flat polos), Frost UI (kaca lembut es biru) — masing-masing light/dark + papan & keyboard senama + sound & backsound khas; themes.sql (34 tema) di-push ke Supabase |
+| PLAN-041 | ✅ done | Kosakata bersih & aman anak — 52 kata vulgar/tidak layak (makian, alat kelamin, tindakan seksual, narkoba) diganti kata kurasi (1000/tier tetap), 8 clue memuat kata vulgar ditulis ulang; scanner permanen vulgar-words.mjs + QA DB check-vulgar-db.mjs (0 vulgar di DB, tetap 1000 soal/tier) |
 
 ## ❓ FAQ
 

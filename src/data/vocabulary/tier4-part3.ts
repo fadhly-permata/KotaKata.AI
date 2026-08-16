@@ -248,7 +248,7 @@ export const TIER_4_WORDS_PART_3: [string, string, string, string][] = [
   ["terbagi", "dibagi menjadi bagian", "terpisah menjadi beberapa", "Sinonim: terpisah"],
   ["ampunan", "maaf atas kesalahan", "pembebasan dari hukuman", "Sinonim: maaf"],
   ["memukau", "memikat hati; mempesona", "sangat menarik perhatian", "Sinonim: mempesona"],
-  ["ekstasi", "kegembiraan meluap; narkoba terlarang", "rasa bahagia yang berlebihan", "Sinonim: semangat"],
+  ["rupawan", "elok; cantik (tentang wajah)", "Sinonim: molek", "Antonim: buruk rupa"],
   ["konteks", "keadaan yang mengelilingi suatu hal", "bagian kalimat yang memengaruhi makna", "Sinonim: keadaan"],
   ["ngengat", "kupu-kupu malam", "serangga yang merusak pakaian", "Sinonim: kupu"],
   ["menipis", "menjadi tipis; berkurang", "menyusut jumlahnya", "Antonim: menebal"],

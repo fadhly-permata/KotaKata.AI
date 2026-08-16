@@ -165,7 +165,7 @@ export const TIER_5_WORDS_PART_3: [string, string, string, string][] = [
   ["tertusuk", "dapat ditusuk; tidak sengaja ditusuk; tercocok", "tertikam", "Sinonim: tercocok"],
   ["astronom", "ahli astronomi", "ilmuwan yang mempelajari bintang", "Sinonim: ahli bintang"],
   ["hipnotis", "membuat seseorang berada dalam keadaan hipnosis", "berkenaan dengan hipnosis", "Sinonim: terpesona"],
-  ["bermoral", "mempunyai pertimbangan baik buruk; berakhlak baik", "sesuai dengan moral dan adat sopan santun", "Antonim: bejat"],
+  ["bermoral", "mempunyai pertimbangan baik buruk; berakhlak baik", "sesuai dengan moral dan adat sopan santun", "Antonim: amoral"],
   ["mengiris", "mengerat atau memotong tipis-tipis", "memotong menjadi irisan", "Sinonim: mengerat"],
   ["tercipta", "sudah diciptakan; terjadi", "terwujud", "Sinonim: terwujud"],
   ["ternilai", "terkirakan nilainya; terhingga", "sangat tinggi nilainya", "Antonim: murah"],

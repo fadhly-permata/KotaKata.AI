@@ -165,7 +165,7 @@ export const TIER_5_WORDS_PART_4: [string, string, string, string][] = [
   ["akademik", "berkenaan dengan pendidikan dan ilmu pengetahuan", "bersifat akademis atau ilmiah", "Sinonim: ilmiah"],
   ["mekanika", "cabang fisika tentang gerak dan gaya", "ilmu tentang mesin", "Sinonim: ilmu gerak"],
   ["mutilasi", "perbuatan memotong-motong tubuh manusia atau hewan", "pemotongan bagian tubuh", "Sinonim: pencincangan"],
-  ["narkotik", "zat yang menenangkan saraf dan dapat menimbulkan ketagihan", "obat terlarang seperti opium dan ganja", "Sinonim: obat bius"],
+  ["bersenandung", "bernyanyi dengan suara pelan", "melagukan lagu dengan suara rendah", "Antonim: berteriak"],
   ["menebang", "memotong batang pohon hingga tumbang", "memotong kayu untuk bahan bangunan", "Sinonim: merobohkan"],
   ["muntahan", "sesuatu yang keluar dari mulut karena muntah", "hasil memuntahkan", "Sinonim: luahan"],
   ["informal", "Kata serapan dari bahasa Inggris: tidak resmi; tidak bersifat kedinasan", "santai dan bebas", "Antonim: formal"],
