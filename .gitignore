@@ -6,6 +6,8 @@ node_modules/
 # Expo
 .expo/
 dist/
+# Artefak deploy web EAS Hosting (dibuat scripts/expo-deploy-web.mjs)
+deploy.tar.gz
 web-build/
 expo-env.d.ts
 
