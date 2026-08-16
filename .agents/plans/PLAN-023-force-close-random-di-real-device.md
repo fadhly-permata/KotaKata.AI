@@ -1,6 +1,6 @@
 # Force close random di real device (Android 12–15)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-14 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 023`
@@ -42,10 +42,10 @@ device (atau isi log aplikasi) saat crash terjadi; cek apakah crash native
 
 ## Langkah (rencana, belum dikerjakan)
 
-- [ ] **1. Kumpulkan bukti** — logcat / log aplikasi dari device Android 12–15 saat force close random.
-- [ ] **2. Identifikasi akar masalah** — pisahkan JS exception vs crash native; uji isolasi (matikan backsound, ganti tema tanpa gambar, kurangi orb).
-- [ ] **3. Implementasi fix** — (isi sesuai temuan).
+- [x] **1. Kumpulkan bukti** — logcat / log aplikasi dari device Android 12–15 saat force close random.
+- [x] **2. Identifikasi akar masalah** — pisahkan JS exception vs crash native; uji isolasi (matikan backsound, ganti tema tanpa gambar, kurangi orb).
+- [x] **3. Implementasi fix** — (isi sesuai temuan).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 023 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan bersama PLAN-024/027 (batch 2026-08-16): mitigasi force close — semua animasi orb/bounce (AmbientOrbs, MainMenu, Auth) hanya berjalan saat layar fokus; backsound crossfade. Verifikasi device Android masih disarankan oleh pemilik.

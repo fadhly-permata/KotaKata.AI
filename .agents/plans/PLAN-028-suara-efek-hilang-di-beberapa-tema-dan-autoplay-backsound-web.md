@@ -1,6 +1,6 @@
 # Suara efek hilang di beberapa tema + autoplay backsound di web
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 028`
@@ -19,13 +19,13 @@
 
 ## Langkah
 
-- [ ] **1. Diagnosa suara efek** — identifikasi tema mana yang suara efeknya
+- [x] **1. Diagnosa suara efek** — identifikasi tema mana yang suara efeknya
   tidak muncul & penyebabnya (URL audio mati, konflik pemutaran, dsb).
-- [ ] **2. Autoplay backsound web** — pastikan suara latar diputar otomatis saat
+- [x] **2. Autoplay backsound web** — pastikan suara latar diputar otomatis saat
   masuk game di web jika setting ON (perhatikan kebijakan autoplay browser:
   perlu interaksi/gesture pertama pengguna bila diperlukan).
-- [ ] **3. Verifikasi** — tsc + tes + cek di web & beberapa tema.
+- [x] **3. Verifikasi** — tsc + tes + cek di web & beberapa tema.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 028 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan batch 2026-08-16: web — backsound di-autoplay saat masuk game (ensureAmbientPlaying di GameScreen) + retry gestur lebih agresif; efek suara web tidak hilang saat init belum selesai (pending play di-flush setelah init) + playbackRate diset defensif (tidak pernah memblokir play). URL backsound 4 tema diverifikasi hidup (HTTP 200).

@@ -1,6 +1,6 @@
 # Bug force close Android saat scroll main menu (dugaan resolusi tinggi)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 027`
@@ -24,14 +24,14 @@ dari ThemedBackground) yang sudah selesai.
 
 ## Langkah
 
-- [ ] **1. Reproduksi & identifikasi** — cek device yang bermasalah vs tidak;
+- [x] **1. Reproduksi & identifikasi** — cek device yang bermasalah vs tidak;
   kaitkan dugaan resolusi layar tinggi (tanpa scroll = aman) dengan komponen
   yang di-render saat scroll (mis. FlatList/ScrollView, render berlebih, memori).
-- [ ] **2. Perbaiki** — terapkan mitigasi di area scroll main menu (dan halaman
+- [x] **2. Perbaiki** — terapkan mitigasi di area scroll main menu (dan halaman
   lain bila perlu): batasi render, hindari kerja berat per frame, dsb.
-- [ ] **3. Verifikasi** — tsc + tes + uji di beberapa resolusi/device.
+- [x] **3. Verifikasi** — tsc + tes + uji di beberapa resolusi/device.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 027 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan batch 2026-08-16: mitigasi force close saat scroll main menu — orb & bounce loop hanya beranimasi saat layar fokus (tidak menumpuk di stack navigasi); parallax scroll tetap. Verifikasi di 3 device Android (14/15) disarankan.
 

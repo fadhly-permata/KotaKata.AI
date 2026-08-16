@@ -1,6 +1,6 @@
 # Hapus login tamu — game hanya untuk user login Google
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 030`
@@ -17,13 +17,13 @@ ini lanjutannya untuk mode tamu.)
 
 ## Langkah
 
-- [ ] **1. Hapus mode tamu** — buang opsi login tamu dari Halaman Login & alur
+- [x] **1. Hapus mode tamu** — buang opsi login tamu dari Halaman Login & alur
   auth (guard: akses tanpa akun Google ditolak / diarahkan ke login).
-- [ ] **2. Sesuaikan dependensi** — pastikan tidak ada alur/state game yang
+- [x] **2. Sesuaikan dependensi** — pastikan tidak ada alur/state game yang
   masih mengandalkan identitas tamu (data pengguna, penyimpanan skor, dsb).
-- [ ] **3. Verifikasi** — tsc + tes + cek alur login Google end-to-end (web &
+- [x] **3. Verifikasi** — tsc + tes + cek alur login Google end-to-end (web &
   device).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 030 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan batch 2026-08-16: tombol & handler guest dihapus (AuthScreen/useAuth), session anonim dikeluarkan otomatis (RootNavigator, termasuk yang tersisa dari build lama), profil tidak lagi menampilkan 'Hubungkan Akun', dokumen (README/GUIDE/TERMS/PRIVACY) disinkronkan.

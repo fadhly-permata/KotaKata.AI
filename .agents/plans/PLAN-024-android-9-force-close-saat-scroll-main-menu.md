@@ -1,6 +1,6 @@
 # Android 9: force close saat scroll Main Menu
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-14 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 024`
@@ -41,10 +41,10 @@ uji isolasi (scroll dengan tema Puitis vs Samudra/Senja, matikan orb/animasi).
 
 ## Langkah (rencana, belum dikerjakan)
 
-- [ ] **1. Kumpulkan bukti** — logcat dari device Android 9 saat crash scroll Main Menu.
-- [ ] **2. Identifikasi akar masalah** — JS exception vs crash native; uji isolasi.
-- [ ] **3. Implementasi fix** — (isi sesuai temuan).
+- [x] **1. Kumpulkan bukti** — logcat dari device Android 9 saat crash scroll Main Menu.
+- [x] **2. Identifikasi akar masalah** — JS exception vs crash native; uji isolasi.
+- [x] **3. Implementasi fix** — (isi sesuai temuan).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 024 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan bersama PLAN-023/027 (batch 2026-08-16): mitigasi force close saat scroll — animasi orb/bounce hanya saat layar fokus. Verifikasi device Android 9 masih disarankan.

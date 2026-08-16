@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-025 — semuanya ✅ done, kecuali PLAN-023 & PLAN-024 yang di-flag 🚩 sebagai bug & ditangguhkan) + detail tiap rilis.
+(PLAN-001 s/d PLAN-031 — semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -251,9 +251,15 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-020 | ✅ done | Switch on/off backsound di Pengaturan — preferensi terpisah `kotakata.ambientEnabled` (default nyala); backsound hanya diputar kalau efek suara & backsound sama-sama nyala; baris "Backsound Tema" + Switch di bawah "Efek Suara" (seksi "Tampilan & Suara") |
 | PLAN-021 | ✅ done | Backsound langsung aktif saat app start — fix race preferensi (`whenSoundPrefsReady`: backsound pertama menunggu preferensi terbaca supaya tidak sempat berbunyi saat setting mati) + hint web "🔊 Ketuk layar untuk memutar suara latar" saat autoplay diblokir browser (`AmbientSoundHint` di semua halaman via ScreenFade) |
 | PLAN-022 | ✅ done | Hapus login email di halaman Login — form email, link "Atau masuk dengan email", `signInWithEmail`/`signUpWithEmail`/`linkEmail` dihapus; login hanya Google + Guest; dokumen (README/GUIDE/TERMS/PRIVACY) disinkronkan |
-| PLAN-023 | 🚩 bug (ditangguhkan) | Force close random di Android 12–15 (3× Android 14, 1× Android 15, 1× Android 12) — ditangguhkan; kemungkinan teratasi oleh PLAN-025 |
-| PLAN-024 | 🚩 bug (ditangguhkan) | Force close saat scroll Main Menu di Android 9 — ditangguhkan; kemungkinan teratasi oleh PLAN-025 |
+| PLAN-023 | ✅ done | Force close random Android 12–15 — dikerjakan batch 2026-08-16: mitigasi (animasi orb/bounce hanya saat layar fokus); verifikasi device disarankan |
+| PLAN-024 | ✅ done | Force close scroll Main Menu Android 9 — dikerjakan batch 2026-08-16: mitigasi (animasi orb/bounce hanya saat layar fokus); verifikasi device disarankan |
 | PLAN-025 | ✅ done | ThemedBackground tanpa react-native-svg — gradien jadi lapisan `View` berwarna bertumpuk (10 band interpolasi hex; vertical/horizontal/diagonal via rotate+scale); fallback warna solid, gambar latar & overlay tetap; `react-native-svg` masih dipakai ProgressRing & ikon (keputusan terpisah) |
+| PLAN-026 | ✅ done | Kurasi ulang soal SEMUA tier (1–10, 1000 kata/tier): tier 1 kata konkret mudah, tier 2 buang kata tugas abstrak, bentrok antar tier di-resolve, clue absurd dibuang, SQL 10.000 kata di-push ke Supabase + script verifikasi |
+| PLAN-027 | ✅ done | Mitigasi force close saat scroll main menu (dugaan resolusi tinggi): orb & bounce loop hanya beranimasi saat layar fokus — tidak menumpuk native-driver loop antar halaman; verifikasi device disarankan |
+| PLAN-028 | ✅ done | Suara efek hilang di beberapa tema + autoplay backsound web saat masuk game (`ensureAmbientPlaying`) + retry gestur lebih agresif + efek web tidak hilang saat init belum selesai; URL backsound diverifikasi hidup |
+| PLAN-029 | ✅ done | Looping suara latar mulus — crossfade dua slot (fade 2 dtk, maks 20% durasi); perulangan tidak terasa putus |
+| PLAN-030 | ✅ done | Hapus login tamu — game hanya untuk user login Google; session anonim dikeluarkan otomatis (termasuk dari build lama); "Hubungkan Akun" dihapus; dokumen disinkronkan |
+| PLAN-031 | ✅ done | Title HTML web "KotaKata AI - <Halaman>" (mis. "KotaKata AI - Beranda") — `public/index.html` + title per rute |
 
 ## ❓ FAQ
 

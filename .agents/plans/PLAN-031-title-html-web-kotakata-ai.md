@@ -1,6 +1,6 @@
 # Title HTML mode web menampilkan "KotaKata AI"
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 031`
@@ -16,12 +16,12 @@ beserta nama halaman, misal "KotaKata AI - Beranda", di tiap halaman/rute.
 
 ## Langkah
 
-- [ ] **1. Cek konfigurasi web title** — lihat bagaimana title diset saat ini
+- [x] **1. Cek konfigurasi web title** — lihat bagaimana title diset saat ini
   (index.html, expo-router/React Navigation, atau library head).
-- [ ] **2. Implementasi** — set title per halaman dengan format "KotaKata AI -
+- [x] **2. Implementasi** — set title per halaman dengan format "KotaKata AI -
   <Nama Halaman>" (mis. Beranda, Papan, Pengaturan, dsb).
-- [ ] **3. Verifikasi** — buka mode web & cek title tab di beberapa halaman.
+- [x] **3. Verifikasi** — buka mode web & cek title tab di beberapa halaman.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 031 <no> "teks"`)_
+- **1.** 2026-08-16: Dikerjakan batch 2026-08-16: public/index.html (title dasar 'KotaKata AI') + title per rute 'KotaKata AI - <Halaman>' (mis. 'KotaKata AI - Beranda') via onStateChange di RootNavigator.
