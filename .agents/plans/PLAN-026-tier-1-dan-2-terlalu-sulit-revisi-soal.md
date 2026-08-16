@@ -1,6 +1,6 @@
 # Tier 1 & 2 terlalu sulit — cek ulang soal
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 026`
@@ -10,7 +10,7 @@
 
 > "semua user gua menyatakan permainan pada tier 1 dan 2 sulit banget. Coba cek ulang soal2 nya"
 
-**Status: PENDING — belum dikerjakan** (dicatat sesuai aturan #5; hanya analisis read-only di bawah, tanpa mengubah kode).
+**Status: DONE — selesai dikerjakan (2026-08-16).** Semua tier 1-10 diverifikasi ulang: kata tugas/abstrak/obskur di tier1-2 diganti kata konkret mudah, seluruh clue dicek ulang (0 bocor), SQL di-regenerate 10.000 kata (1000/tier) dan di-push ke Supabase.
 
 ## Analisis awal (read-only, 2026-08-16)
 
@@ -32,6 +32,17 @@
 3. **Re-generate + re-push SQL** (`scripts/vocab/gen-vocab-sql.mjs` → `scripts/db/push-vocab.mjs`) supaya Supabase sinkron.
 4. **QA**: jalankan `check-clue-quality` (0 issue/bocor/duplikat) + uji manual beberapa papan tier 1–2.
 
+## Yang dikerjakan (fase 1 & 2)
+
+1. **Tier 1 di-kurasi ulang total**: 606 kata kurasi + 394 kata mudah tambahan (`tier1-part1.ts`) = 1000 kata konkret sehari-hari (hewan, makanan, benda, kerja dasar, sifat dasar). Tanpa kata tugas, tanpa nama diri, tanpa akronim, tanpa kata asing.
+2. **Tier 2-10: swap kata bermasalah** (23+ kata tugas/proper noun/obskur diganti hewan/makanan umum) lewat `fix-plan026.mjs` + `plan026-data.mjs` + `plan026-swap-fix.mjs`.
+3. **Fase 2 (`plan026-phase2.mjs`)**: ganti sisa kata tugas abstrak tier2 (tidak, harus, sudah, hanya, semua, … 31 kata) + resolve 371 bentrok antar tier (kata yang sama di tier1 kurasi & tier lama) dengan kata dari pool bebas — tiap tier kembali 1000 kata unik, dedup SQL tidak memangkas tier lain.
+4. **QA**: `audit-vocab.mjs` 0 issue semua kategori, `check-clue-quality` 0 issue semua file, `tsc` lolos.
+5. **SQL di-regenerate**: 10.000 kata (1000/tier), di-push ke Supabase.
+
 ## Langkah
 
-- [ ] (belum di-checklist — menunggu persetujuan pemilik untuk dikerjakan)
+- [x] Audit & re-seed tier 1-2 (ganti kata tugas/obskur dengan kata konkret mudah)
+- [x] Perbaiki clue yang tidak nyambung / bocor di semua tier
+- [x] Re-generate + re-push SQL ke Supabase (10.000 kata, 1000/tier)
+- [x] QA: audit-vocab + check-clue-quality + tsc 0 issue
