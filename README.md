@@ -26,7 +26,7 @@ KotaKata.AI adalah game Teka-Teki Silang (TTS) modern dengan sistem peringkat pu
 | 🔍 **Kata Ditemukan** | Riwayat kata yang pernah ditemukan, lazy-load per 25 data |
 | 🕹️ **Sejarah Permainan** | Daftar papan yang sudah diselesaikan + viewer papan read-only bergaya crossword |
 | 🌗 **Tema Terang/Gelap** | Transisi halus, konsisten di semua layar |
-| 🎨 **Multi-Tema** | **Keseragaman tema**: 4 tema aplikasi (Puitis/Samudra/Senja/Hutan) — masing-masing punya versi **papan & keyboard dengan nama sama** (total 4 app · 6 papan · 6 keyboard; Tinta/Neon & Pastel/Klasik tetap ada sebagai gaya alternatif) — semua light & dark, pilihan tersimpan permanen; tiap tema punya **latar gradien**, tema Samudra & Senja pakai **gambar latar** (foto + overlay kontras, fallback gradien saat offline), dan **tema suara** (Puitis=Klasik, Samudra=Tenang, Senja=Hangat, Hutan=Segar — diterapkan ke semua efek suara tanpa aset baru) |
+| 🎨 **Multi-Tema** | **Keseragaman tema**: 10 tema aplikasi (Puitis/Samudra/Senja/Hutan/Neumorfik/Glassmorphism/Claymorphism/Neo-Brutalism/Minimalist/Frost) — masing-masing punya versi **papan & keyboard dengan nama sama** (PLAN-033: papan/keyboard selalu ikut tema aplikasi) — semua light & dark, pilihan tersimpan permanen; tiap tema punya **latar gradien** (+ gambar latar di Samudra/Senja), **tema suara** (SoundSpec — Klasik/Tenang/Hangat/Segar/Lembut/Jernih/Tegas/Hening/Dingin), dan **backsound ambient** (URL MP3 online, loop crossfade), plus **gaya skin khas** (neumorfik/glass/frost = bayangan timbul-soft & permukaan transparan; clay = radius besar + highlight; brutalist = border tebal + bayangan keras; minimal = flat) |
 | 🛍️ **Pasar (Store)** | Halaman katalog tema dengan 3 seksi (Aplikasi/Papan/Keyboard) + tombol **Preview** tiap tema (mockup sesuai jenis tema, toggle terang/gelap) sebelum diaktifkan; katalog tersimpan di database Supabase (tabel `themes`) dengan fallback offline — siap dikembangkan jadi tema berbayar |
 | ⌨️ **Keyboard & Touch** | Mobile touch + desktop arrow keys, keyboard virtual in-game |
 | ✨ **Animasi** | Orb ambien di **semua halaman** (`AmbientOrbs` — 24 orb acak, warna palet tema) + parallax & orb floating khusus di main menu & login, transisi halaman & popup beranimasi; dialog konfirmasi ber-ikon dengan tata letak responsif (vertikal di HP, horizontal di layar lebar) |
@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-039 — semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-040 — semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -268,6 +268,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-037 | ✅ done | Neumorfik dirombak gaya neumorphism.io — surface = warna latar + bayangan timbul (terang kiri-atas, gelap kanan-bawah) di kartu Pasar/header/panel hint/keyboard/kartu riwayat; aksen biru |
 | PLAN-038 | ✅ done | Sistem skin menyeluruh (Winamp-like) — efek tema (warna/radius/bayangan) merata ke semua komponen semua halaman; token skin generik (overlay/chip/input/textOnPrimary) + helper skin.ts (surfaceStyle/contrastText dll); login & main menu ikut tema; fondasi agar tema baru cukup definisikan token |
 | PLAN-039 | ✅ done | Semua tombol dapat efek neumorphism yang sama saat tema Neumorfik aktif — warna tombol dipertahankan; helper buttonShadow(theme) disapu ke semua tombol semua halaman, TooltipButton jadi titik pusat otomatis |
+| PLAN-040 | ✅ done | 5 tema baru di Pasar: Glassmorphism (kaca transparan + gradien hidup), Claymorphism (pastel hangat radius besar), Neo-Brutalism (border tebal + bayangan keras), Minimalist UI (flat polos), Frost UI (kaca lembut es biru) — masing-masing light/dark + papan & keyboard senama + sound & backsound khas; themes.sql (34 tema) di-push ke Supabase |
 
 ## ❓ FAQ
 
