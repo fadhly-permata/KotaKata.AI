@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { buttonShadow, overlayColor, textOnPrimary } from "../../../utils/skin";
+import { buttonShadow, overlayColor, solidSurfaceColor, textOnPrimary } from "../../../utils/skin";
 import Confetti from "../common/Confetti";
 import { useEscapeClose } from "../common/useEscapeClose";
 
@@ -92,7 +92,8 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
         style={[
           styles.dialog,
           {
-            backgroundColor: theme.colors.surface,
+            // PLAN-043: kartu dialog SOLID — jangan tembus pandang.
+            backgroundColor: solidSurfaceColor(theme),
             opacity: opacityAnim,
             transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
           },

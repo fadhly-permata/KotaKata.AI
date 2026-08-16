@@ -41,7 +41,7 @@ import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
 import { neumorphicShadow } from "../../utils/neumorphic";
-import { buttonShadow, chipStyle, chipTextColor, contrastText, textOnPrimary } from "../../utils/skin";
+import { buttonShadow, chipStyle, chipTextColor, contrastText, solidSurfaceColor, textOnPrimary } from "../../utils/skin";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "MainMenu">;
 
@@ -786,7 +786,13 @@ export default function MainMenuScreen() {
         onRequestClose={() => setAiLoading(false)}
       >
         <View style={styles.aiOverlay}>
-          <View style={[styles.aiCard, { backgroundColor: C.surface }]}>
+          <View
+            style={[
+              styles.aiCard,
+              // PLAN-043: kartu dialog SOLID (tidak transparan).
+              { backgroundColor: solidSurfaceColor(theme) },
+            ]}
+          >
             <Text style={styles.aiEmoji}>🤖</Text>
             <ActivityIndicator color={C.primary} size="large" style={styles.aiSpinner} />
             <Text style={[styles.aiLoadingTitle, { color: C.text }]}>Menyusun soal dari AI…</Text>

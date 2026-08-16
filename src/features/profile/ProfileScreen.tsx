@@ -12,7 +12,7 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
-import { buttonShadow, contrastText, overlayColor } from "../../utils/skin";
+import { buttonShadow, contrastText, overlayColor, solidSurfaceColor } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import TierBadge from "../../presentation/components/common/TierBadge";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
@@ -304,7 +304,13 @@ export default function ProfileScreen() {
         }}
       >
         <View style={[styles.modalOverlay, { backgroundColor: overlayColor(theme) }]}>
-          <View style={[styles.deleteCard, { backgroundColor: theme.colors.surface }]}>
+          <View
+            style={[
+              styles.deleteCard,
+              // PLAN-043: kartu dialog SOLID (tidak transparan).
+              { backgroundColor: solidSurfaceColor(theme) },
+            ]}
+          >
             <Text style={styles.deleteEmoji}>🛑</Text>
             <Text style={[styles.deleteTitle, { color: theme.colors.text }]}>Konfirmasi Terakhir</Text>
             <Text style={[styles.deleteHint, { color: theme.colors.textSecondary }]}>

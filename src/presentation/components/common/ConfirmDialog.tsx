@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, useWindowDimensions
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { buttonShadow, overlayColor, textOnPrimary } from "../../../utils/skin";
+import { buttonShadow, overlayColor, solidSurfaceColor, textOnPrimary } from "../../../utils/skin";
 import { useEscapeClose } from "./useEscapeClose";
 
 interface ConfirmDialogProps {
@@ -84,7 +84,9 @@ export default function ConfirmDialog({
         style={[
           styles.dialog,
           {
-            backgroundColor: theme.colors.surface,
+            // PLAN-043: kartu dialog SOLID — jangan tembus pandang (tema
+            // glass/frost memakai surface rgba yang membuat teks sulit dibaca).
+            backgroundColor: solidSurfaceColor(theme),
             opacity: opacityAnim,
             transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
           },

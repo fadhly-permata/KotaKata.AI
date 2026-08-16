@@ -1,6 +1,6 @@
 # Popup dialog transparan dibuat solid/opaque agar teks terbaca (fix PLAN-040)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 043`
@@ -26,23 +26,23 @@ teks selalu terbaca. Efek glass/frost tetap dipertahankan di elemen NON-dialog
 
 ## Langkah
 
-- [ ] **1. Identifikasi semua permukaan dialog** — `AppModal` (card), `ConfirmDialog`
+- [x] **1. Identifikasi semua permukaan dialog** — `AppModal` (card), `ConfirmDialog`
   (card), `CompletionOverlay`, modal History/GameHistory/Profile (sheet), modal
   preview Pasar, dialog konfirmasi hint in-game — cari yang memakai `surfaceStyle`
   / `theme.colors.surface` / warna `rgba` transparan sebagai latar kartu.
-- [ ] **2. Helper skin: warna surface SOLID** — di `skin.ts` tambahkan helper
+- [x] **2. Helper skin: warna surface SOLID** — di `skin.ts` tambahkan helper
   (mis. `solidSurface(theme)` / `surfaceColorOpaque(theme)`): kalau warna surface
   berformat `rgba(...)`, blend di atas warna `background` tema → warna hex solid;
   kalau sudah solid, kembalikan apa adanya. (Modal overlay/backdrop tetap gelap
   semi-transparan — hanya KARTU yang disolidkan.)
-- [ ] **3. Terapkan ke dialog** — kartu `AppModal` + `ConfirmDialog` + dialog lain
+- [x] **3. Terapkan ke dialog** — kartu `AppModal` + `ConfirmDialog` + dialog lain
   memakai warna solid tersebut (radius/bayangan/skin tetap). Pastikan teks di
   dalamnya kontras (dark glass → teks gelap di atas kartu solid terang; jangan
   sampai teks putih di kartu putih).
-- [ ] **4. Verifikasi** — tsc + tes + lint; cek visual web tiap tema glass/frost:
+- [x] **4. Verifikasi** — tsc + tes + lint; cek visual web tiap tema glass/frost:
   buka Kata Ajaib/Daftar Tier/Leaderboard/Preview — kartu dialog solid, teks
   terbaca, elemen di belakang tidak menembus; tema lain tidak berubah.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 043 <no> "teks"`)_
+- **4.** 2026-08-16: Dikerjakan: skin.ts tambah solidSurfaceColor (blend rgba surface di atas background) + surfaceStyleOpaque; diterapkan ke kartu AppModal (semua dialog), ConfirmDialog, CompletionOverlay, sheet HistoryScreen, modal hapus akun ProfileScreen, aiCard MainMenu; tsc + 43 tes + lint lolos

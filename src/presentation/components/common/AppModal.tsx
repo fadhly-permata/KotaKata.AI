@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { buttonShadow, overlayColor, surfaceStyle } from "../../../utils/skin";
+import { buttonShadow, overlayColor, surfaceStyleOpaque } from "../../../utils/skin";
 import Confetti from "./Confetti";
 import { useEscapeClose } from "./useEscapeClose";
 
@@ -93,7 +93,9 @@ export default function AppModal({
             },
             // Skin (PLAN-038): radius + bayangan permukaan dari token tema
             // (neumorfik → kartu dialog "timbul"; tema lain tanpa efek).
-            surfaceStyle(theme, "raised", 18),
+            // PLAN-043: kartu DIALOG selalu SOLID (tidak transparan) supaya
+            // teks terbaca walau tema glass/frost memakai surface rgba.
+            surfaceStyleOpaque(theme, "raised", 18),
           ]}
           onStartShouldSetResponder={() => true}
         >

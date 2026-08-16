@@ -19,7 +19,7 @@ import { useAuth } from "../auth/useAuth";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { timeAgo } from "../../utils/timeAgo";
-import { overlayColor } from "../../utils/skin";
+import { overlayColor, solidSurfaceColor } from "../../utils/skin";
 import { loggerWarn } from "../../utils/logger";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import {
@@ -388,7 +388,8 @@ export default function HistoryScreen() {
           <View
             style={[
               styles.sheet,
-              { backgroundColor: theme.colors.surface, maxHeight: winH * 0.6 },
+              // PLAN-043: sheet detail SOLID (tidak transparan).
+              { backgroundColor: solidSurfaceColor(theme), maxHeight: winH * 0.6 },
             ]}
           >
             {selected && (

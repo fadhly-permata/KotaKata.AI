@@ -62,6 +62,44 @@ export function inputStyle(theme: Theme, radius?: number): ViewStyle {
   };
 }
 
+/**
+ * Warna surface SOLID untuk DIALOG (PLAN-043): popup dialog tidak boleh
+ * transparan — kalau warna `surface` tema berformat rgba (tema glass/frost),
+ * blend di atas warna latar tema → warna solid; kalau sudah solid, dikembalikan
+ * apa adanya. Efek glass/frost tetap dipertahankan di elemen halaman, hanya
+ * kartu dialog yang dipastikan tidak tembus pandang supaya teks terbaca.
+ */
+export function solidSurfaceColor(theme: Theme): string {
+  const surface = theme.colors.surface;
+  const m = surface.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+  if (!m) return surface;
+  const a = m[4] === undefined ? 1 : parseFloat(m[4]);
+  if (a >= 1) return surface;
+  const hex = theme.colors.background.match(/^#([0-9a-f]{6})$/i)?.[1];
+  const br = hex ? parseInt(hex.slice(0, 2), 16) : 255;
+  const bg = hex ? parseInt(hex.slice(2, 4), 16) : 255;
+  const bb = hex ? parseInt(hex.slice(4, 6), 16) : 255;
+  const r = Math.round(parseInt(m[1], 10) * a + br * (1 - a));
+  const g = Math.round(parseInt(m[2], 10) * a + bg * (1 - a));
+  const b = Math.round(parseInt(m[3], 10) * a + bb * (1 - a));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * surfaceStyle untuk DIALOG (PLAN-043) — sama seperti `surfaceStyle` (radius +
+ * bayangan tema), tapi warna surface dipastikan SOLID (tidak tembus pandang).
+ */
+export function surfaceStyleOpaque(theme: Theme, tone: SkinTone = "raised", radius?: number): ViewStyle {
+  const style: ViewStyle = {
+    backgroundColor: solidSurfaceColor(theme),
+    borderRadius: radius ?? themeRadius(theme),
+  };
+  if (theme.shadow && tone !== "flat") {
+    Object.assign(style, neumorphicShadow(theme.shadow, tone === "inset" ? "pressed" : "raised"));
+  }
+  return style;
+}
+
 /** Warna overlay modal/dialog (fallback hitam semi-transparan). */
 export function overlayColor(theme: Theme): string {
   return theme.colors.overlay ?? "rgba(0,0,0,0.45)";
