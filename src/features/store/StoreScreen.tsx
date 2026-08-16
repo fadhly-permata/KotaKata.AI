@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { contrastText } from "../../utils/skin";
 import TopBar from "../../presentation/components/common/TopBar";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { neumorphicShadow } from "../../utils/neumorphic";
@@ -170,21 +171,28 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
 
 /** Preview swatch satu tema: dua baris warna (mode terang & gelap). */
 function ThemeSwatches({ swatches }: { swatches: ThemeCardModel["swatches"] }) {
+  const { theme } = useTheme();
   return (
     <View style={styles.swatchWrap}>
       <View style={styles.swatchRow}>
-        <Text style={styles.swatchLabel}>Terang</Text>
+        <Text style={[styles.swatchLabel, { color: theme.colors.textSecondary }]}>Terang</Text>
         <View style={styles.swatchDots}>
           {swatches.light.map((color) => (
-            <View key={`l-${color}`} style={[styles.swatchDot, { backgroundColor: color }]} />
+            <View
+              key={`l-${color}`}
+              style={[styles.swatchDot, { backgroundColor: color, borderColor: theme.colors.border }]}
+            />
           ))}
         </View>
       </View>
       <View style={styles.swatchRow}>
-        <Text style={styles.swatchLabel}>Gelap</Text>
+        <Text style={[styles.swatchLabel, { color: theme.colors.textSecondary }]}>Gelap</Text>
         <View style={styles.swatchDots}>
           {swatches.dark.map((color) => (
-            <View key={`d-${color}`} style={[styles.swatchDot, { backgroundColor: color }]} />
+            <View
+              key={`d-${color}`}
+              style={[styles.swatchDot, { backgroundColor: color, borderColor: theme.colors.border }]}
+            />
           ))}
         </View>
       </View>
@@ -259,7 +267,7 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
               onPress={() => onActivate(card.id)}
               style={[styles.activateButton, { backgroundColor: accent }]}
             >
-              <Text style={[styles.activateButtonText, { color: "#FFFFFF" }]}>Aktifkan</Text>
+              <Text style={[styles.activateButtonText, { color: contrastText(accent) }]}>Aktifkan</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -77,15 +77,22 @@ export default function GameTopBar({
       </View>
       <View style={[styles.topBarRight, { gap: compactBar ? 6 : 8 }]}>
         {aiMode && !compactBar && (
-          <View style={[styles.aiModeBadge, { backgroundColor: "#e8f4ff", borderColor: "#0096cc" }]}>
-            <Text style={styles.aiModeBadgeText}>🤖 Mode AI</Text>
+          <View
+            style={[styles.aiModeBadge, { backgroundColor: C.primary + "1A", borderColor: C.primary }]}
+          >
+            <Text style={[styles.aiModeBadgeText, { color: C.primary }]}>🤖 Mode AI</Text>
           </View>
         )}
-        <View style={[styles.xpPill, { backgroundColor: "#ffd6ee", paddingHorizontal: compactBar ? 10 : 12 }]}>
+        <View
+          style={[
+            styles.xpPill,
+            { backgroundColor: C.secondaryContainer, paddingHorizontal: compactBar ? 10 : 12 },
+          ]}
+        >
           <Text
             numberOfLines={1}
             maxFontSizeMultiplier={1.2}
-            style={[styles.xpPillText, { color: "#a02070" }]}
+            style={[styles.xpPillText, { color: C.secondary }]}
           >
             ⭐ {totalXp + currentXp} XP
           </Text>

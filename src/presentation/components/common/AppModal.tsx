@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
+import { overlayColor, surfaceStyle } from "../../../utils/skin";
 import Confetti from "./Confetti";
 import { useEscapeClose } from "./useEscapeClose";
 
@@ -76,7 +77,7 @@ export default function AppModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity
-        style={styles.overlay}
+        style={[styles.overlay, { backgroundColor: overlayColor(theme) }]}
         activeOpacity={1}
         onPress={dismissable ? onClose : undefined}
       >
@@ -90,6 +91,9 @@ export default function AppModal({
               opacity: opacityAnim,
               transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
             },
+            // Skin (PLAN-038): radius + bayangan permukaan dari token tema
+            // (neumorfik → kartu dialog "timbul"; tema lain tanpa efek).
+            surfaceStyle(theme, "raised", 18),
           ]}
           onStartShouldSetResponder={() => true}
         >

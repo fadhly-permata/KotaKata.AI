@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
+import { overlayColor, textOnPrimary } from "../../../utils/skin";
 import Confetti from "../common/Confetti";
 import { useEscapeClose } from "../common/useEscapeClose";
 
@@ -81,7 +82,11 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
     <View style={styles.wrapper}>
       {/* Backdrop memudar masuk pelan. */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropAnim }]}
+        style={[
+          StyleSheet.absoluteFill,
+          styles.backdrop,
+          { opacity: backdropAnim, backgroundColor: overlayColor(theme) },
+        ]}
       />
       <Animated.View
         style={[
@@ -168,7 +173,7 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
             }}
           >
             <Text style={styles.iconBtnEmoji}>🔄</Text>
-            <Text style={[styles.iconBtnLabel, { color: "#FFF" }]}>Main Lagi</Text>
+            <Text style={[styles.iconBtnLabel, { color: textOnPrimary(theme) }]}>Main Lagi</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>

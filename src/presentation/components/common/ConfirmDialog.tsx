@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, useWindowDimensions
 import { useEffect, useRef } from "react";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
+import { overlayColor, textOnPrimary } from "../../../utils/skin";
 import { useEscapeClose } from "./useEscapeClose";
 
 interface ConfirmDialogProps {
@@ -67,13 +68,17 @@ export default function ConfirmDialog({
 
   if (!visible) return null;
 
-  const confirmColor = variant === "danger" ? "#E74C3C" : theme.colors.primary;
+  const confirmColor = variant === "danger" ? theme.colors.error : theme.colors.primary;
 
   return (
     <View style={styles.wrapper}>
       {/* Backdrop memudar masuk pelan — elegan, tidak mencolok. */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropAnim }]}
+        style={[
+          StyleSheet.absoluteFill,
+          styles.backdrop,
+          { opacity: backdropAnim, backgroundColor: overlayColor(theme) },
+        ]}
       />
       <Animated.View
         style={[
@@ -113,7 +118,9 @@ export default function ConfirmDialog({
           >
             <View style={styles.btnLabelRow}>
               {confirmIcon ? <Text style={styles.btnIcon}>{confirmIcon}</Text> : null}
-              <Text style={styles.confirmText}>{confirmText}</Text>
+              <Text style={[styles.confirmText, { color: textOnPrimary(theme) }]}>
+                {confirmText}
+              </Text>
             </View>
           </TouchableOpacity>
         </View>

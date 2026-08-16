@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
+import { textOnPrimary } from "../../../utils/skin";
 import { TIER_NAMES, TIER_COLORS } from "../../../domain/usecases/xpEngine";
 
 interface SavedBoard {
@@ -32,8 +33,22 @@ export default function SavedBoardList({ boards, onResume, onDelete }: SavedBoar
           <View style={[styles.tierBadge, { backgroundColor: tierColor + "20" }]}>
             <Text style={[styles.tierText, { color: tierColor }]}>Tier {item.tierLevel}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: item.isFinished ? "#27AE60" + "20" : "#F39C12" + "20" }]}>
-            <Text style={[styles.statusText, { color: item.isFinished ? "#27AE60" : "#F39C12" }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: item.isFinished
+                  ? theme.colors.success + "20"
+                  : theme.colors.gold + "20",
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: item.isFinished ? theme.colors.success : theme.colors.gold },
+              ]}
+            >
               {item.isFinished ? "Selesai" : `${progress}%`}
             </Text>
           </View>
@@ -54,7 +69,9 @@ export default function SavedBoardList({ boards, onResume, onDelete }: SavedBoar
             activeOpacity={0.7}
             onPress={() => onResume(item.id)}
           >
-            <Text style={styles.resumeText}>{item.isFinished ? "Review" : "Lanjutkan"}</Text>
+            <Text style={[styles.resumeText, { color: textOnPrimary(theme) }]}>
+              {item.isFinished ? "Review" : "Lanjutkan"}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.deleteBtn, { borderColor: theme.colors.border }]}
