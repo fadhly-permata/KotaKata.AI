@@ -436,6 +436,7 @@ const neumorfik: AppThemeDefinition = {
     // Gaya neumorphism.io klasik: latar abu #e0e5ec, surface = SAMA dengan
     // latar, bayangan terang kiri-atas + gelap kanan-bawah (nilai klasiknya).
     background: { gradient: ["#e6eaf0", "#dde2ea"] },
+    radius: 14,
     shadow: {
       light: "rgba(255,255,255,0.65)",
       dark: "rgba(163,177,198,0.6)",
@@ -466,6 +467,13 @@ const neumorfik: AppThemeDefinition = {
       cellLocked: "#d0d7e0",
       cellSolved: "#c9dcff",
       cellSolvedText: "#2f5be8",
+      // Token skin (PLAN-038) — senada latar (neumorphism: chip/input satu tone).
+      overlay: "rgba(90,100,120,0.4)",
+      chipBackground: "#d2d9e2",
+      chipText: "#5b6779",
+      inputBackground: "#e0e5ec",
+      inputBorder: "#d2d9e2",
+      textOnPrimary: "#ffffff",
     },
   },
   dark: {
@@ -473,6 +481,7 @@ const neumorfik: AppThemeDefinition = {
     // Dark neumorphism: abu gelap senada, surface = latar, bayangan terang
     // sangat halus di kiri-atas + gelap pekat di kanan-bawah.
     background: { gradient: ["#232930", "#1c2126"] },
+    radius: 14,
     shadow: {
       light: "rgba(255,255,255,0.05)",
       dark: "rgba(0,0,0,0.6)",
@@ -503,6 +512,13 @@ const neumorfik: AppThemeDefinition = {
       cellLocked: "#2a3037",
       cellSolved: "#2b3a63",
       cellSolvedText: "#9db8ff",
+      // Token skin (PLAN-038) — senada latar gelap.
+      overlay: "rgba(8,10,14,0.6)",
+      chipBackground: "#2a3037",
+      chipText: "#d8dee9",
+      inputBackground: "#1f2429",
+      inputBorder: "#2a3037",
+      textOnPrimary: "#101318",
     },
   },
 };

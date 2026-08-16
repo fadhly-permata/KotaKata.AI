@@ -33,6 +33,9 @@ export type Theme = {
    *  (kartu/panel/tombol) agar tampak "timbul". Hanya tema bergaya
    *  neumorphism yang membawanya; tema lain tidak terpengaruh. */
   shadow?: NeumorphicShadowSpec;
+  /** Radius dasar permukaan (kartu/panel/input) — token SKIN (PLAN-038).
+   *  Tema boleh mengubah untuk gaya berbeda; fallback 14. */
+  radius?: number;
   colors: {
     background: string;
     surface: string;
@@ -55,6 +58,19 @@ export type Theme = {
     cellLocked: string;
     cellSolved: string;
     cellSolvedText: string;
+    /* ── Token SKIN generik (PLAN-038) — opsional, ada fallback di skin.ts ── */
+    /** Overlay modal/dialog (fallback rgba(0,0,0,0.45)). */
+    overlay?: string;
+    /** Latar chip/badge (fallback secondaryContainer). */
+    chipBackground?: string;
+    /** Teks chip/badge (fallback secondary). */
+    chipText?: string;
+    /** Latar input (fallback surface). */
+    inputBackground?: string;
+    /** Border input (fallback border). */
+    inputBorder?: string;
+    /** Teks di atas warna primary (fallback #FFFFFF). */
+    textOnPrimary?: string;
   };
 };
 

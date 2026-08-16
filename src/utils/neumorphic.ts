@@ -13,8 +13,8 @@ export type NeumorphicState = "raised" | "pressed";
  * keduanya menerima array objek), jadi lintas platform. `spec` kosong (tema
  * non-neumorphic tidak membawa `shadow`) → mengembalikan {} tanpa efek.
  *
- * State "pressed" memakai offset/blur kecil (efek tertekan), tapi default
- * komponen memakai "raised" supaya konsisten.
+ * State "pressed" memakai offset/blur kecil dengan arah bayangan DIBALIK
+ * (inset) — efek elemen "tertekan" (mis. input), seperti neumorphism.io.
  */
 export function neumorphicShadow(
   spec: NeumorphicShadowSpec | undefined,
@@ -23,10 +23,23 @@ export function neumorphicShadow(
   if (!spec) return {};
   const offset = state === "pressed" ? (spec.insetOffset ?? 3) : (spec.offset ?? 9);
   const blur = state === "pressed" ? (spec.insetBlur ?? 6) : (spec.blur ?? 16);
+  const inset = state === "pressed";
   return {
     boxShadow: [
-      { offsetX: -offset, offsetY: -offset, blurRadius: blur, color: spec.light },
-      { offsetX: offset, offsetY: offset, blurRadius: blur, color: spec.dark },
+      {
+        offsetX: -offset,
+        offsetY: -offset,
+        blurRadius: blur,
+        color: inset ? spec.dark : spec.light,
+        inset,
+      },
+      {
+        offsetX: offset,
+        offsetY: offset,
+        blurRadius: blur,
+        color: inset ? spec.light : spec.dark,
+        inset,
+      },
     ],
     // Neutralkan prop shadow legacy (shadowColor/shadowOffset/elevation) supaya
     // tidak menumpuk dengan boxShadow di web/native (RNW mengubah shadow* jadi
