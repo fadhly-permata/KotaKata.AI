@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
 import { play } from "../../../utils/sound";
-import { overlayColor, surfaceStyle } from "../../../utils/skin";
+import { buttonShadow, overlayColor, surfaceStyle } from "../../../utils/skin";
 import Confetti from "./Confetti";
 import { useEscapeClose } from "./useEscapeClose";
 
@@ -102,7 +102,7 @@ export default function AppModal({
               <Text style={[styles.title, { color: C.text }]}>{title}</Text>
               {dismissable && (
                 <TouchableOpacity
-                  style={styles.closeBtn}
+                  style={[styles.closeBtn, buttonShadow(theme)]}
                   activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   onPress={() => {

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import AppModal from "../../presentation/components/common/AppModal";
 import ThemedBackground from "../../presentation/components/common/ThemedBackground";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
+import { buttonShadow } from "../../utils/skin";
 import type { BackgroundSpec } from "../../presentation/themes/themeData";
 
 export type ThemeKind = "app" | "board" | "keyboard";
@@ -284,7 +285,11 @@ function ModeToggle({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => onChange("light")}
-        style={[styles.toggleBtn, mode === "light" && { backgroundColor: C.surface }]}
+        style={[
+          styles.toggleBtn,
+          mode === "light" && { backgroundColor: C.surface },
+          buttonShadow(theme),
+        ]}
       >
         <Text style={[styles.toggleText, { color: mode === "light" ? C.text : C.textSecondary }]}>
           ☀️ Terang
@@ -293,7 +298,11 @@ function ModeToggle({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => onChange("dark")}
-        style={[styles.toggleBtn, mode === "dark" && { backgroundColor: C.surface }]}
+        style={[
+          styles.toggleBtn,
+          mode === "dark" && { backgroundColor: C.surface },
+          buttonShadow(theme),
+        ]}
       >
         <Text style={[styles.toggleText, { color: mode === "dark" ? C.text : C.textSecondary }]}>
           🌙 Gelap
