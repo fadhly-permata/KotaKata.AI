@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,11 @@ import { timeAgo } from "../../utils/timeAgo";
 import { loggerWarn } from "../../utils/logger";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import {
+  masonryCardHeight,
+  masonryWideHeight,
+  isWideMasonryCard,
+} from "../../utils/masonry";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "GameHistory">;
 
@@ -31,6 +36,12 @@ interface FinishedBoardMeta {
   board: SavedBoardDoc;
   size: number;
   wordCount: number;
+}
+
+/** Satu baris masonry: card lebar penuh (1 sel) atau pasangan 2 kolom. */
+interface BoardRow {
+  key: string;
+  cells: FinishedBoardMeta[];
 }
 
 function parseMeta(board: SavedBoardDoc): FinishedBoardMeta {
@@ -44,6 +55,63 @@ function parseMeta(board: SavedBoardDoc): FinishedBoardMeta {
     // layout_data tidak valid — pakai nilai dari kolom.
   }
   return { board, size, wordCount };
+}
+
+/** Card satu papan selesai — ukuran (tinggi/lebar) acak tapi rapi (PLAN-032). */
+function BoardCard({
+  item,
+  wide,
+  onPress,
+}: {
+  item: FinishedBoardMeta;
+  wide: boolean;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const C = theme.colors;
+  const { board, size, wordCount } = item;
+  const tierName =
+    TIER_NAMES[Math.max(0, Math.min(board.tier_at_generation - 1, TIER_NAMES.length - 1))];
+  const height = wide ? masonryWideHeight(board.board_id) : masonryCardHeight(board.board_id);
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[
+        styles.card,
+        {
+          height,
+          backgroundColor: C.surface,
+          borderColor: C.border,
+          // Card lebar penuh menempati satu baris; card normal berbagi 2 kolom.
+          flex: wide ? undefined : 1,
+          width: wide ? "100%" : undefined,
+        },
+      ]}
+    >
+      <View style={[styles.cardAccent, { backgroundColor: C.primary }]} />
+      <View style={styles.cardTop}>
+        <View style={[styles.cardIcon, { backgroundColor: C.secondaryContainer }]}>
+          <Text style={styles.cardIconText}>✅</Text>
+        </View>
+        <Text style={[styles.cardArrow, { color: C.textSecondary }]}>›</Text>
+      </View>
+      <Text
+        numberOfLines={2}
+        maxFontSizeMultiplier={1.2}
+        style={[styles.cardTitle, { color: C.text }]}
+      >
+        Tier {board.tier_at_generation} — {tierName}
+      </Text>
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
+        style={[styles.cardMeta, { color: C.textSecondary }]}
+      >
+        {size}×{size} · {wordCount} kata · {timeAgo(board.updated_at)}
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 export default function GameHistoryScreen() {
@@ -154,33 +222,40 @@ export default function GameHistoryScreen() {
     [navigation],
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: FinishedBoardMeta }) => {
-      const { board, size, wordCount } = item;
-      const tierName =
-        TIER_NAMES[Math.max(0, Math.min(board.tier_at_generation - 1, TIER_NAMES.length - 1))];
-      return (
-        <TouchableOpacity
-          style={[styles.item, { backgroundColor: theme.colors.surface }]}
-          activeOpacity={0.7}
-          onPress={() => openBoard(board.board_id)}
-        >
-          <View style={[styles.itemIcon, { backgroundColor: theme.colors.secondaryContainer }]}>
-            <Text style={styles.itemIconText}>✅</Text>
-          </View>
-          <View style={styles.itemInfo}>
-            <Text style={[styles.itemTitle, { color: theme.colors.text }]} numberOfLines={1}>
-              Tier {board.tier_at_generation} — {tierName}
-            </Text>
-            <Text style={[styles.itemMeta, { color: theme.colors.textSecondary }]}>
-              {size}×{size} · {wordCount} kata · {timeAgo(board.updated_at)}
-            </Text>
-          </View>
-          <Text style={[styles.itemArrow, { color: theme.colors.textSecondary }]}>›</Text>
-        </TouchableOpacity>
-      );
-    },
-    [theme, openBoard],
+  // Susun item jadi baris masonry: card lebar (1 sel) atau pasangan 2 kolom.
+  // Ukuran tiap card deterministik dari id (utils/masonry.ts) — susunan stabil
+  // antar re-render; FlatList tetap dipakai → lazy load jalan seperti biasa.
+  const rows = useMemo<BoardRow[]>(() => {
+    const out: BoardRow[] = [];
+    let i = 0;
+    while (i < boards.length) {
+      const first = boards[i];
+      const second = boards[i + 1];
+      if (isWideMasonryCard(first.board.board_id) || !second || isWideMasonryCard(second.board.board_id)) {
+        out.push({ key: first.board.board_id, cells: [first] });
+        i += 1;
+      } else {
+        out.push({ key: `${first.board.board_id}|${second.board.board_id}`, cells: [first, second] });
+        i += 2;
+      }
+    }
+    return out;
+  }, [boards]);
+
+  const renderRow = useCallback(
+    ({ item }: { item: BoardRow }) => (
+      <View style={styles.row}>
+        {item.cells.map((cell) => (
+          <BoardCard
+            key={cell.board.board_id}
+            item={cell}
+            wide={item.cells.length === 1}
+            onPress={() => openBoard(cell.board.board_id)}
+          />
+        ))}
+      </View>
+    ),
+    [openBoard],
   );
 
   const renderFooter = useCallback(() => {
@@ -238,9 +313,9 @@ export default function GameHistoryScreen() {
         </View>
       ) : (
         <FlatList
-          data={boards}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.board.board_id}
+          data={rows}
+          renderItem={renderRow}
+          keyExtractor={(row) => row.key}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onEndReached={() => loadPage(false)}
@@ -287,27 +362,45 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, lineHeight: 18 },
   centerWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText: { fontSize: 14, fontWeight: "600" },
-  list: { paddingHorizontal: 16, gap: 8, paddingBottom: 32 },
-  countLabel: { fontSize: 12, fontWeight: "600", paddingBottom: 4 },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  list: { paddingHorizontal: 16, gap: 10, paddingBottom: 32 },
+  countLabel: { fontSize: 12, fontWeight: "600", paddingBottom: 2 },
+
+  /* ─── Card masonry (PLAN-032) ─── */
+  row: { flexDirection: "row", gap: 10 },
+  card: {
     borderRadius: 14,
-    padding: 14,
+    borderWidth: 1,
+    padding: 12,
+    justifyContent: "space-between",
+    gap: 6,
   },
-  itemIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  cardAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    borderTopLeftRadius: 13,
+    borderTopRightRadius: 13,
+  },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  cardIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
-  itemIconText: { fontSize: 20 },
-  itemInfo: { flex: 1, gap: 2 },
-  itemTitle: { fontSize: 15, fontWeight: "700" },
-  itemMeta: { fontSize: 12, fontWeight: "500" },
-  itemArrow: { fontSize: 24, fontWeight: "700" },
+  cardIconText: { fontSize: 16 },
+  cardArrow: { fontSize: 20, fontWeight: "700" },
+  cardTitle: { fontSize: 13.5, fontWeight: "800", letterSpacing: -0.2, lineHeight: 18 },
+  cardMeta: { fontSize: 11.5, fontWeight: "600" },
+
   footerWrap: { alignItems: "center", paddingVertical: 16, gap: 6 },
   footerText: { fontSize: 12, fontWeight: "600" },
   loadMoreBtn: {

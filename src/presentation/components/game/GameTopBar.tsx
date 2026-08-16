@@ -42,10 +42,15 @@ export default function GameTopBar({
         {
           backgroundColor: C.surface,
           paddingTop: 12 + topInset,
+          // Layar ponsel sempit (PLAN-034): padding & jarak diperkecil supaya
+          // toolbar tidak tampak kebesaran / terdorong keluar layar.
+          paddingHorizontal: compactBar ? 12 : 16,
+          paddingVertical: compactBar ? 10 : 12,
+          gap: compactBar ? 6 : 8,
         },
       ]}
     >
-      <View style={[styles.topBarLeft, { flexShrink: 1, minWidth: 0 }]}>
+      <View style={[styles.topBarLeft, { flexShrink: 1, minWidth: 0, gap: compactBar ? 8 : 10 }]}>
         <TooltipButton
           tooltip="Kembali ke menu utama"
           icon="🏠"
@@ -57,24 +62,33 @@ export default function GameTopBar({
         </TooltipButton>
         <Text
           numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
           style={[styles.appTitle, { flexShrink: 1, color: C.primary }]}
         >
           KotaKata AI
         </Text>
       </View>
-      <View style={styles.topBarRight}>
+      <View style={[styles.topBarRight, { gap: compactBar ? 6 : 8 }]}>
         {aiMode && !compactBar && (
           <View style={[styles.aiModeBadge, { backgroundColor: "#e8f4ff", borderColor: "#0096cc" }]}>
             <Text style={styles.aiModeBadgeText}>🤖 Mode AI</Text>
           </View>
         )}
-        <View style={[styles.xpPill, { backgroundColor: "#ffd6ee" }]}>
-          <Text style={[styles.xpPillText, { color: "#a02070" }]}>⭐ {totalXp + currentXp} XP</Text>
+        <View style={[styles.xpPill, { backgroundColor: "#ffd6ee", paddingHorizontal: compactBar ? 10 : 12 }]}>
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.2}
+            style={[styles.xpPillText, { color: "#a02070" }]}
+          >
+            ⭐ {totalXp + currentXp} XP
+          </Text>
         </View>
         {/* Progress lingkaran dengan persentase di tengah — hanya tampil
             di dalam game (header layar game, di samping label XP). */}
-        <ProgressRing progress={fillProgress} />
-        <View style={[styles.topBarDivider, { backgroundColor: C.border }]} />
+        <ProgressRing progress={fillProgress} size={compactBar ? 30 : 34} />
+        {/* Pemisah vertikal — disembunyikan di layar ponsel sempit untuk
+            menghemat ruang (PLAN-034). */}
+        {!compactBar && <View style={[styles.topBarDivider, { backgroundColor: C.border }]} />}
         {/* Switch cepat tema terang/gelap */}
         <TooltipButton
           tooltip={isDark ? "Ganti ke tema terang" : "Ganti ke tema gelap"}
@@ -98,11 +112,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
-  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  topBarRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topBarLeft: { flexDirection: "row", alignItems: "center" },
+  topBarRight: { flexDirection: "row", alignItems: "center" },
   aiModeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -126,9 +138,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
+    // Jangan pernah melebihi ukuran konten di layar sempit.
+    flexShrink: 1,
   },
   xpPillText: { fontSize: 12, fontWeight: "700" },
   topBarDivider: { width: 1, height: 20, marginHorizontal: 2, borderRadius: 1 },

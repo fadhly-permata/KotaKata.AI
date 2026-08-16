@@ -142,10 +142,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [appTheme]);
-  const boardTheme = getBoardThemeById(boardThemeId);
+  // PLAN-033: tema papan & keyboard MENGIKUTI tema aplikasi. Kategori tema
+  // papan/keyboard dihapus sementara dari Pasar (pemilik akan mendesain ulang
+  // keduanya nanti). Id papan/keyboard dengan nama sama dengan tema aplikasi
+  // (puitis/samudra/senja/hutan) di-resolve dari id tema aplikasi yang aktif
+  // — jadi ganti tema aplikasi otomatis mewarnai papan & keyboard senada.
+  const boardTheme = getBoardThemeById(appThemeId);
   const boardPalette = isDark ? boardTheme.dark : boardTheme.light;
   const boardColors = boardPalette;
-  const keyboardTheme = getKeyboardThemeById(keyboardThemeId);
+  const keyboardTheme = getKeyboardThemeById(appThemeId);
   const keyboardPalette = isDark ? keyboardTheme.dark : keyboardTheme.light;
   const keyboardColors = keyboardPalette;
 

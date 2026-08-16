@@ -73,7 +73,10 @@ export default function GameActionBar({
     <View
       style={[
         styles.actionBar,
-        { flexWrap: "wrap", rowGap: 10 },
+        // PLAN-034: di layar ponsel sempit panel membungkus jadi 2 baris —
+        // radius dibuat tetap (bukan pill 999) supaya panel multi-baris tetap
+        // rapi dan tidak tampak seperti kapsul raksasa / bergeser (offset).
+        { flexWrap: "wrap", rowGap: 10, paddingHorizontal: compactBar ? 10 : 14 },
         { backgroundColor: C.hintBackground, borderColor: C.hintBorder },
       ]}
     >
@@ -98,7 +101,10 @@ export default function GameActionBar({
           activeOpacity={0.7}
           onPress={onResetZoom}
         >
-          <Text style={[styles.zoomLabel, { color: C.hintTextSecondary }]}>
+          <Text
+            maxFontSizeMultiplier={1.2}
+            style={[styles.zoomLabel, { color: C.hintTextSecondary }]}
+          >
             {Math.round(zoomLevel * 100)}%
           </Text>
         </TooltipButton>
@@ -122,7 +128,9 @@ export default function GameActionBar({
       {/* Reveal Actions (Center) — label statis + 3 tombol icon */}
       <View style={[styles.revealGroup, compactBar ? styles.revealGroupCompact : null]}>
         {!compactBar && (
-          <Text style={[styles.clueLabelText, { color: C.hintTextSecondary }]}>Petunjuk</Text>
+          <Text maxFontSizeMultiplier={1.2} style={[styles.clueLabelText, { color: C.hintTextSecondary }]}>
+            Petunjuk
+          </Text>
         )}
 
         {/* Reveal petunjuk — buka clue 2 dulu, lalu 3 (XP potong sekali) */}
@@ -292,8 +300,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
+    // Radius tetap (bukan pill 999): panel bisa membungkus 2 baris di layar
+    // ponsel sempit — pill 999 membuat kapsul raksasa yang tampak kebesaran
+    // dan bergeser di Android lama (PLAN-034).
+    borderRadius: 22,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,

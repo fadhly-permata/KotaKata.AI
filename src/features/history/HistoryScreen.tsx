@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,11 @@ import { vocabularyRepository } from "../../data/repositories/vocabularyReposito
 import { timeAgo } from "../../utils/timeAgo";
 import { loggerWarn } from "../../utils/logger";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
+import {
+  masonryCardHeight,
+  masonryWideHeight,
+  isWideMasonryCard,
+} from "../../utils/masonry";
 import type { WordDiscoveryDoc, VocabularyDoc } from "../../data/models/schemas";
 
 interface DiscoveryItem {
@@ -32,10 +37,67 @@ interface DiscoveryItem {
   discoveredAt: string; // ISO timestamp
 }
 
+/** Satu baris masonry: card lebar penuh (1 sel) atau pasangan 2 kolom. */
+interface DiscoveryRow {
+  key: string;
+  cells: DiscoveryItem[];
+}
+
 /** Berapa data yang dimuat tiap scroll (pagination server-side). */
 const PAGE_SIZE = 25;
 /** Jeda sebelum pencarian dikirim ke cloud (hindari spam query per ketikan). */
 const SEARCH_DEBOUNCE_MS = 400;
+
+/** Card satu kata ditemukan — ukuran (tinggi/lebar) acak tapi rapi (PLAN-032). */
+function DiscoveryCard({
+  item,
+  wide,
+  onPress,
+}: {
+  item: DiscoveryItem;
+  wide: boolean;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const C = theme.colors;
+  const height = wide ? masonryWideHeight(item.id) : masonryCardHeight(item.id);
+  return (
+    <TouchableOpacity
+      activeOpacity={0.65}
+      onPress={onPress}
+      style={[
+        styles.card,
+        {
+          height,
+          backgroundColor: C.surface,
+          borderColor: C.border,
+          // Card lebar penuh menempati satu baris; card normal berbagi 2 kolom.
+          flex: wide ? undefined : 1,
+          width: wide ? "100%" : undefined,
+        },
+      ]}
+    >
+      <View style={[styles.cardAccent, { backgroundColor: C.primary }]} />
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
+        style={[styles.cardWord, { color: C.text }]}
+      >
+        {item.word}
+      </Text>
+      <Text
+        numberOfLines={3}
+        maxFontSizeMultiplier={1.2}
+        style={[styles.cardClue, { color: C.textSecondary }]}
+      >
+        {item.clue_1}
+      </Text>
+      <Text style={[styles.cardTime, { color: C.textSecondary }]}>
+        {timeAgo(item.discoveredAt)}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function HistoryScreen() {
   const { theme } = useTheme();
@@ -171,25 +233,41 @@ export default function HistoryScreen() {
     [loadPage],
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: DiscoveryItem }) => (
-      <TouchableOpacity
-        style={[styles.item, { backgroundColor: theme.colors.surface }]}
-        activeOpacity={0.6}
-        onPress={() => setSelected(item)}
-      >
-        <View style={styles.itemLeft}>
-          <Text style={[styles.itemWord, { color: theme.colors.text }]}>{item.word}</Text>
-          <Text style={[styles.itemClue, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-            {item.clue_1}
-          </Text>
-        </View>
-        <Text style={[styles.itemTime, { color: theme.colors.textSecondary }]}>
-          {timeAgo(item.discoveredAt)}
-        </Text>
-      </TouchableOpacity>
+  // Susun item jadi baris masonry: card lebar (1 sel) atau pasangan 2 kolom.
+  // Ukuran tiap card ditentukan deterministik dari id (lihat utils/masonry.ts),
+  // jadi susunan stabil antar re-render. FlatList tetap dipakai → lazy load
+  // (paging + virtualisasi) berjalan seperti sebelumnya.
+  const rows = useMemo<DiscoveryRow[]>(() => {
+    const out: DiscoveryRow[] = [];
+    let i = 0;
+    while (i < items.length) {
+      const first = items[i];
+      const second = items[i + 1];
+      if (isWideMasonryCard(first.id) || !second || isWideMasonryCard(second.id)) {
+        out.push({ key: first.id, cells: [first] });
+        i += 1;
+      } else {
+        out.push({ key: `${first.id}|${second.id}`, cells: [first, second] });
+        i += 2;
+      }
+    }
+    return out;
+  }, [items]);
+
+  const renderRow = useCallback(
+    ({ item }: { item: DiscoveryRow }) => (
+      <View style={styles.row}>
+        {item.cells.map((cell) => (
+          <DiscoveryCard
+            key={cell.id}
+            item={cell}
+            wide={item.cells.length === 1}
+            onPress={() => setSelected(cell)}
+          />
+        ))}
+      </View>
     ),
-    [theme],
+    [],
   );
 
   const renderFooter = useCallback(() => {
@@ -259,9 +337,9 @@ export default function HistoryScreen() {
         </View>
       ) : (
         <FlatList
-          data={items}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          data={rows}
+          renderItem={renderRow}
+          keyExtractor={(row) => row.key}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           onEndReached={() => loadPage(false)}
@@ -363,19 +441,39 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 14, height: 44 },
   clearBtn: { fontSize: 16, padding: 4 },
-  list: { paddingHorizontal: 16, gap: 8, paddingBottom: 32 },
-  countLabel: { fontSize: 12, fontWeight: "600", paddingBottom: 4 },
-  item: {
-    flexDirection: "row",
+  list: { paddingHorizontal: 16, gap: 10, paddingBottom: 32 },
+  countLabel: { fontSize: 12, fontWeight: "600", paddingBottom: 2 },
+
+  /* ─── Card masonry (PLAN-032) ─── */
+  row: { flexDirection: "row", gap: 10 },
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
     justifyContent: "space-between",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 12,
+    gap: 6,
+    // Bayangan halus — pakai border + warna saja agar konsisten di semua
+    // platform (shadow Android lama tidak konsisten).
   },
-  itemLeft: { flex: 1, gap: 2 },
-  itemWord: { fontSize: 16, fontWeight: "700", textTransform: "uppercase" },
-  itemClue: { fontSize: 13, lineHeight: 18 },
-  itemTime: { fontSize: 11, fontWeight: "500", marginLeft: 8 },
+  cardAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    borderTopLeftRadius: 13,
+    borderTopRightRadius: 13,
+  },
+  cardWord: {
+    fontSize: 15,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: -0.2,
+    marginTop: 4,
+  },
+  cardClue: { fontSize: 12.5, lineHeight: 17, flexShrink: 1 },
+  cardTime: { fontSize: 10.5, fontWeight: "600", fontStyle: "italic" },
+
   footerWrap: { alignItems: "center", paddingVertical: 16, gap: 6 },
   footerText: { fontSize: 12, fontWeight: "600" },
   loadMoreBtn: {

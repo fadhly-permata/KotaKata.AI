@@ -272,24 +272,15 @@ interface SectionConfig {
   subtitle: string;
 }
 
+// PLAN-033: hanya Tema Aplikasi yang dijual di Pasar untuk saat ini. Tema
+// papan & keyboard sengaja dihapus dari pasar (pemilik akan mendesain ulang
+// keduanya); papan & keyboard selalu mengikuti tema aplikasi yang aktif.
 const SECTIONS: SectionConfig[] = [
   {
     kind: "app",
     title: "Tema Aplikasi",
     emoji: "🎨",
-    subtitle: "Palet global untuk semua halaman — terang & gelap penuh.",
-  },
-  {
-    kind: "board",
-    title: "Tema Papan",
-    emoji: "🧩",
-    subtitle: "Desain halaman game: papan, soal (clue pill) & panel petunjuk.",
-  },
-  {
-    kind: "keyboard",
-    title: "Tema Keyboard",
-    emoji: "⌨️",
-    subtitle: "Tampilan keyboard virtual saat mengisi jawaban.",
+    subtitle: "Palet global untuk semua halaman — papan & keyboard ikut senada. Terang & gelap penuh.",
   },
 ];
 
@@ -302,15 +293,7 @@ const SECTIONS: SectionConfig[] = [
  * lokal (themeData.ts) — katalog yang sama, jadi pengalaman tetap utuh.
  */
 export default function StoreScreen() {
-  const {
-    theme,
-    appThemeId,
-    setAppThemeId,
-    boardThemeId,
-    setBoardThemeId,
-    keyboardThemeId,
-    setKeyboardThemeId,
-  } = useTheme();
+  const { theme, appThemeId, setAppThemeId } = useTheme();
   const C = theme.colors;
 
   const [catalog, setCatalog] = useState<ThemeCatalogRow[] | null>(null);
@@ -348,13 +331,12 @@ export default function StoreScreen() {
     return localCards(kind);
   };
 
-  const activeIdFor = (kind: ThemeKind): string =>
-    kind === "app" ? appThemeId : kind === "board" ? boardThemeId : keyboardThemeId;
+  // Hanya tema aplikasi yang dijual di Pasar (PLAN-033) — papan & keyboard
+  // mengikuti tema aplikasi, jadi tidak ada pilihan terpisah lagi.
+  const activeIdFor = (kind: ThemeKind): string => appThemeId;
 
-  const activateFor = (kind: ThemeKind, id: string): void => {
-    if (kind === "app") void setAppThemeId(id);
-    else if (kind === "board") void setBoardThemeId(id);
-    else void setKeyboardThemeId(id);
+  const activateFor = (_kind: ThemeKind, id: string): void => {
+    void setAppThemeId(id);
   };
 
   return (
@@ -366,8 +348,9 @@ export default function StoreScreen() {
           <Text style={[styles.heroEmoji, { color: C.primary }]}>🛍️</Text>
           <Text style={[styles.heroTitle, { color: C.text }]}>Pasar</Text>
           <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
-            Ganti tampilan KotaKata sesukamu: tema aplikasi, desain papan, dan
-            keyboard — masing-masing mendukung mode terang & gelap.
+            Ganti tampilan KotaKata sesukamu: pilih tema aplikasi — papan dan
+            keyboard otomatis mengikuti tema yang sama. Mode terang & gelap
+            penuh di tiap tema.
           </Text>
         </View>
 
