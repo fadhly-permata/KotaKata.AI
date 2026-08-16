@@ -88,4 +88,19 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
 - Pengecualian yang boleh langsung dikerjakan tanpa menunggu perintah:
   permintaan meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di
   AGENTS.md) — revisi lain tetap dicatat dulu.
+
+### 6. Setiap revisi selesai → LANGSUNG deploy web ke expo.dev (aturan dari pemilik repo)
+- Setiap kali satu batch revisi/pekerjaan SELESAI dan verifikasinya lolos
+  (tsc / test / lint), **wajib langsung build & deploy versi WEB ke expo.dev**
+  (`node scripts/expo-deploy-web.mjs --prod` atau npm `deploy:web`) — bagian
+  dari alur standar, TIDAK perlu menunggu izin lagi.
+- Ini adalah PENGECUALIAN khusus untuk **deploy web** (EAS Hosting) dari
+  aturan #1. Aturan #1 tetap berlaku untuk build NATIVE (APK/AAB via
+  `eas build` / `scripts/expo-build.mjs`): build native tetap butuh perintah
+  eksplisit pemilik tiap sesi.
+- Urutan standar satu batch: kerjakan → verifikasi (tsc/test/lint) →
+  `git commit` + `git push origin main` → **deploy web ke expo.dev** → laporkan
+  hasil (URL produksi + status deploy) ke pemilik.
+- Kalau deploy web gagal, perbaiki penyebabnya (jangan biarkan gagal
+  menggantung), lalu coba lagi sampai berhasil atau laporkan kendalanya.
 <!-- ATURAN_PROYEK_END -->
