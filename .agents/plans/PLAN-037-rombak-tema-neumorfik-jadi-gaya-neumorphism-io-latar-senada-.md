@@ -1,6 +1,6 @@
 # Rombak tema Neumorfik jadi gaya neumorphism.io (latar senada + bayangan timbul)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 037`
@@ -27,18 +27,18 @@ neumorphism.
 
 ## Langkah
 
-- [ ] **1. Rombak palet Neumorfik** — `themeData.ts`: light `background`≈
+- [x] **1. Rombak palet Neumorfik** — `themeData.ts`: light `background`≈
   `#e0e5ec` & `surface` = tone yang sama (bukan beda warna), border sangat
   halus, aksen biru `#3d5afe`-ish; dark mode senada (abu gelap, surface = latar).
   Board & keyboard theme `neumorfik` ikut dirombak agar tetap senada.
-- [ ] **2. Dukungan bayangan timbul** — tambahkan spec bayangan neumorphic
+- [x] **2. Dukungan bayangan timbul** — tambahkan spec bayangan neumorphic
   (opsional per tema: warna terang & gelap + offset) di theme, lalu terapkan ke
   komponen kunci yang memakai warna surface: kartu di Pasar, TopBar/panel hint
   in-game, tombol, keyboard keys, grid cells — elemen "timbul" (raised) dan
   "tertekan" (pressed) sesuai gaya neumorphism.io.
-- [ ] **3. Seed & verifikasi** — regenerate `themes.sql` + push ke Supabase,
+- [x] **3. Seed & verifikasi** — regenerate `themes.sql` + push ke Supabase,
   tsc + tes, cek tampilan di preview (web) untuk light & dark.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 037 <no> "teks"`)_
+- **2.** 2026-08-16: Palet Neumorfik dirombak gaya neumorphism.io — light bg `#e0e5ec` & **surface = SAMA dengan latar** (bukan beda tone), aksen biru `#3d5afe`, border halus; dark senada (`#1f2429`, surface = latar, aksen `#7d9bff`). Spec baru `NeumorphicShadowSpec` (light/dark + offset/blur) ditambahkan ke tipe `Theme` (hanya tema neumorfik yang membawanya). Util `neumorphicShadow()` memakai prop `boxShadow` array (didukung RN 0.86 native + react-native-web) — dua bayangan (terang kiri-atas, gelap kanan-bawah, nilai klasik neumorphism.io 9/16) dan menetralkan prop shadow* legacy. Diterapkan ke: kartu Pasar, TopBar umum, GameTopBar, panel hint + tombol (GameActionBar), tombol keyboard (InGameKeyboard), kartu masonry riwayat (2 halaman). Board & keyboard theme `neumorfik` ikut dirombak senada. Seed themes.sql diregenerate (19 tema) & di-push ke Supabase; tsc + 43 tes + lint lolos.

@@ -45,6 +45,7 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 | **PLAN-034** | ✅ done | Toolbar In-Game responsif (fix Android 9) | 3 langkah: `GameActionBar` radius pill 999 → **22** (panel membungkus 2 baris di layar sempit — pill 999 tampak kapsul raksasa/offset di Android 9); `GameTopBar` responsif (padding/gap mengecil saat compact, divider disembunyikan, ProgressRing 30px, XP pill flexShrink, `maxFontSizeMultiplier` 1.2); verifikasi tsc + 43 tes + lint lolos |
 | **PLAN-035** | ✅ done | Panel hint in-game ringkas: swipe kanan-kiri + panah navigasi | 3 langkah: `GameActionBar` dirombak jadi **pager horizontal 3 halaman** (Zoom / Petunjuk / Alat Reset+Keyboard) — ScrollView pagingEnabled snap halus, **panah ◀ ▶** (NextIcon) di kanan-kiri seperti CluePill, opacity panah mengikuti scroll (interpolate Animated), indikator titik halaman; panel kini setinggi 1 baris (hemat ruang); verifikasi tsc + 43 tes + lint lolos |
 | **PLAN-036** | ✅ done | Tema Neumorfik (neumorphism) + backsound & sound efek | 3 langkah: tema aplikasi **Neumorfik** (soft-UI abu lembut + aksen biru baja, light & dark) + **board/keyboard theme id sama** (ikut PLAN-033) + **SoundSpec "Lembut"** (rate 0.85, volume 0.75) + **ambient "Kicau burung pagi"** (mixkit 2472, URL diverifikasi HTTP 200); seed `themes.sql` diregenerate (19 tema) & **di-push ke Supabase**; verifikasi tsc + 43 tes + lint lolos |
+| **PLAN-037** | ✅ done | Rombak tema Neumorfik jadi gaya neumorphism.io | 3 langkah: palet dirombak — **surface = warna latar** (`#e0e5ec` light / `#1f2429` dark), aksen biru `#3d5afe`, border halus; spec baru **`NeumorphicShadowSpec`** + util `neumorphicShadow()` (prop `boxShadow` dua bayangan: terang kiri-atas + gelap kanan-bawah, nilai klasik 9/16 — jalan di RN native & web); bayangan timbul diterapkan ke kartu Pasar, TopBar, panel hint + tombol, keyboard keys, kartu riwayat; board/keyboard ikut senada; seed di-push ke Supabase; tsc + 43 tes + lint lolos |
 
 **Progres fase inti (checkpoint):** 19/19 phase `completed` — lihat `.agents/checkpoint.json`.
 
@@ -60,6 +61,11 @@ Update dokumen ini setiap kali ada plan revisi selesai (lihat `.agents/plans/`).
 - 🔄 **Looping suara latar mulus (PLAN-029)** — backsound kini memakai **crossfade dua slot**: ~2 detik sebelum akhir, slot kedua mulai dari awal dengan volume naik sementara slot pertama turun — perulangan tidak lagi terasa "putus". Properti `loop` tetap sebagai jaring pengaman.
 - 🔐 **Login Google wajib (PLAN-030)** — tombol "Lanjut sebagai Tamu" dihapus; game hanya bisa dimainkan user yang login Google. Session anonim yang tersisa (dari build lama) otomatis dikeluarkan saat app dibuka. Profil tidak lagi menampilkan "Hubungkan Akun"; dokumen (README/GUIDE/TERMS/PRIVACY) disinkronkan.
 - 🌐 **Title tab web (PLAN-031)** — title HTML kini "KotaKata AI" dan berganti per halaman: "KotaKata AI - Beranda", "KotaKata AI - Bermain", dst.
+
+### v1.3.5 — Neumorfik Gaya Neumorphism.io (PLAN-037)
+
+- 🎨 **Tema Neumorfik dirombak jadi gaya neumorphism.io** — latar abu lembut `#e0e5ec` (light) / `#1f2429` (dark) dengan **permukaan memakai warna SAMA dengan latar**, sehingga elemen tampak "timbul" lewat **bayangan ganda**: terang di kiri-atas + gelap di kanan-bawah (nilai klasik neumorphism.io). Aksen biru `#3d5afe` (light) / `#7d9bff` (dark).
+- ✨ Bayangan timbul diterapkan ke elemen kunci: **kartu di Pasar, header (TopBar & header in-game), panel hint + tombol, tombol keyboard, kartu riwayat** — otomatis hanya aktif saat tema Neumorfik dipilih (tema lain tidak berubah).
 
 ### v1.3.4 — Panel Hint Swipe + Tema Neumorfik (PLAN-035–036)
 

@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-036 — semuanya ✅ done) + detail tiap rilis.
+(PLAN-001 s/d PLAN-037 — semuanya ✅ done) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -265,6 +265,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-034 | ✅ done | Toolbar In-Game responsif — tidak kebesaran/offset di Android lama (Infinix Hot 8); radius panel, header, & skala teks disesuaikan |
 | PLAN-035 | ✅ done | Panel hint in-game ringkas — pager swipe kanan-kiri 3 halaman + panah ◀ ▶ (seperti CluePill) + indikator titik; panel setinggi satu baris |
 | PLAN-036 | ✅ done | Tema Neumorfik (neumorphism) di Pasar — soft-UI abu lembut + biru baja, light/dark, papan & keyboard senada, backsound "Kicau burung pagi" + sound efek "Lembut" |
+| PLAN-037 | ✅ done | Neumorfik dirombak gaya neumorphism.io — surface = warna latar + bayangan timbul (terang kiri-atas, gelap kanan-bawah) di kartu Pasar/header/panel hint/keyboard/kartu riwayat; aksen biru |
 
 ## ❓ FAQ
 
