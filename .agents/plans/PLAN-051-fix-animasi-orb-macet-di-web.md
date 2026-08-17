@@ -68,5 +68,6 @@ TIDAK membatalkan mitigasi force close (PLAN-023/024/027) di native.
 - [x] **6. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
+- **2.** 2026-08-17: Akar masalah SEBENARNYA setelah verifikasi lanjutan: selain churn fokus, array orbBounce dibuat INLINE di body komponen (MainMenu & Auth) → identitas berubah tiap render → useMemo dep berubah → effect stop/restart semua loop SETIAP render (inilah yang bikin macet di RNW; tetap terjadi setelah fix tahap 1 karena useMemo bergantung array tak stabil). Fix final: orbBounce distabilkan via useRef([...]).current + useAmbientLoops web pakai deps [] (sekali mount, kebal churn apa pun).
 
 - **5.** 2026-08-17: Helper useAmbientLoops (src/utils/ambientLoop.ts): web = loop sekali mount tanpa churn stop/restart (anti macet RNW), native = tetap gated fokus (mitigasi force close). Diterapkan ke AmbientOrbs, MainMenu (bounce + 7 orb), AuthScreen (4 orb); AmbientFx pakai platform-split inline (custom loop). CompletionOverlay aman (loop sekali mount).
