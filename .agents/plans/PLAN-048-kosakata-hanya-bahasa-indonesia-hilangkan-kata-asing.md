@@ -53,3 +53,4 @@ mencakup **DB Supabase**, bukan hanya file seed.
 ## Catatan Revisi
 
 - **5.** 2026-08-17: 9 kata asing/non-baku diganti kata Indonesia: start→rintis, lose→hempas, cheetah→citah, maroon→nila, trottoar→delima, qurban→kurban, fuchsia→fusia, olive→jambon, disorder→jengah (semua baku KBBI/umum, tanpa bentrok, 1000/tier tetap). 10 clue berbahasa Inggris diperbaiki (wine, topping, playing card, fuchsia, olive, rhinoceros, butter, corn, maroon, sidewalk → kata Indonesia). Scanner asing = 0 jawaban asing tersisa (yard/pasta/audio/menu dipertahankan: serapan lazim KBBI), duplikat 0, check-clue-quality 0 issue, vulgar 0, tsc + 50 tes lolos. Supabase terverifikasi: 10.000 row, 1000/tier, kata asing 0.
+- **6.** 2026-08-17: Deploy web selesai — produksi live di https://kotakata-ai.expo.app (EAS Hosting).

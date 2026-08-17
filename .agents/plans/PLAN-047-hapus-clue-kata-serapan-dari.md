@@ -43,3 +43,4 @@ duplikat, tanpa placeholder.
 ## Catatan Revisi
 
 - **5.** 2026-08-17: Semua tag asal bahasa dihapus (755 di SQL + TS sudah dibersihkan): prefix 'Kata serapan dari bahasa X:' (745) & 'Kata dari bahasa X:' (10) = 0. QA check-clue-quality 0 issue semua tier (15 issue lama ikut dibereskan), vulgar 0, audit 0, tsc + 50 tes lolos. Supabase terverifikasi: total 10.000, 1000/tier, tagged 0. Script add-language-origin & add-regional-origin dinonaktifkan (no-op) agar tag tidak muncul lagi; verify-origin-prefixes.mjs jadi guard (tag harus 0).
+- **6.** 2026-08-17: Deploy web selesai — produksi live di https://kotakata-ai.expo.app (EAS Hosting).

@@ -50,3 +50,4 @@ jaring pengaman).
 ## Catatan Revisi
 
 - **5.** 2026-08-17: Indeks frekuensi dibangun (frequency-data.mjs: daftar kata sehari-hari SANGAT_UMUM + penanda kata jarang). Audit distribusi: tier2 hanya 2% kata umum (isi lema KBBI acak) & tier3 penuh kata sangat umum (jangan, sangat, datang, bicara...). Re-sort antar tier: rank 1 = tier1 (dipertahankan utuh 1000 kata), rank 2 = kata SANGAT_UMUM di tier 2+ ditarik ke tier2, rank 3 = sisanya stabil. Hasil: tier2 2%->62% kata umum, cascade tier3-10 makin jarang (t8-10 tetap kata 8+ huruf/formal), 1000/tier tanpa duplikat, tier1 identik. Validasi: vulgar 0, asing 0, check-clue-quality 0 issue semua tier, audit bersih, tsc + 50 tes lolos. Supabase terverifikasi 10.000 row 1000/tier. Script: plan045-resort-tiers.mjs, audit-frequency.mjs.
+- **6.** 2026-08-17: Deploy web selesai — produksi live di https://kotakata-ai.expo.app (EAS Hosting).

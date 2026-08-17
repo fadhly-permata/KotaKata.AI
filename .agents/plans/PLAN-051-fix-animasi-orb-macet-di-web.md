@@ -68,6 +68,7 @@ TIDAK membatalkan mitigasi force close (PLAN-023/024/027) di native.
 - [x] **6. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
+- **6.** 2026-08-17: Deploy web selesai — produksi live di https://kotakata-ai.expo.app (EAS Hosting).
 - **3.** 2026-08-17: Akar masalah sebenarnya (tahap 2, terbukti via tes bundle produksi + jsdom): loop satu arah [delay, timing 0->1] di react-native-web cuma me-reset child pertama saat iterasi ulang, value partikel tertinggal di 1 lalu siklus berikutnya 1->1 = partikel diam di posisi akhir. Fix: tutup sequence dengan reset instan ke 0 (duration 0). Terverifikasi: partikel hujan/angin 10/10 frame bergerak di bundle produksi.
 - **2.** 2026-08-17: Akar masalah SEBENARNYA setelah verifikasi lanjutan: selain churn fokus, array orbBounce dibuat INLINE di body komponen (MainMenu & Auth) → identitas berubah tiap render → useMemo dep berubah → effect stop/restart semua loop SETIAP render (inilah yang bikin macet di RNW; tetap terjadi setelah fix tahap 1 karena useMemo bergantung array tak stabil). Fix final: orbBounce distabilkan via useRef([...]).current + useAmbientLoops web pakai deps [] (sekali mount, kebal churn apa pun).
 
