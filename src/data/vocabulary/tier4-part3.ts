@@ -6,7 +6,7 @@ export const TIER_4_WORDS_PART_3: [string, string, string, string][] = [
   ["perusak", "orang yang merusak", "pengacau yang merusak keadaan", "Sinonim: pengacau"],
   ["menguap", "menjadi uap; hilang", "berubah menjadi gas", "Sinonim: menghilang"],
   ["fanatik", "terlalu kuat keyakinannya", "taat berlebihan pada suatu hal", "Sinonim: maniak"],
-  ["trotoar", "jalan khusus pejalan kaki", "tepi jalan yang ditinggikan", "Sinonim: sidewalk"],
+  ["trotoar", "jalan khusus pejalan kaki", "tepi jalan yang ditinggikan", "Sinonim: jalur pejalan kaki"],
   ["memecah", "membelah menjadi bagian; memisahkan", "menjadikan tidak utuh", "Sinonim: membelah"],
   ["imigran", "pendatang dari negara lain", "orang yang masuk ke negara baru", "Antonim: emigran"],
   ["pancing", "alat untuk menangkap ikan", "tali berkait untuk memikat ikan", "Sinonim: kail"],

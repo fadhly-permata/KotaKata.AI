@@ -1,6 +1,6 @@
 # Kosakata hanya bahasa Indonesia — hilangkan kata asing, ganti agar tetap 1000 soal
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 048`
@@ -36,20 +36,20 @@ mencakup **DB Supabase**, bukan hanya file seed.
 
 ## Langkah
 
-- [ ] **1. Buat scanner kata asing** — daftar kata yang bukan bahasa Indonesia
+- [x] **1. Buat scanner kata asing** — daftar kata yang bukan bahasa Indonesia
   (asing mentah, akronim asing tak lazim, nama diri/merek) + word-boundary;
   jalankan di semua seed **dan** query langsung ke DB Supabase (temukan
   "START" & sejenisnya, termasuk kata AI).
-- [ ] **2. Audit & daftar** — kumpulkan temuan per tier + dari DB; konfirmasi
+- [x] **2. Audit & daftar** — kumpulkan temuan per tier + dari DB; konfirmasi
   tiap kata (asing = hapus, serapan lazim = aman).
-- [ ] **3. Ganti** — kurasi pengganti bahasa Indonesia yang setara
+- [x] **3. Ganti** — kurasi pengganti bahasa Indonesia yang setara
   kesulitannya; pastikan tidak bentrok antar tier; tetap **1000 kata/tier**.
-- [ ] **4. Validasi** — scanner asing = 0 hit, scan vulgar tetap 0,
+- [x] **4. Validasi** — scanner asing = 0 hit, scan vulgar tetap 0,
   `gen-vocab-sql.mjs` 1000/tier tanpa dedup, `check-clue-quality` 0 issue,
   tsc + tes + lint.
-- [ ] **5. Push & rilis** — `push-vocab.mjs` ke Supabase (verifikasi 1000/tier
+- [x] **5. Push & rilis** — `push-vocab.mjs` ke Supabase (verifikasi 1000/tier
   + kata asing 0 di DB), commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 048 <no> "teks"`)_
+- **5.** 2026-08-17: 9 kata asing/non-baku diganti kata Indonesia: start→rintis, lose→hempas, cheetah→citah, maroon→nila, trottoar→delima, qurban→kurban, fuchsia→fusia, olive→jambon, disorder→jengah (semua baku KBBI/umum, tanpa bentrok, 1000/tier tetap). 10 clue berbahasa Inggris diperbaiki (wine, topping, playing card, fuchsia, olive, rhinoceros, butter, corn, maroon, sidewalk → kata Indonesia). Scanner asing = 0 jawaban asing tersisa (yard/pasta/audio/menu dipertahankan: serapan lazim KBBI), duplikat 0, check-clue-quality 0 issue, vulgar 0, tsc + 50 tes lolos. Supabase terverifikasi: 10.000 row, 1000/tier, kata asing 0.

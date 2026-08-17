@@ -317,7 +317,7 @@ export const TIER_10_WORDS: [string, string, string, string][] = [
   ["brigadir", "pangkat di bawah inspektur jenderal polisi", "pangkat perwira polisi", "anggota kepolisian berpangkat perwira pertama"],
   ["gebrakan", "pukulan dengan pemukul berbidang lebar", "Kiasan tindakan yang berani yang tidak diperkirakan sebelumnya oleh orang lain", "tindakan keras untuk menakuti dan sebagainya"],
   ["mengulas", "memberi bersarung", "Contoh: atas perintah raja, petugas istana … tiang-tiang keraton dengan kain kuning Verba kata kerja menjadikan berulas; menyambung: putranya diharapkan untuk … yang putus dan menyambung yang patah", "Sinonim: menyalut"],
-  ["disorder", "keadaan yang tidak sesuai dengan tatanan (aturan keadaan) yang umum", "keadaan dan perasaan badan yang kurang enak, disebabkan oleh gangguan penyakit atau karena tidak berfungsinya salah satu organ tubuh", "keadaan yang tidak sesuai dengan tatanan aturan keadaan yang umum"],
+  ["jengah", "merasa malu atau segan", "canggung karena merasa tidak pantas", "Sinonim: malu"],
   ["histeria", "gangguan pada gerak-gerik jiwa dan rasa dengan gejala luapan emosi yang sering tidak terkendali seperti tiba-tiba berteriak-teriak, menangis", "berjalan dalam keadaan sedang tidur", "mati rasa"],
   ["serentak", "bersama-sama (tentang gerakan, dan sebagainya)", "seketika itu juga; spontan; serta-merta", "Sinonim: serempak"],
   ["bantahan", "sangkalan", "Contoh: … terhadap ketidakbenaran berita itu telah dimuat di surat kabar", "Sinonim: verset"],
