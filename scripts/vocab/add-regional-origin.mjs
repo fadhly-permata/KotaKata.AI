@@ -1,19 +1,17 @@
 // ============================================================
-// Tambahkan keterangan asal BAHASA DAERAH ke clue_1 soal.
+// [DINONAKTIFKAN — PLAN-047] Tambahkan keterangan asal BAHASA DAERAH
+// ke clue_1 soal.
 //
-// Item #1 PLAN-005 (sisa yang di-defer): selain serapan asing,
-// kata dari bahasa daerah Nusantara (Jawa, Sunda, Minangkabau,
-// dll) juga harus menyebutkan asal bahasanya di clue.
+// PLAN-047 (2026-08-17): pemilik TIDAK SUKA clue berawalan "Kata serapan
+// dari bahasa X:" / "Kata dari bahasa X:" → semua tag asal bahasa dihapus
+// dari vocabulary. Script ini sengaja di-nonaktifkan agar tag TIDAK muncul
+// lagi. JANGAN diaktifkan kembali tanpa persetujuan pemilik.
 //
-// Presisi dijaga sangat ketat: kata hanya dimasukkan kalau
-// penanda bahasa daerah muncul DI DEFINISI UTAMA entri KBBI
-// (format <b>kata</b> <i>Jw n</i> ...) DAN makna yang dipakai
-// soal sesuai dengan makna entri KBBI tersebut (bukan homograf
-// sekunder yang kebetulan bahasa daerah).
+// Sejarah: dibuat untuk PLAN-005 (sisa yang di-defer) — menandai kata dari
+// bahasa daerah Nusantara (Jawa, Sunda, Minangkabau, dll) di clue.
 //
-// Usage:
-//   bun scripts/vocab/add-regional-origin.mjs           # dry-run
-//   bun scripts/vocab/add-regional-origin.mjs --apply   # tulis file
+// Usage (tidak berlaku lagi — selalu no-op):
+//   node scripts/vocab/add-regional-origin.mjs [--apply]
 // ============================================================
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -22,6 +20,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
 const vocabDir = join(ROOT, "src", "data", "vocabulary");
+
+// PLAN-047: nonaktif — jangan pernah menambahkan tag asal bahasa lagi.
+console.warn("[PLAN-047] add-regional-origin.mjs DINONAKTIFKAN — tag asal bahasa sudah dihapus. Keluar tanpa perubahan.");
+process.exit(0);
 
 const APPLY = process.argv.includes("--apply");
 

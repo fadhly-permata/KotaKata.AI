@@ -1,18 +1,17 @@
 // ============================================================
-// Tambahkan keterangan asal bahasa ke clue_1 soal kata serapan.
+// [DINONAKTIFKAN — PLAN-047] Tambahkan keterangan asal bahasa ke clue_1
+// soal kata serapan.
 //
-// Item #1 PLAN-005: "banyak soal bukan berbahasa indonesia, tapi
-// clue 1, 2, 3 gak menyebutkan bahasa tersebut berasal dari bahasa
-// apa." Script ini memakai peta terkurasi scripts/vocab/etymology-data.mjs
-// untuk menambah prefix "Kata serapan dari bahasa X: " ke clue_1.
+// PLAN-047 (2026-08-17): pemilik TIDAK SUKA clue berawalan "Kata serapan
+// dari bahasa X:" → semua tag asal bahasa dihapus dari vocabulary.
+// Script ini sengaja di-nonaktifkan agar tag TIDAK muncul lagi.
 //
-// Presisi dijaga ketat: hanya kata yang asal bahasanya YAKIN yang ada
-// di peta; kata Melayu asli / bahasa daerah TIDAK ikut.
+// Sejarah: dibuat untuk PLAN-005 item #1 (memberi tahu asal bahasa serapan)
+// memakai peta terkurasi etymology-data.mjs. JANGAN diaktifkan kembali
+// tanpa persetujuan pemilik.
 //
-// Usage:
-//   bun scripts/vocab/add-language-origin.mjs            # dry-run (laporan)
-//   bun scripts/vocab/add-language-origin.mjs --apply    # tulis file
-//   bun scripts/vocab/add-language-origin.mjs --tier=5   # batasi ke tier tertentu
+// Usage (tidak berlaku lagi — selalu no-op):
+//   node scripts/vocab/add-language-origin.mjs [--apply] [--tier=N]
 // ============================================================
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -26,6 +25,10 @@ const vocabDir = join(ROOT, "src", "data", "vocabulary");
 const APPLY = process.argv.includes("--apply");
 const tierArg = process.argv.find((a) => /^--tier=\d+$/.test(a));
 const ONLY_TIER = tierArg ? Number(tierArg.split("=")[1]) : null;
+
+// PLAN-047: nonaktif — jangan pernah menambahkan tag asal bahasa lagi.
+console.warn("[PLAN-047] add-language-origin.mjs DINONAKTIFKAN — tag asal bahasa sudah dihapus. Keluar tanpa perubahan.");
+process.exit(0);
 
 const wordToLang = buildWordToLang();
 
