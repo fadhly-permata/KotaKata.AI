@@ -50,7 +50,7 @@ sering berulang.
   model AI melanggar).
 - [x] **4. Verifikasi** — tsc + tes + lint; tes unit untuk `requestAiWords`
   (exclude tercantum di prompt & hasil difilter).
-- [ ] **5. Rilis** — commit + push + deploy web (aturan #6).
+- [x] **5. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 

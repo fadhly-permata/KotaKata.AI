@@ -42,7 +42,7 @@ terlihat oleh pemain.
   kecil).
 - [x] **4. Verifikasi** — tsc + tes + lint, cek UI web (badge & dialog tampil
   rapi di layar sempit).
-- [ ] **5. Rilis** — commit + push + deploy web (aturan #6).
+- [x] **5. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 

@@ -65,7 +65,7 @@ TIDAK membatalkan mitigasi force close (PLAN-023/024/027) di native.
 - [x] **5. Verifikasi** — tsc + tes + lint; cek web preview: navigasi
   keluar-masuk & ganti tab berkali-kali, orb tidak macet; Android tidak bisa
   dites di sini (serahkan ke pemilik, tanpa mengubah perilaku native).
-- [ ] **6. Rilis** — commit + push + deploy web (aturan #6).
+- [x] **6. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
