@@ -74,12 +74,15 @@ export default function AuthScreen() {
 
   // Orb animations — idle bounce dengan fase & durasi berbeda supaya terlihat
   // hidup (dulu hanya float 12–15s yang nyaris tidak terasa).
-  const orbBounce = [
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-  ];
+  // PENTING: array dibuat SEKALI lewat useRef — array inline di body komponen
+  // berubah identitas tiap render dan bikin effect animasi stop/restart semua
+  // loop setiap render (orb macet di react-native-web — fix PLAN-051).
+  const orbBounce = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
   const orbBounceSpecs = useMemo(
     () =>
       orbBounce.map((value, i) => ({

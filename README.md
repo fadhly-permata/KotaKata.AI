@@ -275,7 +275,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-044 | ✅ done | Animasi latar mengikuti suasana backsound — tema hujan→rintik turun, angin→garis melintas, unggun→bara naik, jangkrik→kelap-kelip, ombak→gelombang, sepoi→dedaunan; komponen AmbientFx ringan (≤12 partikel, native driver, hanya saat layar fokus) menggantikan orb |
 | PLAN-049 | ✅ done | Mode AI: info 🇮🇩 Bahasa Indonesia di halaman Pengaturan Provider AI + dialog loading "Menyusun soal dari AI" |
 | PLAN-050 | ✅ done | Mode AI: exclude kata yang sudah pernah ditemukan — dilarang di prompt AI (cap 300 terbaru) + difilter di sisi klien; gagal ambil riwayat = lanjut tanpa exclude (4 tes unit baru) |
-| PLAN-051 | ✅ done | Fix animasi orb macet di web — helper `useAmbientLoops`: web loop sekali mount tanpa churn stop/restart (anti macet), native tetap gated fokus (mitigasi force close); diterapkan ke AmbientOrbs, Main Menu, Login, AmbientFx |
+| PLAN-051 | ✅ done | Fix animasi orb macet di web — 2 penyebab: churn stop/restart saat ganti fokus DAN array `orbBounce` inline (identitas berubah tiap render → semua loop stop/restart tiap render); helper `useAmbientLoops` (web loop sekali mount, deps `[]`) + array `orbBounce` distabilkan via `useRef`; native tetap gated fokus |
 
 ## ❓ FAQ
 

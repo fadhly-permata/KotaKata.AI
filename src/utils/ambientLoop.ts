@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Animated, Easing, Platform } from "react-native";
 
 export interface AmbientLoopSpec {
@@ -44,28 +44,34 @@ function startLoops(specs: AmbientLoopSpec[]): () => void {
 /**
  * Jalankan kumpulan loop naik-turun (0→1→0) yang TIDAK macet di web (PLAN-051).
  *
- * Masalah yang diperbaiki: react-native-web (JS driver) dikenal bermasalah
- * dengan pola `loop.stop()` → `setValue(0)` → loop baru saat layar ganti
- * fokus — animasi bisa macet di posisi akhir (orb diam) sampai navigasi
- * ulang. Karena itu:
- *  - **Web**: loop dijalankan SEKALI saat mount dan hanya berhenti saat
- *    unmount — TANPA churn stop/restart. `enabled` (fokus) diabaikan.
- *  - **Native**: loop hanya berjalan saat `enabled` (guard fokus) — tetap
- *    menjaga mitigasi force close (PLAN-023/024/027: jangan menumpuk
- *    native-driver loop saat layar tertutup di stack navigasi).
+ * Masalah yang diperbaiki: react-native-web (JS driver) bermasalah dengan
+ * pola `loop.stop()` → `setValue(0)` → loop baru — animasi bisa macet di
+ * posisi akhir (orb diam). Dua sumber churn yang dimatikan:
+ *  1. Churn fokus (guard `useIsFocused`): di web loop dijalankan SEKALI saat
+ *     mount dan hanya berhenti saat unmount — `enabled` diabaikan.
+ *  2. Churn render (array specs/values yang tidak stabil — mis. dibuat inline
+ *     di body komponen): guard `webStartedRef` memastikan loop web HANYA
+ *     dimulai sekali walau effect dijalankan ulang berkali-kali.
  *
- * `specs` HARUS referensi stabil (buat dengan useMemo/useRef di pemanggil)
- * supaya effect tidak restart tiap render.
+ * Di NATIVE loop hanya berjalan saat `enabled` (guard fokus) — tetap menjaga
+ * mitigasi force close (PLAN-023/024/027: jangan menumpuk native-driver loop
+ * saat layar tertutup di stack navigasi). Pemanggil tetap disarankan memberi
+ * specs referensi stabil (useMemo/useRef) supaya native juga tidak churn.
  */
 export function useAmbientLoops(specs: AmbientLoopSpec[], enabled: boolean): void {
-  // Web: sekali mount — tidak ada churn stop/restart.
+  // Web: loop dijalankan SEKALI saat mount (deps `[]` → tidak pernah
+  // dijalankan ulang karena render/fokus). StrictMode dev tetap aman:
+  // mount → start → cleanup → start lagi. specs dibaca lewat ref supaya
+  // nilai terbaru terpakai tanpa menjadikannya dependency.
+  const specsRef = useRef(specs);
+  specsRef.current = specs;
   useEffect(() => {
     if (Platform.OS !== "web") return;
-    return startLoops(specs);
+    return startLoops(specsRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [specs]);
+  }, []);
 
-  // Native: gated fokus.
+  // Native: gated fokus (specs stabil dari useMemo/useRef pemanggil).
   useEffect(() => {
     if (Platform.OS === "web") return;
     if (!enabled) return;

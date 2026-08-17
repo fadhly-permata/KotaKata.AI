@@ -103,15 +103,19 @@ export default function MainMenuScreen() {
 
   // Tiap orb punya animasi idle sendiri (fase & durasi berbeda) supaya terlihat
   // hidup: naik-turun halus "mantul" sebagai pemanis, tanpa mengganggu parallax.
-  const orbBounce = [
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-  ];
+  // PENTING: array dibuat SEKALI lewat useRef — kalau dibuat inline di body
+  // komponen, identitasnya berubah tiap render dan effect animasi (yang
+  // dependen pada array ini) akan stop/restart semua loop setiap render —
+  // itulah yang bikin orb macet di react-native-web (fix PLAN-051).
+  const orbBounce = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
   const orbBounceSpecs = useMemo(
     () =>
       orbBounce.map((value, i) => ({
