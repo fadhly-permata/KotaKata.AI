@@ -1,4 +1,16 @@
 /** XP thresholds for each tier (cumulative) */
+/**
+ * Ambang XP untuk membuka SEMUA tier sebagai pool kata (PLAN-046):
+ * pemain dengan XP ≥ 800.000 (jauh melampaui ambang tier 10 = 500.000)
+ * tidak lagi dibatasi tier — papan boleh memakai kata dari tier 1–10.
+ */
+export const UNLOCK_ALL_TIERS_XP = 800000;
+
+/** Apakah pemain dengan totalXp ini berhak atas pool kata SEMUA tier. */
+export function shouldUnlockAllTiers(totalXp: number): boolean {
+  return totalXp >= UNLOCK_ALL_TIERS_XP;
+}
+
 export const TIER_THRESHOLDS = [
   0,        // Tier 1 — Eja Awal
   6500,     // Tier 2 — Desau Saujana

@@ -190,7 +190,7 @@ bun run deploy:web                    # export web + deploy ke EAS Hosting (expo
 ## 📝 Revisi & Planning
 
 **📄 [Release Notes lengkap](RELEASE_NOTES.md)** — ringkasan progres semua plan
-(PLAN-001 s/d PLAN-051 — semuanya ✅ done, kecuali PLAN-042 yang di-skip oleh pemilik; PLAN-045 s/d 048 masih pending) + detail tiap rilis.
+(PLAN-001 s/d PLAN-051 — semuanya ✅ done, kecuali PLAN-042 yang di-skip oleh pemilik; PLAN-045, 047, 048 masih pending) + detail tiap rilis.
 
 Daftar revisi produk dikelola di `.agents/plans/` (contoh: `PLAN-001-revisi-halaman-utama.md`)
 dengan CLI plan:
@@ -273,6 +273,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-042 | ⏭ skipped | Review soal tier 2–10 — di-skip oleh pemilik (belum dikerjakan; ditampilkan hanya saat diminta) |
 | PLAN-043 | ✅ done | Popup dialog dibuat solid/opaque agar teks terbaca — helper solidSurfaceColor() di skin.ts (rgba surface glass/frost di-blend jadi solid) dipakai semua kartu dialog: AppModal, ConfirmDialog, CompletionOverlay, sheet detail kata, modal hapus akun, kartu error AI; efek kaca tetap di elemen halaman |
 | PLAN-044 | ✅ done | Animasi latar mengikuti suasana backsound — tema hujan→rintik turun, angin→garis melintas, unggun→bara naik, jangkrik→kelap-kelip, ombak→gelombang, sepoi→dedaunan; komponen AmbientFx ringan (≤12 partikel, native driver, hanya saat layar fokus) menggantikan orb |
+| PLAN-046 | ✅ done | XP ≥ 800.000 → pool kata SEMUA tier (1–10) saat generate papan (kata sudah ditemukan tetap dikecualikan); konstanta UNLOCK_ALL_TIERS_XP + getAllTiersFromCloud + selectWordPool allTiers |
 | PLAN-049 | ✅ done | Mode AI: info 🇮🇩 Bahasa Indonesia di halaman Pengaturan Provider AI + dialog loading "Menyusun soal dari AI" |
 | PLAN-050 | ✅ done | Mode AI: exclude kata yang sudah pernah ditemukan — dilarang di prompt AI (cap 300 terbaru) + difilter di sisi klien; gagal ambil riwayat = lanjut tanpa exclude (4 tes unit baru) |
 | PLAN-051 | ✅ done | Fix animasi orb macet di web — 2 penyebab: churn stop/restart saat ganti fokus DAN array `orbBounce` inline (identitas berubah tiap render → semua loop stop/restart tiap render); helper `useAmbientLoops` (web loop sekali mount, deps `[]`) + array `orbBounce` distabilkan via `useRef`; native tetap gated fokus |

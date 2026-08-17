@@ -23,7 +23,13 @@ import { boardRepository } from "../../data/repositories/boardRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
 import { isWordComplete, validateWord } from "../../domain/usecases/wordValidator";
-import { calcTier, XP_PENALTY_CLUE_2, XP_PENALTY_CLUE_3, XP_PENALTY_REVEAL } from "../../domain/usecases/xpEngine";
+import {
+  calcTier,
+  shouldUnlockAllTiers,
+  XP_PENALTY_CLUE_2,
+  XP_PENALTY_CLUE_3,
+  XP_PENALTY_REVEAL,
+} from "../../domain/usecases/xpEngine";
 import type { Board, BoardWord, WordCandidate } from "../../domain/entities/board";
 import { loggerInfo, loggerWarn } from "../../utils/logger";
 import {
@@ -491,7 +497,11 @@ export default function GameScreen() {
       setBoardLoadError(false);
       setAiBoardFailed(false);
       try {
-        const playerTier = calcTier(useGameStore.getState().totalXp);
+        const totalXp = useGameStore.getState().totalXp;
+        const playerTier = calcTier(totalXp);
+        // PLAN-046: XP ≥ 800.000 → pool kata SEMUA tier (1–10); kata yang
+        // sudah ditemukan tetap dikecualikan (aturan word_discoveries).
+        const allTiers = shouldUnlockAllTiers(totalXp);
 
         // ── Mode AI: kata dibuat provider AI (lewat "Main Mode AI"). Board
         //    AI selalu fresh — tidak me-resume progres normal. Kata AI tanpa
@@ -567,6 +577,7 @@ export default function GameScreen() {
           playerTier,
           excludedWordIds: discoveredWordIds,
           gridSize: MAX_GRID_SIZE,
+          allTiers,
         });
         let generated: Board | null = null;
         for (let size = MIN_GRID_SIZE; size <= MAX_GRID_SIZE && !generated; size++) {

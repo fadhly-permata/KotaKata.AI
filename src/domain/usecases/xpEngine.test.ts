@@ -3,12 +3,32 @@ import {
   calcTier,
   calcTierProgress,
   calcXpGain,
+  shouldUnlockAllTiers,
   TIER_THRESHOLDS,
   TIER_NAMES,
+  UNLOCK_ALL_TIERS_XP,
   XP_PENALTY_CLUE_2,
   XP_PENALTY_CLUE_3,
   XP_PENALTY_REVEAL,
 } from "./xpEngine";
+
+describe("shouldUnlockAllTiers (PLAN-046)", () => {
+  test("di bawah ambang belum unlock semua tier", () => {
+    expect(shouldUnlockAllTiers(0)).toBe(false);
+    expect(shouldUnlockAllTiers(TIER_THRESHOLDS[9] - 1)).toBe(false); // tier 10, masih < 800k
+    expect(shouldUnlockAllTiers(UNLOCK_ALL_TIERS_XP - 1)).toBe(false);
+  });
+
+  test("tepat di ambang & di atasnya unlock semua tier", () => {
+    expect(shouldUnlockAllTiers(UNLOCK_ALL_TIERS_XP)).toBe(true);
+    expect(shouldUnlockAllTiers(UNLOCK_ALL_TIERS_XP + 1)).toBe(true);
+    expect(shouldUnlockAllTiers(1_500_000)).toBe(true);
+  });
+
+  test("ambang unlock (800.000) di atas ambang tier 10 (500.000)", () => {
+    expect(UNLOCK_ALL_TIERS_XP).toBeGreaterThan(TIER_THRESHOLDS[9]);
+  });
+});
 
 describe("calcXpGain", () => {
   test("basis 25 XP untuk kata 3 huruf di tier 1", () => {

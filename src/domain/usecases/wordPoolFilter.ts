@@ -5,23 +5,24 @@ import type { VocabularyDoc } from "../../data/models/schemas";
 
 /**
  * Selects a pool of eligible words for board generation:
- * 1. Filter by player's tier level
+ * 1. Filter by player's tier level — ATAU semua tier (1–10) bila `allTiers`
+ *    aktif (XP ≥ 800.000, PLAN-046).
  * 2. Exclude ALL already-discovered words — DI SISI SERVER (Supabase `not.in`),
  *    lintas tier: kata apa pun yang pernah ditemukan user ini (word_discoveries)
  *    tidak akan pernah muncul lagi di papan mana pun, dari tier mana pun.
- * 3. TANPA fallback ke tier lain / tanpa kata demo: kalau pool tier ini habis
- *    atau query gagal, error dilempar — pemanggil menampilkan pesan error.
- *    Tidak ada jalur yang bisa memunculkan ulang kata yang sudah ditemukan.
+ * 3. TANPA fallback ke tier lain / tanpa kata demo: kalau pool habis atau query
+ *    gagal, error dilempar — pemanggil menampilkan pesan error. Tidak ada jalur
+ *    yang bisa memunculkan ulang kata yang sudah ditemukan.
  */
 export async function selectWordPool(
   params: WordPoolFilterParams,
 ): Promise<WordCandidate[]> {
-  const { playerTier, excludedWordIds } = params;
+  const { playerTier, excludedWordIds, allTiers } = params;
 
-  const candidates = await vocabularyRepository.getByTierFromCloud(
-    playerTier,
-    excludedWordIds,
-  );
+  // XP ≥ 800.000 → pool lintas tier (1–10), kata ditemukan tetap di-exclude.
+  const candidates = allTiers
+    ? await vocabularyRepository.getAllTiersFromCloud(excludedWordIds)
+    : await vocabularyRepository.getByTierFromCloud(playerTier, excludedWordIds);
 
   // Filter klien sebagai pengaman ganda (jaga-jaga data dari server tidak
   // konsisten) — bukan fallback, hanya verifikasi tambahan.

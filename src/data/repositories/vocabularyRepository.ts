@@ -159,6 +159,47 @@ export const vocabularyRepository = {
     return (data ?? null) as VocabularyDoc | null;
   },
 
+  /**
+   * Fetch vocabulary dari SEMUA tier (1–10) langsung dari Supabase — dipakai
+   * pemain dengan XP ≥ 800.000 (PLAN-046): pool kata tidak lagi dibatasi tier.
+   *
+   * `excludedWordIds` (kata yang sudah pernah ditemukan) tetap dikecualikan DI
+   * SISI SERVER (PostgREST `not.in`, di-chunk) — aturan word_discoveries tidak
+   * berubah: kata yang sudah ditemukan tidak muncul lagi dari tier mana pun.
+   * Tanpa cache (daftar eksklusi berubah seiring pemain menyelesaikan kata).
+   */
+  async getAllTiersFromCloud(excludedWordIds: string[] = []): Promise<VocabularyDoc[]> {
+    if (excludedWordIds.length > 0) {
+      let result: VocabularyDoc[] | null = null;
+      for (const chunkIds of chunk(excludedWordIds, CHUNK_SIZE)) {
+        const { data, error } = await supabase
+          .from("vocabulary")
+          .select(VOCAB_COLUMNS)
+          .not("word_id", "in", `(${chunkIds.join(",")})`);
+        if (error) {
+          throw new Error(`Gagal ambil vocab semua tier dari Supabase: ${error.message}`);
+        }
+        const words = (data ?? []) as VocabularyDoc[];
+        if (result === null) {
+          result = words;
+        } else {
+          // Iritan tiap chunk: kata tersisa harus lolos SEMUA chunk.
+          const keep = new Set(words.map((w) => w.word_id));
+          result = result.filter((w) => keep.has(w.word_id));
+        }
+      }
+      return result ?? [];
+    }
+
+    const { data, error } = await supabase
+      .from("vocabulary")
+      .select(VOCAB_COLUMNS);
+    if (error) {
+      throw new Error(`Gagal ambil vocab semua tier dari Supabase: ${error.message}`);
+    }
+    return (data ?? []) as VocabularyDoc[];
+  },
+
   async getByTierRange(minTier: number, maxTier: number): Promise<VocabularyDoc[]> {
     const { data, error } = await supabase
       .from("vocabulary")

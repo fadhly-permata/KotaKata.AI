@@ -50,4 +50,10 @@ export interface WordPoolFilterParams {
   excludedWordIds: string[];
   gridSize: number;
   minWords?: number;
+  /**
+   * Mode SEMUA tier (PLAN-046): pool kata diambil dari tier 1–10 tanpa batas
+   * tier — dipakai pemain dengan XP ≥ 800.000. Kata yang sudah ditemukan
+   * (excludedWordIds) tetap dikecualikan dari tier mana pun.
+   */
+  allTiers?: boolean;
 }
