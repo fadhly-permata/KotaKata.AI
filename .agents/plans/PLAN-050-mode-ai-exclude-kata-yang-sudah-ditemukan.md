@@ -1,6 +1,6 @@
 # Mode AI — exclude kata yang sudah pernah ditemukan/dipecahkan pemain
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-17 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 050`
@@ -37,21 +37,21 @@ sering berulang.
 
 ## Langkah
 
-- [ ] **1. `requestAiWords`** — tambah parameter `excludeWords?: string[]`
+- [x] **1. `requestAiWords`** — tambah parameter `excludeWords?: string[]`
   (default kosong); saat ada, sisipkan ke user prompt: daftar kata yang dilarang
   ("JANGAN gunakan kata-kata berikut: …") dengan cap ±300.
-- [ ] **2. Ambil riwayat di `handlePlayAi`** — sebelum `requestAiWords`:
+- [x] **2. Ambil riwayat di `handlePlayAi`** — sebelum `requestAiWords`:
   `getDiscoveredWordIds(user.id)` → `getByIds(...)` → ambil teks kata →
   potong 300 terakhir (mis. urut discovery terbaru) → teruskan.
   Gagal ambil riwayat (offline/error) = jangan blokir Mode AI; lanjutkan tanpa
   exclude (fallback aman).
-- [ ] **3. Validasi ganda di sisi klien** — selain prompt, tetap filter hasil
+- [x] **3. Validasi ganda di sisi klien** — selain prompt, tetap filter hasil
   `requestAiWords` di kode: buang kata yang ada di daftar exclude (jaga-jaga
   model AI melanggar).
-- [ ] **4. Verifikasi** — tsc + tes + lint; tes unit untuk `requestAiWords`
+- [x] **4. Verifikasi** — tsc + tes + lint; tes unit untuk `requestAiWords`
   (exclude tercantum di prompt & hasil difilter).
 - [ ] **5. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 050 <no> "teks"`)_
+- **4.** 2026-08-17: requestAiWords(cfg, tier, excludeWords[], signal): exclude dinormalisasi (trim+lowercase, cap 300) → dilarang di prompt + difilter klien. handlePlayAi ambil riwayat kata ditemukan (getDiscoveredWordIds limit 300 + getByIds → teks kata), gagal ambil riwayat = lanjut tanpa exclude. 4 tes unit baru (prompt memuat exclude, filter klien, cap 300, tanpa exclude).

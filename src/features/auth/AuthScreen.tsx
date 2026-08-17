@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import FloatingOrbs, {
   type FloatingOrbSpec,
 } from "../../presentation/components/common/FloatingOrbs";
 import { surfaceStyle } from "../../utils/skin";
+import { useAmbientLoops } from "../../utils/ambientLoop";
 
 // Dokumen legal dimuat dari raw.githubusercontent.com (pengganti rawgit.com
 // yang sudah berhenti beroperasi). Markdown di-render oleh MarkdownScreen.
@@ -79,33 +80,19 @@ export default function AuthScreen() {
     useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
   ];
-  useEffect(() => {
-    if (!isFocused) return;
-    const loops = orbBounce.map((anim, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 1600 + i * 400,
-            easing: Easing.inOut(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 1600 + i * 400,
-            easing: Easing.inOut(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ]),
-      ),
-    );
-    orbBounce.forEach((a) => a.setValue(0));
-    const starts = loops.map((loop, i) => setTimeout(() => loop.start(), i * 500));
-    return () => {
-      loops.forEach((l) => l.stop());
-      starts.forEach(clearTimeout);
-    };
-  }, [orbBounce, isFocused]);
+  const orbBounceSpecs = useMemo(
+    () =>
+      orbBounce.map((value, i) => ({
+        value,
+        duration: 1600 + i * 400,
+        startDelay: i * 500,
+        easing: Easing.inOut(Easing.quad),
+      })),
+    [orbBounce],
+  );
+  // useAmbientLoops (PLAN-051): web berjalan sekali mount tanpa churn
+  // stop/restart (anti macet), native tetap gated fokus (anti force close).
+  useAmbientLoops(orbBounceSpecs, isFocused);
 
   // Ukuran orb proporsional terhadap layar (HP kecil s/d tablet/web lebar).
   const orbSize = (base: number) =>

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { useMemo, useRef } from "react";
+import { Animated, StyleSheet, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
+import { useAmbientLoops } from "../../../utils/ambientLoop";
 
 interface AmbientOrbsProps {
   /** Jumlah orb (default 24 — permintaan pemilik: minimal 20). */
@@ -71,32 +72,13 @@ export default function AmbientOrbs({ count = 24, colors, intensity = 1 }: Ambie
   }, [count]);
 
   const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!isFocused) return; // layar tertutup: diam, tidak menumpuk beban animasi.
-    // Gelombang naik-turun kontinu 0→1→0; interpolasi tiap orb memakai
-    // inputRange [phase, phase+1] + extrapolate extend sehingga gerakannya
-    // bergeser fase (tidak serempak) tapi tetap kontinu di titik balik.
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 13000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim, {
-          toValue: 0,
-          duration: 13000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    anim.setValue(0);
-    loop.start();
-    return () => loop.stop();
-  }, [anim, isFocused]);
+  // Satu gelombang naik-turun kontinu 0→1→0 (13s per kaki); interpolasi tiap
+  // orb memakai inputRange [phase, phase+1] + extrapolate extend sehingga
+  // gerakannya bergeser fase (tidak serempak) tapi tetap kontinu di titik
+  // balik. useAmbientLoops (PLAN-051): di web loop berjalan sekali tanpa
+  // stop/restart (anti macet), di native tetap gated fokus (anti force close).
+  const orbLoop = useMemo(() => [{ value: anim, duration: 13000 }], [anim]);
+  useAmbientLoops(orbLoop, isFocused);
 
   return (
     <View style={styles.container} pointerEvents="none">

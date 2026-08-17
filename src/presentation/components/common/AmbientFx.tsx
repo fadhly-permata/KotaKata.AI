@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useTheme } from "../providers/ThemeProvider";
 import type { AmbientFxKind } from "../../themes/themeData";
@@ -30,7 +30,11 @@ export default function AmbientFx({ fx }: { fx: AmbientFxKind }) {
   const values = useMemo(() => parts.map(() => new Animated.Value(0)), [parts]);
 
   useEffect(() => {
-    if (!isFocused) return;
+    // Web (PLAN-051): loop berjalan sekali saat mount TANPA churn stop/restart
+    // saat ganti fokus — react-native-web bisa macet dengan pola itu (orb
+    // diam di posisi akhir). Native: hanya saat layar fokus (mitigasi force
+    // close PLAN-023/024/027 — jangan menumpuk loop saat layar tertutup).
+    if (Platform.OS !== "web" && !isFocused) return;
     const loops = parts.map((p, i) => makeLoop(p, values[i]));
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());

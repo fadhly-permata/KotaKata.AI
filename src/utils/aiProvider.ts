@@ -232,6 +232,13 @@ Jawab HANYA JSON valid tanpa teks lain, format:
 const USER_PROMPT = "Buatkan 16 kata untuk satu papan TTS. Berikan JSON sesuai aturan.";
 
 /**
+ * Maksimal kata yang dikecualikan yang dikirim ke prompt AI (PLAN-050).
+ * Riwayat pemain bisa ribuan kata; cukup kirim sebagian terbaru supaya tidak
+ * memboroskan token provider sementara tetap mencegah pengulangan praktis.
+ */
+const MAX_EXCLUDE_WORDS = 300;
+
+/**
  * Panduan tingkat kesulitan per tier untuk soal AI (1 = paling mudah).
  * Dipakai Main Mode AI supaya kata yang di-generate sesuai level pemain.
  */
@@ -283,17 +290,32 @@ const WORD_RE = /^[a-z]{3,10}$/;
  * hanya kata huruf kecil 3-10 huruf, clue tidak boleh memuat kata jawaban,
  * tanpa duplikat. Lempar Error kalau hasilnya tidak bisa dipakai.
  * `playerTier` dipakai supaya kata yang di-generate sesuai level pemain.
+ * `excludeWords` (PLAN-050): kata yang sudah pernah ditemukan pemain —
+ * dilarang di prompt (kap maksimal MAX_EXCLUDE_WORDS) DAN difilter lagi di
+ * sisi klien (jaga-jaga model AI melanggar).
  */
 export async function requestAiWords(
   cfg: AiProviderConfig,
   playerTier: number,
+  excludeWords: string[] = [],
   signal?: AbortSignal,
 ): Promise<AiWord[]> {
+  const exclude = excludeWords
+    .map((w) => w.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, MAX_EXCLUDE_WORDS);
+  const excludeSet = new Set(exclude);
+
+  let userPrompt = `${USER_PROMPT} ${tierPrompt(playerTier)}`;
+  if (exclude.length > 0) {
+    userPrompt += ` JANGAN gunakan kata-kata berikut (sudah pernah ditemukan pemain): ${exclude.join(", ")}.`;
+  }
+
   const content = await chatRequest(
     cfg,
     [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: `${USER_PROMPT} ${tierPrompt(playerTier)}` },
+      { role: "user", content: userPrompt },
     ],
     1500,
     signal,
@@ -317,6 +339,8 @@ export async function requestAiWords(
     if (clue.toLowerCase().includes(word)) continue;
     if (clue2 && clue2.toLowerCase().includes(word)) continue;
     if (seen.has(word)) continue;
+    // Kata yang sudah pernah ditemukan pemain tidak boleh keluar lagi (PLAN-050).
+    if (excludeSet.has(word)) continue;
     seen.add(word);
     words.push({ word, clue_1: clue, clue_2: clue2 || undefined });
   }

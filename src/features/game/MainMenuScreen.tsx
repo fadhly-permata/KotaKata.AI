@@ -28,6 +28,7 @@ import {
   TIER_COLORS,
 } from "../../domain/usecases/xpEngine";
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
+import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
 import type { VocabularyDoc, UserDoc } from "../../data/models/schemas";
 import { loggerInfo } from "../../utils/logger";
@@ -39,6 +40,7 @@ import FloatingOrbs, {
 } from "../../presentation/components/common/FloatingOrbs";
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
+import { useAmbientLoops } from "../../utils/ambientLoop";
 import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import { buttonShadow, chipStyle, chipTextColor, contrastText, solidSurfaceColor, textOnPrimary } from "../../utils/skin";
@@ -86,18 +88,10 @@ export default function MainMenuScreen() {
 
   // ─── Bounce animation for play button icon ───
   const bounceAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!isFocused) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 0, duration: 1000, useNativeDriver: true }),
-      ]),
-    );
-    bounceAnim.setValue(0);
-    loop.start();
-    return () => loop.stop();
-  }, [bounceAnim, isFocused]);
+  // useAmbientLoops (PLAN-051): web berjalan sekali mount tanpa churn
+  // stop/restart (anti macet), native tetap gated fokus.
+  const bounceLoop = useMemo(() => [{ value: bounceAnim, duration: 1000 }], [bounceAnim]);
+  useAmbientLoops(bounceLoop, isFocused);
 
   const bounceTranslate = bounceAnim.interpolate({
     inputRange: [0, 1],
@@ -118,33 +112,17 @@ export default function MainMenuScreen() {
     useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
   ];
-  useEffect(() => {
-    if (!isFocused) return;
-    const loops = orbBounce.map((anim, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 1800 + i * 350,
-            easing: Easing.inOut(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 1800 + i * 350,
-            easing: Easing.inOut(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ]),
-      ),
-    );
-    orbBounce.forEach((a) => a.setValue(0));
-    const starts = loops.map((loop, i) => setTimeout(() => loop.start(), i * 900));
-    return () => {
-      loops.forEach((l) => l.stop());
-      starts.forEach(clearTimeout);
-    };
-  }, [orbBounce, isFocused]);
+  const orbBounceSpecs = useMemo(
+    () =>
+      orbBounce.map((value, i) => ({
+        value,
+        duration: 1800 + i * 350,
+        startDelay: i * 900,
+        easing: Easing.inOut(Easing.quad),
+      })),
+    [orbBounce],
+  );
+  useAmbientLoops(orbBounceSpecs, isFocused);
 
   const orbSpecs: FloatingOrbSpec[] = [
     {
@@ -389,7 +367,24 @@ export default function MainMenuScreen() {
         // Soal AI disesuaikan dengan tier pemain (kata di tier rendah mudah,
         // makin tinggi makin menantang) supaya tetap seru.
         const playerTier = calcTier(useGameStore.getState().totalXp);
-        const words = await requestAiWords(cfg, playerTier, controller.signal);
+        // Exclude kata yang sudah pernah ditemukan/dipecahkan (PLAN-050) —
+        // Mode AI sering mengulang soal yang sama. Ambil maksimal 300 kata
+        // terbaru (riwayat bisa ribuan; cukup yang terbaru biar tidak boros
+        // token provider). Gagal ambil riwayat = lanjut tanpa exclude (fallback
+        // aman, jangan sampai memblokir Mode AI karena jaringan/error).
+        let excludeWords: string[] = [];
+        if (user?.id) {
+          try {
+            const discoveredIds = await wordDiscoveryRepository.getDiscoveredWordIds(user.id, 300);
+            if (discoveredIds.length > 0) {
+              const docs = await vocabularyRepository.getByIds(discoveredIds);
+              excludeWords = docs.map((d) => d.word).filter((w): w is string => !!w);
+            }
+          } catch (err) {
+            loggerInfo("Gagal ambil kata yang sudah ditemukan untuk Mode AI — lanjut tanpa exclude", err);
+          }
+        }
+        const words = await requestAiWords(cfg, playerTier, excludeWords, controller.signal);
         // Papan AI selalu fresh: reset membersihkan state (termasuk aiWords lama),
         // lalu kata AI dari provider dipasang sebelum masuk ke layar Game.
         // aiMode di-set EKSPLISIT — papan ini tidak akan menghitung XP sama sekali.
@@ -798,6 +793,9 @@ export default function MainMenuScreen() {
             <Text style={[styles.aiLoadingTitle, { color: C.text }]}>Menyusun soal dari AI…</Text>
             <Text style={[styles.aiLoadingHint, { color: C.textSecondary }]}>
               Provider sedang membuat kata & petunjuk untuk papanku.
+            </Text>
+            <Text style={[styles.aiLoadingHint, { color: C.textSecondary }]}>
+              🇮🇩 Soal dibuat dalam Bahasa Indonesia.
             </Text>
             <TouchableOpacity
               style={[

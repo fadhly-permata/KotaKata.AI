@@ -179,6 +179,9 @@ export default function AiProviderScreen() {
           di semua perangkat. API key tetap milikmu (BYOK) dan hanya akunmu yang
           bisa mengaksesnya.
         </Text>
+        <Text style={[styles.langHint, { color: C.primary }]}>
+          🇮🇩 Semua soal, kosakata, dan petunjuk dibuat dalam Bahasa Indonesia.
+        </Text>
 
         {/* Pilih provider */}
         <View style={[styles.section, { backgroundColor: C.surface }]}>
@@ -327,6 +330,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   pageTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.4 },
   pageHint: { fontSize: 13, lineHeight: 19 },
+  langHint: { fontSize: 13, lineHeight: 19, fontWeight: "600", marginTop: 6 },
   section: { borderRadius: 12, padding: 16, gap: 10 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
   presetRow: { flexDirection: "row", gap: 8 },

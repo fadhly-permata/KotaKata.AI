@@ -216,12 +216,19 @@ export const wordDiscoveryRepository = {
   /**
    * Ambil daftar word_id yang sudah ditemukan user langsung dari cloud —
    * dipakai untuk eksklusi soal saat generate papan (tetap memperhatikan tier).
+   * `limit` opsional (PLAN-050): ambil N kata PALING BARU (urutan discovered_at
+   * desc) — dipakai Mode AI supaya tidak menarik ribuan baris hanya untuk
+   * meng-exclude beberapa ratus kata terbaru.
    */
-  async getDiscoveredWordIds(userId: string): Promise<string[]> {
-    const { data, error } = await supabase
+  async getDiscoveredWordIds(userId: string, limit?: number): Promise<string[]> {
+    let builder = supabase
       .from("word_discoveries")
       .select("word_id")
       .eq("user_id", userId);
+    if (typeof limit === "number" && limit > 0) {
+      builder = builder.order("discovered_at", { ascending: false }).limit(limit);
+    }
+    const { data, error } = await builder;
     if (error) {
       throw new Error(`Gagal ambil kata yang sudah ditemukan dari Supabase: ${error.message}`);
     }

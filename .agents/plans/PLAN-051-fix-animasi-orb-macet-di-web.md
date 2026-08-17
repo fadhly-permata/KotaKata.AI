@@ -1,6 +1,6 @@
 # Fix animasi orb sering macet di web (setelah patch terakhir)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-17 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 051`
@@ -50,23 +50,23 @@ TIDAK membatalkan mitigasi force close (PLAN-023/024/027) di native.
 
 ## Langkah (disusun saat dikerjakan)
 
-- [ ] **1. Reproduksi & petakan** — pastikan gejala: layar mana yang macet
+- [x] **1. Reproduksi & petakan** — pastikan gejala: layar mana yang macet
   (menu? semua halaman?), apakah setelah navigasi keluar-masuk, apakah setelah
   ganti tab browser; cek konsol web untuk error.
-- [ ] **2. Perbaiki mekanisme loop** — buat pola animasi yang tahan stop/restart
+- [x] **2. Perbaiki mekanisme loop** — buat pola animasi yang tahan stop/restart
   di RNW: mis. satu loop kontinu yang hidup selama komponen terpasang dengan
   pause/resume via `stopAnimation` + `setValue` yang aman, atau restart yang
   membuang animasi lama sepenuhnya (bukan `loop.stop()` + loop baru pada value
   yang sama); alternatif platform-specific (`Platform.OS === "web"`).
-- [ ] **3. Terapkan konsisten** — `AmbientOrbs`, `AmbientFx`, `orbBounce`/
+- [x] **3. Terapkan konsisten** — `AmbientOrbs`, `AmbientFx`, `orbBounce`/
   `bounceAnim` (MainMenu + Auth) pakai pola baru yang sama.
-- [ ] **4. Jaga mitigasi Android** — pastikan guard fokus tetap aktif di
+- [x] **4. Jaga mitigasi Android** — pastikan guard fokus tetap aktif di
   native supaya tidak menumpuk loop saat layar tertutup (PLAN-023/024/027).
-- [ ] **5. Verifikasi** — tsc + tes + lint; cek web preview: navigasi
+- [x] **5. Verifikasi** — tsc + tes + lint; cek web preview: navigasi
   keluar-masuk & ganti tab berkali-kali, orb tidak macet; Android tidak bisa
   dites di sini (serahkan ke pemilik, tanpa mengubah perilaku native).
 - [ ] **6. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 051 <no> "teks"`)_
+- **5.** 2026-08-17: Helper useAmbientLoops (src/utils/ambientLoop.ts): web = loop sekali mount tanpa churn stop/restart (anti macet RNW), native = tetap gated fokus (mitigasi force close). Diterapkan ke AmbientOrbs, MainMenu (bounce + 7 orb), AuthScreen (4 orb); AmbientFx pakai platform-split inline (custom loop). CompletionOverlay aman (loop sekali mount).

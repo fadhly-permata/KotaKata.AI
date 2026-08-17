@@ -1,6 +1,6 @@
 # Mode AI — tampilkan informasi bahwa bahasa soal adalah Bahasa Indonesia
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-17 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 049`
@@ -33,17 +33,17 @@ terlihat oleh pemain.
 
 ## Langkah
 
-- [ ] **1. AiProviderScreen** — tambahkan info "Soal dibuat dalam Bahasa
+- [x] **1. AiProviderScreen** — tambahkan info "Soal dibuat dalam Bahasa
   Indonesia" di deskripsi halaman pengaturan provider.
-- [ ] **2. Dialog loading Main Menu** — tambahkan baris info bahasa pada dialog
+- [x] **2. Dialog loading Main Menu** — tambahkan baris info bahasa pada dialog
   "Main Mode AI" (saat meminta soal ke provider).
-- [ ] **3. (Opsional) badge in-game** — pertimbangkan label bahasa ringkas di
+- [x] **3. (Opsional) badge in-game** — pertimbangkan label bahasa ringkas di
   badge "Mode AI" `GameTopBar` bila tidak membuat header sempit (cek layar
   kecil).
-- [ ] **4. Verifikasi** — tsc + tes + lint, cek UI web (badge & dialog tampil
+- [x] **4. Verifikasi** — tsc + tes + lint, cek UI web (badge & dialog tampil
   rapi di layar sempit).
 - [ ] **5. Rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 049 <no> "teks"`)_
+- **4.** 2026-08-17: Info 🇮🇩 Bahasa Indonesia ditambahkan di halaman Pengaturan Provider AI (baris langHint) + dialog loading 'Menyusun soal dari AI' di Main Menu. Badge in-game opsional dilewati (header sempit). tsc + 47 tes + lint lolos.
