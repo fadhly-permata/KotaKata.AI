@@ -1,6 +1,6 @@
 # Review soal tier 2 hingga 10
 
-<!-- status: in-progress -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 <!-- dikerjakan ulang: 2026-08-17 (pemilik: "kerjakan plan 42") -->
 
@@ -42,7 +42,7 @@ placeholder, atau bocor jawaban. Hasilnya dicatat per tier dan diperbaiki.
   `check-clue-quality` 0 issue, `audit-vocab` 0 temuan, scanner vulgar
   0 VULGAR / 0 ANSWER-ONLY, `plan042-review-lemma` 0 bocor/0 duplikat,
   tsc + 50 tes + qa-logic lolos.
-- [ ] **5. Push & rilis** — `push-vocab.mjs` ke Supabase (verifikasi row),
+- [x] **5. Push & rilis** — `push-vocab.mjs` ke Supabase (verifikasi row),
   `check-vulgar-db.mjs` 0 kata vulgar, commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
