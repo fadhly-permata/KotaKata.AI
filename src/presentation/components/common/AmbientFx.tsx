@@ -272,6 +272,13 @@ function makeLoop(p: Particle, v: Animated.Value): Animated.CompositeAnimation {
   }
   // Satu arah kontinu (hujan/angin/bara/melayang): loop linear dengan reset —
   // partikel kembali ke posisi awal tiap siklus (seolah muncul lagi).
+  //
+  // PENTING (fix PLAN-051 tahap 2): di react-native-web, `Animated.loop` +
+  // `sequence` hanya me-reset child PERTAMA saat iterasi ulang — kalau
+  // sequence berakhir di nilai ≠ awal (di sini 1), value partikel tertinggal
+  // di 1 dan siklus berikutnya menganimasikan 1→1 → partikel MACET di posisi
+  // akhir. Karena itu sequence ditutup step instan balik ke 0 (duration 0),
+  // supaya tiap iterasi selalu mulai dari 0 seperti pola naik-turun.
   return Animated.loop(
     Animated.sequence([
       Animated.delay(p.delay),
@@ -279,6 +286,13 @@ function makeLoop(p: Particle, v: Animated.Value): Animated.CompositeAnimation {
         toValue: 1,
         duration: p.duration,
         easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+      // Reset instan ke 0 — partikel kembali ke posisi awal (di luar layar
+      // untuk hujan/angin), siap siklus berikutnya.
+      Animated.timing(v, {
+        toValue: 0,
+        duration: 0,
         useNativeDriver: true,
       }),
     ]),

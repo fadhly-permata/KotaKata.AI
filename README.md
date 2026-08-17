@@ -276,7 +276,7 @@ Progress pembangunan project dilacak di `.agents/checkpoint.json`.
 | PLAN-046 | ✅ done | XP ≥ 800.000 → pool kata SEMUA tier (1–10) saat generate papan (kata sudah ditemukan tetap dikecualikan); konstanta UNLOCK_ALL_TIERS_XP + getAllTiersFromCloud + selectWordPool allTiers |
 | PLAN-049 | ✅ done | Mode AI: info 🇮🇩 Bahasa Indonesia di halaman Pengaturan Provider AI + dialog loading "Menyusun soal dari AI" |
 | PLAN-050 | ✅ done | Mode AI: exclude kata yang sudah pernah ditemukan — dilarang di prompt AI (cap 300 terbaru) + difilter di sisi klien; gagal ambil riwayat = lanjut tanpa exclude (4 tes unit baru) |
-| PLAN-051 | ✅ done | Fix animasi orb macet di web — 2 penyebab: churn stop/restart saat ganti fokus DAN array `orbBounce` inline (identitas berubah tiap render → semua loop stop/restart tiap render); helper `useAmbientLoops` (web loop sekali mount, deps `[]`) + array `orbBounce` distabilkan via `useRef`; native tetap gated fokus |
+| PLAN-051 | ✅ done | Fix animasi orb/partikel macet di web — 3 penyebab: churn stop/restart saat ganti fokus, array `orbBounce` inline (stop/restart tiap render), & loop SATU ARAH AmbientFx macet di RNW (value tertinggal di 1 → 1→1; default tema hujan jadi hampir semua halaman kena); fix: `useAmbientLoops` (web loop sekali mount) + `orbBounce` via `useRef` + reset instan `timing(v,{toValue:0,duration:0})` di akhir sequence; **diverifikasi empiris** via `scripts/check-orb-web.mjs` (bundle produksi di jsdom: orb & hujan bergerak, resume tab-background OK) |
 
 ## ❓ FAQ
 
