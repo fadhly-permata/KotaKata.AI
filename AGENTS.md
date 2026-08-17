@@ -89,6 +89,22 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
   permintaan meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di
   AGENTS.md) — revisi lain tetap dicatat dulu.
 
+### 6a. KATA VULGAR ITU HARAM (aturan permanen dari pemilik repo)
+- KotaKata.AI adalah permainan aman anak. **Setiap kata/soal yang vulgar,
+  kasar, makian, alat kelamin, tindakan seksual, pelecehan, hinaan,
+  diskriminatif, atau terkait narkoba TIDAK BOLEH muncul** — baik sebagai
+  jawaban maupun di dalam clue (c1/c2/c3) — di tier mana pun (1–10), di
+  Mode AI, maupun di konten apa pun yang dipakai aplikasi.
+- Setiap pekerjaan yang menyentuh kosakata WAJIB menjalankan scanner
+  `node scripts/vocab/vulgar-words.mjs` dan memastikan **0 hit** di
+  kelompok VULGAR & ANSWER-ONLY (kelompok KONTEKSTUAL ditinjau manual
+  per hit — jika konteksnya kasar/melecehkan, harus diganti).
+- Scanner anti-vulgar ini adalah **jaring pengaman permanen** (PLAN-041):
+  jangan pernah menghapus/menonaktifkannya; kalau ada kata baru yang
+  terlewat, tambahkan ke daftar di `scripts/vocab/vulgar-words.mjs`.
+- Verifikasi DB setelah push: `node scripts/db/check-vulgar-db.mjs` harus
+  melaporkan **0 kata vulgar** di Supabase.
+
 ### 6. Setiap revisi selesai → LANGSUNG deploy web ke expo.dev (aturan dari pemilik repo)
 - Setiap kali satu batch revisi/pekerjaan SELESAI dan verifikasinya lolos
   (tsc / test / lint), **wajib langsung build & deploy versi WEB ke expo.dev**
