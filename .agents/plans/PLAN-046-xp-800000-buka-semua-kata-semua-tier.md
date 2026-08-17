@@ -42,7 +42,7 @@ muncul lagi dari tier mana pun).
   tier; kata ditemukan tetap di-exclude.
 - [x] **4. Verifikasi** — tsc + tes (tambah unit test pola unlock bila ada
   pola tes yang sama) + lint; cek alur pembangkitan papan di web/native.
-- [ ] **5. Push & rilis** — commit + push + deploy web (aturan #6).
+- [x] **5. Push & rilis** — commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
