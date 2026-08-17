@@ -1,6 +1,8 @@
-// Tier 6 — 1000 kata asli KBBI (Kamus Besar Bahasa Indonesia), urut berdasarkan frekuensi.
+// Tier 6 — 1000 kata. Kata jarang (frekuensi PLAN-045).
 // Format: [kata, clue_1 (penjelasan utama), clue_2 (penjelasan lain), clue_3 (sinonim/antonim)].
 export const TIER_6_WORDS: [string, string, string, string][] = [
+  ["melimpah", "banyak sekali hingga meluap", "berlebih-lebihan; banyak sekali", "Sinonim: meluap"],
+  ["mencicit", "berbunyi cit-cit seperti tikus atau anak burung", "mengeluarkan bunyi kecil yang nyaring", "Sinonim: berdecit"],
   ["melakukan", "mengerjakan (menjalankan, dan sebagainya)", "mengadakan suatu perbuatan, tindakan, dan sebagainya", "Sinonim: memperbuat"],
   ["seseorang", "seorang yang tidak dikenal", "Contoh: tadi ada … menelepon Anda", "hal yang berkaitan dengan yang tidak dikenal"],
   ["menemukan", "mendapatkan sesuatu yang belum ada sebelumnya", "mengalami; menderita kegagalan dan sebagainya", "Sinonim: mendapati"],
@@ -618,7 +620,6 @@ export const TIER_6_WORDS: [string, string, string, string][] = [
   ["kesibukan", "perihal (yang bersifat) sibuk", "sesuatu usaha dan sebagainya yang harus dikerjakan; kegiatan", "Sinonim: kehibukan"],
   ["prasangka", "pendapat (anggapan) yang kurang baik mengenai sesuatu sebelum mengetahui (menyaksikan, dan sebagainya)", "anggapan yang kurang baik mengenai sesuatu sebelum mengetahui", "Sinonim: syak"],
   ["sejarawan", "ahli sejarah; penulis sejarah", "Sinonim: penulis sejarah", "Sinonim: historikus"],
-  ["berhitung", "mengerjakan hitungan (menjumlahkan, mengurangi, dan sebagainya)", "berunding untuk memeriksa laba-rugi perniagaan", "Contoh: anak-anak sedang …"],
   ["menangisi", "menangis akan (untuk, bagi)", "Contoh: anak itu … ayahnya yang baru saja meninggal", "Sinonim: menyesali"],
   ["salaman", "berjabat tangan sebagai tanda salam", "Sinonim: berjabat", "Antonim: pelukan"],
   ["diagnosis", "penentuan jenis penyakit dengan cara meneliti (memeriksa) gejala-gejalanya", "[Sos]pemeriksaan terhadap suatu hal", "penentuan jenis penyakit dengan cara meneliti memeriksa gejala-gejalanya"],
@@ -1000,5 +1001,4 @@ export const TIER_6_WORDS: [string, string, string, string][] = [
   ["berempati", "melakukan (mempunyai) empati", "Contoh: apabila seseorang mampu memahami perasaan dan pikiran orang lain, berarti ia sudah mampu …", "mempunyai empati"],
   ["kemasukan", "dimasuki (dirasuki) roh halus (setan, hantu, dan sebagainya)", "dimasuki oleh ; ada sesuatu yang masuk", "Contoh: matanya tampak merah membeliak seperti orang yang -"],
   ["kepolosan", "kesederhanaan (tentang sikap dan tingkah laku); kejujuran (pikiran, hati, dan sebagainya)", "kejujuran", "kesederhanaan tentang sikap dan tingkah laku ; kejujuran pikiran, hati, dan sebagainya"],
-  ["mendingin", "menjadi dingin; terasa dingin", "berangsur turun suhunya hingga tidak panas", "Antonim: memanas"],
 ];

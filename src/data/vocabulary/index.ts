@@ -4,7 +4,6 @@
 // clue_2 (petunjuk improvisasi), clue_3 (pola huruf)] — semua clue digenerate
 // oleh builder sehingga app & cloud selalu konsisten.
 import { TIER_1_WORDS } from "./tier1";
-import { TIER_1_WORDS_PART_1 } from "./tier1-part1";
 import { TIER_2_WORDS } from "./tier2";
 import { TIER_3_WORDS } from "./tier3";
 import { TIER_4_WORDS } from "./tier4";
@@ -34,7 +33,7 @@ function expandTier(tier: number, tuples: WordTuple[]): VocabularyDoc[] {
 }
 
 const TIERS: VocabularyDoc[] = [
-  ...expandTier(1, [...TIER_1_WORDS, ...TIER_1_WORDS_PART_1]),
+  ...expandTier(1, TIER_1_WORDS),
   ...expandTier(2, TIER_2_WORDS),
   ...expandTier(3, TIER_3_WORDS),
   ...expandTier(4, TIER_4_WORDS),

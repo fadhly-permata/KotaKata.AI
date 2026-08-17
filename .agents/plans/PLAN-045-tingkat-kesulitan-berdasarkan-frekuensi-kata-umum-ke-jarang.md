@@ -1,6 +1,6 @@
 # Tingkat kesulitan berdasarkan frekuensi pemakaian kata (umum → jarang), tanpa kata vulgar
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-16 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 045`
@@ -31,22 +31,22 @@ jaring pengaman).
 
 ## Langkah
 
-- [ ] **1. Bangun indeks frekuensi** — petakan tiap kata seed ke tingkat
+- [x] **1. Bangun indeks frekuensi** — petakan tiap kata seed ke tingkat
   keumuman (umum / sedang / jarang / sangat jarang) dari daftar kata umum +
   KBBI + kurasi manual.
-- [ ] **2. Audit distribusi per tier** — script hitung sebaran tingkat
+- [x] **2. Audit distribusi per tier** — script hitung sebaran tingkat
   keumuman tiap tier sekarang → daftar kata yang "salah tier" (kata umum di
   tier tinggi & kata jarang di tier rendah).
-- [ ] **3. Susun ulang antar tier** — pindahkan/ganti kata sesuai frekuensi
+- [x] **3. Susun ulang antar tier** — pindahkan/ganti kata sesuai frekuensi
   (tier 1–3 = kata umum sehari-hari, 4–6 = sedang, 7–8 = jarang, 9–10 =
   sangat jarang); resolve bentrok antar tier (pola PLAN-026), clue ditulis
   ulang tanpa bocor, tetap 1000 kata/tier.
-- [ ] **4. Validasi & QA** — scan vulgar (`vulgar-words.mjs`) = 0 hit,
+- [x] **4. Validasi & QA** — scan vulgar (`vulgar-words.mjs`) = 0 hit,
   `gen-vocab-sql.mjs` tepat 1000/tier tanpa dedup, `check-clue-quality` 0
   issue / 0 bocor / 0 duplikat, tsc + tes + lint.
-- [ ] **5. Push & rilis** — `push-vocab.mjs` ke Supabase (verifikasi 1000/tier),
+- [x] **5. Push & rilis** — `push-vocab.mjs` ke Supabase (verifikasi 1000/tier),
   commit + push + deploy web (aturan #6).
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 045 <no> "teks"`)_
+- **5.** 2026-08-17: Indeks frekuensi dibangun (frequency-data.mjs: daftar kata sehari-hari SANGAT_UMUM + penanda kata jarang). Audit distribusi: tier2 hanya 2% kata umum (isi lema KBBI acak) & tier3 penuh kata sangat umum (jangan, sangat, datang, bicara...). Re-sort antar tier: rank 1 = tier1 (dipertahankan utuh 1000 kata), rank 2 = kata SANGAT_UMUM di tier 2+ ditarik ke tier2, rank 3 = sisanya stabil. Hasil: tier2 2%->62% kata umum, cascade tier3-10 makin jarang (t8-10 tetap kata 8+ huruf/formal), 1000/tier tanpa duplikat, tier1 identik. Validasi: vulgar 0, asing 0, check-clue-quality 0 issue semua tier, audit bersih, tsc + 50 tes lolos. Supabase terverifikasi 10.000 row 1000/tier. Script: plan045-resort-tiers.mjs, audit-frequency.mjs.

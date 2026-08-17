@@ -1,6 +1,7 @@
-// Tier 7 — 1000 kata asli KBBI (Kamus Besar Bahasa Indonesia), urut berdasarkan frekuensi.
+// Tier 7 — 1000 kata. Kata jarang (frekuensi PLAN-045).
 // Format: [kata, clue_1 (penjelasan utama), clue_2 (penjelasan lain), clue_3 (sinonim/antonim)].
 export const TIER_7_WORDS: [string, string, string, string][] = [
+  ["mendingin", "menjadi dingin; terasa dingin", "berangsur turun suhunya hingga tidak panas", "Antonim: memanas"],
   ["mengatakan", "menyebutkan", "menceritakan; memberitahukan", "Sinonim: memadahkan"],
   ["babun", "kera besar bermoncong panjang", "primata yang berjalan di tanah", "Moncongnya panjang menonjol"],
   ["marmot", "hewan pengerat yang suka bersiul", "hewan mirip tikus besar", "Sinonim: tikus gunung"],
@@ -109,7 +110,6 @@ export const TIER_7_WORDS: [string, string, string, string][] = [
   ["memisahkan", "menceraikan; meleraikan (orang berkelahi, dan sebagainya)", "mengasingkan dari yang lain", "Sinonim: membedakan"],
   ["pengawasan", "penilikan dan penjagaan", "Istilah administrasi dan kepegawaian penilikan dan pengarahan kebijakan jalannya perusahaan", "Sinonim: kontrol"],
   ["kehancuran", "perihal hancur", "kebinasaan", "Sinonim: kerusakan"],
-  ["menggambar", "membuat gambar", "melukis dengan pensil atau kuas", "Contoh: ia pandai … pemandangan"],
   ["peternakan", "(usaha) pemeliharaan", "pembiakan ternak", "usaha pemeliharaan"],
   ["peperangan", "hal berperang", "Contoh: medan …", "Sinonim: perjuangan"],
   ["perpisahan", "perceraian", "Contoh: ia tampil ke depan dan mengucapkan kata sambutan pada acara … dengan teman-temannya; malam … , pertemuan perjamuan pada malam hari untuk memberi ucapan selamat jalan", "hal berpisah"],

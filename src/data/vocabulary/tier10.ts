@@ -1,4 +1,4 @@
-// Tier 10 — 1000 kata asli KBBI (Kamus Besar Bahasa Indonesia), urut berdasarkan frekuensi.
+// Tier 10 — 1000 kata. Kata sangat jarang (frekuensi PLAN-045).
 // Format: [kata, clue_1 (penjelasan utama), clue_2 (penjelasan lain), clue_3 (sinonim/antonim)].
 export const TIER_10_WORDS: [string, string, string, string][] = [
   ["teratasi", "dapat diselesaikan; dapat ditanggulangi", "Contoh: sampai sekarang persoalan itu belum … olehnya", "Sinonim: dapat ditanggulangi"],
