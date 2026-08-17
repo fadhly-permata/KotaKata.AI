@@ -23,7 +23,7 @@ export const TIER_5_WORDS: [string, string, string, string][] = [
   ["bergerak", "berpindah dari tempat atau kedudukan; tidak diam", "mulai melakukan suatu usaha atau aksi", "Antonim: diam"],
   ["berjalan", "melangkahkan kaki bergerak maju", "bergerak maju dari satu titik ke titik lain", "Sinonim: melangkah"],
   ["mendapat", "beroleh; memperoleh", "menerima sesuatu yang diberikan", "Sinonim: memperoleh"],
-  ["bukankah", "kata tanya untuk menegaskan atau mengukuhkan kebenaran suatu pernyataan", "bukan begitu?; digunakan untuk meminta persetujuan", "Sinonim: bukan"],
+  ["seandainya", "andaikata; kalau saja", "kata untuk mengandaikan suatu keadaan", "seumpama yang terjadi"],
   ["citah", "kucing besar yang berlari paling cepat", "macan tutul dengan bintik hitam", "Sinonim: macan tutul"],
   ["berakhir", "selesai; habis; berkesudahan", "tidak berlanjut lagi; tamat", "Sinonim: selesai"],
   ["bertanya", "meminta keterangan atau penjelasan tentang sesuatu", "meminta supaya diberi tahu", "Antonim: menjawab"],

@@ -224,7 +224,7 @@ export const TIER_7_WORDS: [string, string, string, string][] = [
   ["narapidana", "orang hukuman (orang yang sedang menjalani hukuman karena tindak pidana)", "terhukum", "Sinonim: terhukum"],
   ["terdeteksi", "dapat dideteksi; selesai dideteksi", "Contoh: kasus kejahatan itu tidak … dengan baik karena banyak hambatan dari oknum-oknum tertentu", "Sinonim: selesai dideteksi"],
   ["menyangkut", "menyangsang (seperti layang-layang di atas pohon)", "berkaitan bertalian dengan", "Sinonim: memaut"],
-  ["berbisik-bisik", "berkata dengan suara sangat pelan", "Sinonim: berbisik", "Antonim: berteriak"],
+  ["bisik", "ucapan pelan di dekat telinga", "kata-kata yang diucapkan hampir tanpa suara", "pembicaraan rahasia dengan suara lirih"],
   ["pengertian", "gambaran atau pengetahuan tentang sesuatu di dalam pikiran", "Istilah psikologi kesanggupan inteligensi untuk menangkap makna suatu situasi atau perbuatan", "Sinonim: pemahaman"],
   ["pengalihan", "proses, cara, perbuatan mengalihkan; pemindahan", "penukaran", "Sinonim: penggantian"],
   ["tersangkut", "terkait; terkena", "terlibat dalam suatu perkara", "Sinonim: tercangkel"],

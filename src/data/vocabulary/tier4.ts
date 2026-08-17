@@ -713,7 +713,7 @@ export const TIER_4_WORDS: [string, string, string, string][] = [
   ["terkaya", "paling kaya", "paling banyak hartanya", "Antonim: termiskin"],
   ["jangkar", "sauh kapal", "besi pengait dasar laut", "Sinonim: sauh"],
   ["liontin", "perhiasan gantung di kalung", "bandul kecil penghias leher", "Sinonim: gantung"],
-  ["berilah", "beri; serahkanlah", "kata perintah untuk memberi", "Sinonim: beri"],
+  ["suguhan", "hidangan yang disajikan untuk tamu", "sajian makanan atau minuman bagi pengunjung", "jamuan untuk orang yang berkunjung"],
   ["ciptaan", "hasil mencipta; makhluk", "karya yang dibuat", "Sinonim: karya"],
   ["sekecil", "sama kecilnya dengan", "seukuran kecil", "Antonim: sebesar"],
   ["termuda", "paling muda", "yang paling kecil usianya", "Antonim: tertua"],

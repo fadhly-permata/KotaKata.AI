@@ -833,7 +833,7 @@ export const TIER_3_WORDS: [string, string, string, string][] = [
   ["genius", "kecerdasan yang luar biasa", "sangat cerdas melebihi rata-rata", "Sinonim: jenius"],
   ["heroik", "bersifat kepahlawanan", "gagah berani seperti pahlawan", "Sinonim: gagah"],
   ["cadang", "persediaan untuk dipakai nanti", "siap sedia sebagai pengganti", "Sinonim: sedia"],
-  ["bahuku", "pungutan adat di Halmahera atas hasil tanah orang lain", "retribusi hasil bumi di Maluku Utara", "Sinonim: retribusi"],
+  ["genteng", "penutup atap rumah dari tanah liat", "lempengan tipis pembuat atap", "atap rumah yang biasanya berwarna merah"],
   ["arteri", "pembuluh darah utama dari jantung", "saluran utama pengalir darah", "Sinonim: nadi"],
   ["marina", "dermaga kapal wisata", "kawasan tepi laut untuk kapal kecil", "Sinonim: dermaga"],
   ["sekoci", "perahu penyelamat di kapal", "perahu kecil untuk keadaan darurat", "Sinonim: perahu"],

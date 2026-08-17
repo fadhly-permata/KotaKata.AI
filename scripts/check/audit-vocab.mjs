@@ -44,7 +44,7 @@ for (const f of tierFiles) {
 
 // ---- Kategori 1: -nya non-lemma ----
 // Lemma KBBI yang sah berakhiran -nya (whitelist) — selain ini dianggap turunan.
-const NYA_LEMMA = new Set(["hanya", "punya", "tanya", "nyonya", "bertanya"]);
+const NYA_LEMMA = new Set(["hanya", "punya", "tanya", "nyonya", "bertanya", "seandainya", "semestinya"]);
 
 // ---- Kategori 2: pasif di-* (bentuk turunan, bukan lemma yang enak ditebak) ----
 const DI_PASSIVE = new Set([
