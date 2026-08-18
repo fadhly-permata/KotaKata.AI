@@ -13,6 +13,8 @@ export interface ThemeCatalogRow {
   description: string;
   is_default: boolean;
   price_label: string;
+  /** Jenis tema di Pasar (PLAN-052): "free" (bawaan) atau "premium". */
+  theme_type: "free" | "premium";
   /** Palet mode terang (bentuk sesuai jenis tema: app/board/keyboard). */
   light: Record<string, unknown>;
   /** Palet mode gelap. */
@@ -28,7 +30,7 @@ export interface ThemeCatalogRow {
 const CLOUD_TTL_MS = 15 * 60 * 1000;
 let cache: { fetchedAt: number; rows: ThemeCatalogRow[] } | null = null;
 
-const THEME_COLUMNS = "id, kind, name, tagline, description, is_default, price_label, light, dark";
+const THEME_COLUMNS = "id, kind, name, tagline, description, is_default, price_label, theme_type, light, dark";
 
 function toRow(raw: Record<string, unknown>): ThemeCatalogRow {
   const light = (raw.light ?? {}) as Record<string, unknown>;
@@ -42,6 +44,7 @@ function toRow(raw: Record<string, unknown>): ThemeCatalogRow {
     description: (raw.description as string) ?? "",
     is_default: Boolean(raw.is_default),
     price_label: (raw.price_label as string) ?? "Gratis",
+    theme_type: raw.theme_type === "premium" ? "premium" : "free",
     light,
     dark,
   };

@@ -125,12 +125,17 @@ export interface AmbientSoundSpec {
 
 /* ─────────────────────────── Tema Aplikasi (Global) ─────────────────────────── */
 
+/** Jenis tema di Pasar (PLAN-052): gratis (bawaan) atau premium (koleksi eksklusif). */
+export type ThemeTier = "free" | "premium";
+
 export interface AppThemeDefinition {
   id: string;
   name: string;
   tagline: string;
   description: string;
   isDefault: boolean;
+  /** Jenis tema di Pasar — menentukan grup "Gratis" / "Premium" (PLAN-052). */
+  themeType: ThemeTier;
   priceLabel: string;
   /** Gaya suara tema (rate + volume) — dipakai sound.ts. */
   sound: SoundSpec;
@@ -150,6 +155,7 @@ const puitis: AppThemeDefinition = {
   description:
     "Tema bawaan KotaKata AI: latar pink-putih lembut di mode terang dan plum gelap di mode gelap, dengan aksen ungu & biru langit.",
   isDefault: true,
+  themeType: "free",
   priceLabel: "Gratis · Tema Aktif",
   sound: { label: "Klasik", rate: 1, volume: 1 },
   ambient: {
@@ -221,6 +227,7 @@ const samudra: AppThemeDefinition = {
   description:
     "Palet samudra: biru dalam & teal segar dengan aksen koral. Terasa teduh di mode terang dan seperti menyelam di malam hari saat mode gelap.",
   isDefault: false,
+  themeType: "free",
   priceLabel: "Gratis",
   sound: { label: "Tenang", rate: 0.88, volume: 0.8 },
   ambient: {
@@ -300,6 +307,7 @@ const senja: AppThemeDefinition = {
   description:
     "Nuansa senja: oranye hangat, ungu dusk, dan mawar lembut. Cocok untuk bermain santai di sore hari.",
   isDefault: false,
+  themeType: "free",
   priceLabel: "Gratis",
   sound: { label: "Hangat", rate: 0.95, volume: 0.95 },
   ambient: {
@@ -379,6 +387,7 @@ const hutan: AppThemeDefinition = {
   description:
     "Palet hutan: hijau rimba yang teduh, zaitun hangat, dan langit biru sebagai aksen. Tenang dan natural di kedua mode.",
   isDefault: false,
+  themeType: "free",
   priceLabel: "Gratis",
   sound: { label: "Segar", rate: 1.08, volume: 0.9 },
   ambient: {
@@ -450,7 +459,8 @@ const neumorfik: AppThemeDefinition = {
   description:
     "Tema neumorphism (gaya neumorphism.io): latar abu lembut, permukaan memakai warna SAMA dengan latar sehingga elemen tampak timbul lewat bayangan terang-gelap, aksen biru. Minimalis, bersih, nyaman dipakai lama.",
   isDefault: false,
-  priceLabel: "Gratis",
+  themeType: "premium",
+  priceLabel: "Premium",
   sound: { label: "Lembut", rate: 0.85, volume: 0.75 },
   ambient: {
     label: "Kicau burung pagi",
@@ -559,7 +569,8 @@ const glassmorphism: AppThemeDefinition = {
   description:
     "Gaya glassmorphism: latar gradien hidup yang menembus permukaan semi-transparan (frosted glass) dengan border tipis bercahaya dan bayangan lembut menyebar. Jernih, modern, penuh cahaya.",
   isDefault: false,
-  priceLabel: "Gratis",
+  themeType: "premium",
+  priceLabel: "Premium",
   sound: { label: "Jernih", rate: 1, volume: 0.85 },
   ambient: {
     label: "Angin sepoi",
@@ -671,7 +682,8 @@ const claymorphism: AppThemeDefinition = {
   description:
     "Gaya claymorphism: warna pastel hangat (krim, peach, mawar) dengan permukaan 'tanah liat' — sudut sangat membulat, highlight terang di atas dan bayangan lembut berwarna di bawah. Hangat dan playful.",
   isDefault: false,
-  priceLabel: "Gratis",
+  themeType: "premium",
+  priceLabel: "Premium",
   sound: { label: "Hangat", rate: 0.9, volume: 0.95 },
   ambient: {
     label: "Api unggun malam",
@@ -774,7 +786,8 @@ const neoBrutalism: AppThemeDefinition = {
   description:
     "Gaya neo-brutalism: warna solid berani, garis tepi hitam tebal, sudut nyaris kotak, dan bayangan keras offset tanpa blur. Energik, blak-blakan, penuh karakter.",
   isDefault: false,
-  priceLabel: "Gratis",
+  themeType: "premium",
+  priceLabel: "Premium",
   sound: { label: "Tegas", rate: 1.15, volume: 1 },
   ambient: {
     label: "Hiruk-pikuk kota",
@@ -880,7 +893,8 @@ const minimalist: AppThemeDefinition = {
   description:
     "Gaya minimalist: latar polos dengan banyak ruang, permukaan datar (tanpa bayangan), border halus abu-abu, dan aksen hitam-putih tegas. Fokus pada isi — tidak ada yang berteriak.",
   isDefault: false,
-  priceLabel: "Gratis",
+  themeType: "premium",
+  priceLabel: "Premium",
   sound: { label: "Hening", rate: 0.9, volume: 0.7 },
   ambient: {
     label: "Angin hutan sejuk",
@@ -968,7 +982,8 @@ const frost: AppThemeDefinition = {
   description:
     "Frost UI (soft glass): variasi glassmorphism yang lebih lembut — permukaan kaca buram rendah saturasi, bayangan sangat halus, border tipis seperti embun beku, dengan nuansa es biru yang tenang.",
   isDefault: false,
-  priceLabel: "Gratis",
+  themeType: "premium",
+  priceLabel: "Premium",
   sound: { label: "Dingin", rate: 0.82, volume: 0.7 },
   ambient: {
     label: "Angin dingin",
@@ -1080,6 +1095,13 @@ export const APP_THEMES: AppThemeDefinition[] = [
   minimalist,
   frost,
 ];
+
+/**
+ * Tema aplikasi GRATIS (bawaan) — sisanya premium. Sumber kebenaran untuk
+ * kolom `theme_type` di seed SQL (gen-themes-sql.mjs) untuk tema papan /
+ * keyboard yang tidak membawa `themeType` sendiri.
+ */
+export const FREE_APP_IDS = new Set<string>(["puitis", "samudra", "senja", "hutan"]);
 
 /* ─────────────────────────── Tema Papan (Halaman Game) ─────────────────────────── */
 

@@ -16,6 +16,7 @@ import {
   APP_THEMES,
   BOARD_THEMES,
   KEYBOARD_THEMES,
+  type ThemeTier,
 } from "../../presentation/themes/themeData";
 import {
   themeRepository,
@@ -35,6 +36,8 @@ interface ThemeCardModel {
   description: string;
   isDefault: boolean;
   priceLabel: string;
+  /** Jenis tema (PLAN-052): "free" / "premium" — menentukan grup di Pasar. */
+  themeType: ThemeTier;
   /** Label backsound tema (hanya tema aplikasi yang punya) — chip kecil di kartu. */
   ambientLabel?: string;
   swatches: { light: string[]; dark: string[] };
@@ -97,6 +100,7 @@ function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
     description: row.description,
     isDefault: row.is_default,
     priceLabel: row.price_label,
+    themeType: row.theme_type,
     ambientLabel: kind === "app" ? ambient?.label : undefined,
     swatches: {
       light: pickSwatches(row.light, SWATCH_KEYS[kind]),
@@ -120,6 +124,7 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
       description: t.description,
       isDefault: t.isDefault,
       priceLabel: t.priceLabel,
+      themeType: t.themeType,
       ambientLabel: t.ambient?.label,
       swatches: {
         light: pickSwatches(t.light.colors as unknown as Record<string, unknown>, SWATCH_KEYS.app),
@@ -140,6 +145,7 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
       description: t.description,
       isDefault: t.isDefault,
       priceLabel: t.priceLabel,
+      themeType: "free",
       swatches: {
         light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.board),
         dark: pickSwatches(t.dark as unknown as Record<string, unknown>, SWATCH_KEYS.board),
@@ -155,11 +161,11 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
     kind,
     name: t.name,
     tagline: t.tagline,
-    description: t.description,
-    isDefault: t.isDefault,
-    priceLabel: t.priceLabel,
-    swatches: {
-      light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
+    description: t.description,      isDefault: t.isDefault,
+      priceLabel: t.priceLabel,
+      themeType: "free",
+      swatches: {
+        light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
       dark: pickSwatches(t.dark as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
     },
     palettes: {
@@ -211,6 +217,7 @@ interface ThemeCardProps {
 function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardProps) {
   const { theme } = useTheme();
   const C = theme.colors;
+  const isPremium = card.themeType === "premium";
 
   return (
     <View
@@ -233,6 +240,11 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
               <Text style={[styles.ambientChipText, { color: C.secondary }]}>
                 🎵 Backsound: {card.ambientLabel}
               </Text>
+            </View>
+          ) : null}
+          {isPremium ? (
+            <View style={[styles.premiumChip, { backgroundColor: C.gold + "26" }]}>
+              <Text style={[styles.premiumChipText, { color: C.gold }]}>💎 Premium</Text>
             </View>
           ) : null}
         </View>
@@ -281,6 +293,46 @@ interface SectionConfig {
   title: string;
   emoji: string;
   subtitle: string;
+}
+
+// PLAN-052: tema aplikasi dikelompokkan per JENIS — Gratis (bawaan) vs
+// Premium (koleksi eksklusif). Grup dirender berurutan: Gratis dulu.
+const TIER_META: Record<ThemeTier, { emoji: string; title: string; subtitle: string }> = {
+  free: {
+    emoji: "🆓",
+    title: "Gratis",
+    subtitle: "Tema bawaan — langsung bisa dipakai tanpa syarat.",
+  },
+  premium: {
+    emoji: "💎",
+    title: "Premium",
+    subtitle: "Koleksi eksklusif KotaKata — tampilan paling istimewa.",
+  },
+};
+
+/** Header grup tema (Gratis / Premium) di dalam seksi Tema Aplikasi. */
+function ThemeGroupHeader({ tier, count }: { tier: ThemeTier; count: number }) {
+  const { theme } = useTheme();
+  const meta = TIER_META[tier];
+  return (
+    <View
+      style={[
+        styles.groupHeader,
+        { backgroundColor: theme.colors.secondaryContainer },
+      ]}
+    >
+      <Text style={[styles.groupEmoji, { color: theme.colors.primary }]}>{meta.emoji}</Text>
+      <View style={styles.groupHeaderCol}>
+        <Text style={[styles.groupTitle, { color: theme.colors.text }]}>{meta.title}</Text>
+        <Text style={[styles.groupSubtitle, { color: theme.colors.textSecondary }]}>
+          {meta.subtitle}
+        </Text>
+      </View>
+      <Text style={[styles.groupCount, { color: theme.colors.textSecondary }]}>
+        {count} tema
+      </Text>
+    </View>
+  );
 }
 
 // PLAN-033: hanya Tema Aplikasi yang dijual di Pasar untuk saat ini. Tema
@@ -359,9 +411,10 @@ export default function StoreScreen() {
           <Text style={[styles.heroEmoji, { color: C.primary }]}>🛍️</Text>
           <Text style={[styles.heroTitle, { color: C.text }]}>Pasar</Text>
           <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
-            Ganti tampilan KotaKata sesukamu: pilih tema aplikasi — papan dan
-            keyboard otomatis mengikuti tema yang sama. Mode terang & gelap
-            penuh di tiap tema.
+            Ganti tampilan KotaKata sesukamu: 4 tema gratis selalu bisa
+            dipakai, dan koleksi premium hadir untuk tampilan paling
+            istimewa. Papan & keyboard otomatis mengikuti tema yang sama —
+            mode terang & gelap penuh di tiap tema.
           </Text>
         </View>
 
@@ -378,6 +431,23 @@ export default function StoreScreen() {
         ) : (
           SECTIONS.map((section) => {
             const activeId = activeIdFor(section.kind);
+            const cards = cardsFor(section.kind);
+            // PLAN-052: seksi Tema Aplikasi dipecah jadi grup Gratis & Premium.
+            const groups: { tier: ThemeTier; cards: ThemeCardModel[] }[] =
+              section.kind === "app"
+                ? (
+                    [
+                      {
+                        tier: "free" as const,
+                        cards: cards.filter((c) => c.themeType === "free"),
+                      },
+                      {
+                        tier: "premium" as const,
+                        cards: cards.filter((c) => c.themeType === "premium"),
+                      },
+                    ] satisfies { tier: ThemeTier; cards: ThemeCardModel[] }[]
+                  ).filter((g) => g.cards.length > 0)
+                : [{ tier: "free" as const, cards }];
             return (
               <View key={section.kind} style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -390,15 +460,20 @@ export default function StoreScreen() {
                   </View>
                 </View>
 
-                {cardsFor(section.kind).map((card) => (
-                  <ThemeCard
-                    key={`${section.kind}-${card.id}`}
-                    card={card}
-                    active={card.id === activeId}
-                    accent={C.primary}
-                    onPreview={() => setPreviewCard(card)}
-                    onActivate={(id) => activateFor(section.kind, id)}
-                  />
+                {groups.map((group, gi) => (
+                  <View key={`${section.kind}-group-${group.tier}-${gi}`} style={styles.group}>
+                    <ThemeGroupHeader tier={group.tier} count={group.cards.length} />
+                    {group.cards.map((card) => (
+                      <ThemeCard
+                        key={`${section.kind}-${card.id}`}
+                        card={card}
+                        active={card.id === activeId}
+                        accent={C.primary}
+                        onPreview={() => setPreviewCard(card)}
+                        onActivate={(id) => activateFor(section.kind, id)}
+                      />
+                    ))}
+                  </View>
                 ))}
               </View>
             );
@@ -410,8 +485,9 @@ export default function StoreScreen() {
           <Text style={[styles.comingSoonEmoji, { color: C.secondary }]}>✨</Text>
           <Text style={[styles.comingSoonTitle, { color: C.text }]}>Koleksi tema terus bertambah</Text>
           <Text style={[styles.comingSoonText, { color: C.textSecondary }]}>
-            Tema-tema ini nantinya akan menjadi konten berbayar. Pantau terus
-            Pasar untuk koleksi terbaru!
+            Tema Premium sedang disiapkan mekanisme pembeliannya. Sambil
+            menunggu, 4 tema gratis (Puitis, Senja, Hutan, Samudra) bisa
+            langsung kamu pakai!
           </Text>
         </View>
       </ScrollView>
@@ -454,6 +530,23 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "900", letterSpacing: -0.2 },
   sectionSubtitle: { fontSize: 12, lineHeight: 17 },
 
+  /* ─── Grup tema (Gratis / Premium — PLAN-052) ─── */
+  group: { gap: 10, marginTop: 2 },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  groupEmoji: { fontSize: 22 },
+  groupHeaderCol: { flex: 1, gap: 1 },
+  groupTitle: { fontSize: 15, fontWeight: "900", letterSpacing: -0.2 },
+  groupSubtitle: { fontSize: 11, lineHeight: 15 },
+  groupCount: { fontSize: 11, fontWeight: "800" },
+
   /* ─── Kartu Tema ─── */
   themeCard: { borderRadius: 14, borderWidth: 1, padding: 16, gap: 12 },
   themeCardHeader: {
@@ -473,6 +566,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   ambientChipText: { fontSize: 11, fontWeight: "700" },
+  premiumChip: {
+    alignSelf: "flex-start",
+    marginTop: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  premiumChipText: { fontSize: 11, fontWeight: "800" },
   activeBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   activeBadgeText: { fontSize: 11, fontWeight: "800" },
 

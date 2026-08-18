@@ -19,6 +19,7 @@ import {
   APP_THEMES,
   BOARD_THEMES,
   KEYBOARD_THEMES,
+  FREE_APP_IDS,
 } from "../../src/presentation/themes/themeData.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +33,17 @@ function sqlStr(value) {
 /** Palet jadi jsonb literal — warna disimpan polos supaya tetap bisa dibaca. */
 function jsonb(value) {
   return `'${JSON.stringify(value).replace(/'/g, "''")}'::jsonb`;
+}
+
+/**
+ * Jenis tema di katalog (kolom `theme_type`, PLAN-052): tema aplikasi membawa
+ * `themeType` sendiri (gratis = Puitis/Samudra/Senja/Hutan, sisanya premium);
+ * tema papan/keyboard fallback ke id — gratis bila id-nya salah satu tema
+ * aplikasi gratis (papan/keyboard senada tema aplikasi), selain itu premium.
+ */
+function themeTypeOf(theme) {
+  if (theme.themeType === "premium" || theme.themeType === "free") return theme.themeType;
+  return FREE_APP_IDS.has(theme.id) ? "free" : "premium";
 }
 
 function rowSql(kind, sortOrder, theme) {
@@ -58,7 +70,7 @@ function rowSql(kind, sortOrder, theme) {
   return [
     `  (${sqlStr(theme.id)}, ${sqlStr(kind)}, ${sqlStr(theme.name)},`,
     `   ${sqlStr(theme.tagline)}, ${sqlStr(theme.description)},`,
-    `   ${theme.isDefault}, ${sqlStr(theme.priceLabel)},`,
+    `   ${theme.isDefault}, ${sqlStr(theme.priceLabel)}, ${sqlStr(themeTypeOf(theme))},`,
     `   ${jsonb(light)},`,
     `   ${jsonb(dark)},`,
     `   ${sortOrder})`,
@@ -82,7 +94,7 @@ const header = `-- ============================================================
 -- ============================================================
 
 insert into public.themes
-  (id, kind, name, tagline, description, is_default, price_label, light, dark, sort_order)
+  (id, kind, name, tagline, description, is_default, price_label, theme_type, light, dark, sort_order)
 values
 `;
 
@@ -94,6 +106,7 @@ on conflict (id, kind) do update set
   description = excluded.description,
   is_default = excluded.is_default,
   price_label = excluded.price_label,
+  theme_type = excluded.theme_type,
   light = excluded.light,
   dark = excluded.dark,
   sort_order = excluded.sort_order;

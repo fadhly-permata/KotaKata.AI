@@ -32,6 +32,10 @@ create table if not exists public.themes (
   description text not null default '',
   is_default boolean not null default false,
   price_label text not null default 'Gratis',
+  -- Jenis tema di Pasar (PLAN-052): 'free' (bawaan) atau 'premium' (koleksi
+  -- eksklusif). Migrasi lama tidak punya kolom ini — tambahkan idempotent
+  -- di bawah supaya `create table if not exists` aman untuk DB baru & lama.
+  theme_type text not null default 'free',
   light jsonb not null,
   dark jsonb not null,
   sort_order integer not null default 0,
@@ -39,6 +43,14 @@ create table if not exists public.themes (
 );
 
 alter table public.themes enable row level security;
+
+-- Tambahan idempotent untuk DB yang sudah dibuat sebelum kolom theme_type
+-- ada (create table if not exists di atas tidak menyentuh tabel lama).
+alter table public.themes add column if not exists theme_type text not null default 'free';
+
+alter table public.themes drop constraint if exists themes_theme_type_check;
+alter table public.themes add constraint themes_theme_type_check
+  check (theme_type in ('free', 'premium'));
 
 -- Katalog publik: semua role (anon & authenticated) boleh membaca.
 drop policy if exists "themes_read_all" on public.themes;
