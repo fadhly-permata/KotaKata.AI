@@ -18,15 +18,21 @@ User ingin memasang iklan Google AdSense di versi web aplikasi KotaKata.AI.
 - Script hanya dimuat di web (React Native web), tidak mempengaruhi native
 
 ### 2. Tempatkan iklan
-- **Belum tentukan** — tergantung user ingin iklan di halaman mana (landing page, in-game, settings, dll.)
-- Untuk MVP: iklan di halaman utama (MainMenu) atau bawah halaman game
-- Gunakan AdSense auto-ad atau manual placement
+- **In-game, di bawah keyboard virtual** — posisi tetap di bawah keyboard
+- **Iklan tetap muncul saat keyboard di-hide** — artinya iklan selalu terlihat di area bawah game, baik keyboard tampil maupun tidak
+- Implementasi: letakkan AdSense `<ins>` di bawah wrapper keyboard virtual di `GameScreen.tsx`
+- Saat keyboard visible: iklan di bawah keyboard (area paling bawah layar)
+- Saat keyboard hidden: iklan tetap terlihat di posisi yang sama (bawah action bar)
+- Gunakan responsive ad format (320x100 mobile / 728x90 desktop)
+- Hanya di platform **web** — native (APK) tidak menampilkan iklan
 
 ### 3. Pertimbangan
-- Script AdSense memanggil Google Analytics — tidak mempengaruhi performa native
-- Untuk Expo web (Vite), script bisa langsung ditaruh di `public/index.html`
+- Script AdSense hanya dimuat di web (`public/index.html`)
+- Native build (APK) tidak terpengaruh — script tidak ada di bundle native
+- Iklan harus diskalakan agar tidak mengambil terlalu banyak ruang layar
+- Game grid + clue pill + action bar tetap prioritaskan ruang
+- Pertimbangkan min-height agar iklan tidak terlalu kecil
 - Jangan letakkan iklan di halaman auth/login
-- Pertimbangkan user experience — jangan sampai iklan mengganggu gameplay
 
 ## Files Changed
 - `public/index.html` — tambah script AdSense
