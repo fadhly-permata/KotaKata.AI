@@ -1,35 +1,22 @@
 # Pisahkan tombol buka clue 2 dan clue 3
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-18 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 057`
-> (lihat `bun .agents/plans/plan.mjs help`)
 
 ## Revisi (dari pemilik)
 
 > "Biar kelihatan kaya fitur, untuk membuka clue 2 dan 3, tombol-nya dipisah
 > aja."
 
-**Tujuan:** saat ini membuka clue 2 / clue 3 kemungkinan lewat satu tombol
-berurutan (buka berikutnya / "Petunjuk"). Pisahkan menjadi **dua tombol
-terpisah**: satu untuk membuka **Clue 2**, satu untuk membuka **Clue 3**
-(mis. biaya/XP per buka tetap mengikuti aturan yang ada). Tombol untuk clue
-yang sudah terbuka menjadi nonaktif/indikator.
+## Langkah
 
-## Cakupan
-
-- Komponen panel clue/petunjuk in-game (CluePill / GameActionBar —
-  koordinasi dengan PLAN-056 dan PLAN-058).
-- Logic buka clue (state clue terbuka, biaya XP bila ada) — cek
-  implementasi saat ini (mungkin `revealHint`/XP engine).
-- Tampilan: 2 tombol (mis. "Clue 2" & "Clue 3") dengan status terbuka/
-  terkunci.
-
-## Langkah (disusun saat dikerjakan)
-
-- [ ] **1. Judul langkah** — deskripsi singkat
+- [x] **1. Split props** — GameActionBar baru: `clue2Opened`, `clue3Opened`, `clue2Disabled`, `onRevealClue2`, `clue3Disabled`, `onRevealClue3` menggantikan prop gabungan lama.
+- [x] **2. Dua tombol terpisah** — tombol "📖 2" (Clue 2) + tombol "🔤 3" (Clue 3) masing-masing dengan badge "✓" jika sudah terbuka; Clue 3 nonaktif (opacity 0.4) jika Clue 2 belum dibuka.
+- [x] **3. Dua ConfirmDialog** — `showRevealClue2Confirm` & `showRevealClue3Confirm` terpisah di GameScreen, masing-masing menampilkan XP penalty sendiri.
+- [x] **4. Verifikasi** — tsc + 50 tes lolos.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 057 <no> "teks"`)_
+- **1–4.** 2026-08-18: GameScreen diupdate — state/confirm/callback terpisah untuk clue 2 & 3; badge angka (2/3) di tombol, bukan nextClueToReveal dinamis.

@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { buttonShadow, contrastText } from "../../utils/skin";
@@ -36,7 +40,7 @@ interface ThemeCardModel {
   description: string;
   isDefault: boolean;
   priceLabel: string;
-  /** Jenis tema (PLAN-052): "free" / "premium" — menentukan grup di Pasar. */
+  /** Jenis tema (PLAN-052): "free" / "premium" — menentukan tab di Pasar. */
   themeType: ThemeTier;
   /** Label backsound tema (hanya tema aplikasi yang punya) — chip kecil di kartu. */
   ambientLabel?: string;
@@ -63,13 +67,6 @@ function pickSwatches(palette: Record<string, unknown>, keys: string[]): string[
   return out;
 }
 
-/**
- * Normalisasi palet jadi map warna polos + spec latar. Tema app di
- * DB/registry berbentuk `{ mode, colors }` — ambil bagian `colors`; tema
- * papan/keyboard langsung map warna. Nilai non-string dibuang, KECUALI
- * objek `background` (gradien/gambar) yang ikut disalin utuh supaya mockup
- * preview bisa merendernya.
- */
 function colorMapOf(kind: ThemeKind, palette: Record<string, unknown>): Record<string, unknown> {
   const raw =
     kind === "app" && palette && typeof palette === "object" && "colors" in palette
@@ -87,8 +84,6 @@ function colorMapOf(kind: ThemeKind, palette: Record<string, unknown>): Record<s
 }
 
 function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
-  // Backsound dibawa seed di dalam jsonb palet (light/dark) — lihat
-  // scripts/db/gen-themes-sql.mjs. Hanya tema app yang punya.
   const ambient =
     (row.light as { ambient?: { label?: string } } | null)?.ambient ??
     (row.dark as { ambient?: { label?: string } } | null)?.ambient;
@@ -113,7 +108,6 @@ function rowToCard(kind: ThemeKind, row: ThemeCatalogRow): ThemeCardModel {
   };
 }
 
-/** Fallback katalog dari registry lokal (offline-first) — bentuk sama dengan kartu DB. */
 function localCards(kind: ThemeKind): ThemeCardModel[] {
   if (kind === "app") {
     return APP_THEMES.map((t) => ({
@@ -145,7 +139,7 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
       description: t.description,
       isDefault: t.isDefault,
       priceLabel: t.priceLabel,
-      themeType: "free",
+      themeType: "free" as const,
       swatches: {
         light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.board),
         dark: pickSwatches(t.dark as unknown as Record<string, unknown>, SWATCH_KEYS.board),
@@ -161,11 +155,12 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
     kind,
     name: t.name,
     tagline: t.tagline,
-    description: t.description,      isDefault: t.isDefault,
-      priceLabel: t.priceLabel,
-      themeType: "free",
-      swatches: {
-        light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
+    description: t.description,
+    isDefault: t.isDefault,
+    priceLabel: t.priceLabel,
+    themeType: "free" as const,
+    swatches: {
+      light: pickSwatches(t.light as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
       dark: pickSwatches(t.dark as unknown as Record<string, unknown>, SWATCH_KEYS.keyboard),
     },
     palettes: {
@@ -175,7 +170,6 @@ function localCards(kind: ThemeKind): ThemeCardModel[] {
   }));
 }
 
-/** Preview swatch satu tema: dua baris warna (mode terang & gelap). */
 function ThemeSwatches({ swatches }: { swatches: ThemeCardModel["swatches"] }) {
   const { theme } = useTheme();
   return (
@@ -217,7 +211,7 @@ interface ThemeCardProps {
 function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardProps) {
   const { theme } = useTheme();
   const C = theme.colors;
-  const isPremium = card.themeType === "premium";
+  const isModern = card.themeType === "premium";
 
   return (
     <View
@@ -227,7 +221,6 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
           backgroundColor: C.surface,
           borderColor: active ? accent : C.border,
         },
-        // PLAN-037: tema neumorphic — permukaan senada latar tampak "timbul".
         neumorphicShadow(theme.shadow),
       ]}
     >
@@ -242,9 +235,9 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
               </Text>
             </View>
           ) : null}
-          {isPremium ? (
-            <View style={[styles.premiumChip, { backgroundColor: C.gold + "26" }]}>
-              <Text style={[styles.premiumChipText, { color: C.gold }]}>💎 Premium</Text>
+          {isModern ? (
+            <View style={[styles.modernChip, { backgroundColor: C.gold + "26" }]}>
+              <Text style={[styles.modernChipText, { color: C.gold }]}>✨ Modern</Text>
             </View>
           ) : null}
         </View>
@@ -288,69 +281,87 @@ function ThemeCard({ card, active, accent, onPreview, onActivate }: ThemeCardPro
   );
 }
 
-interface SectionConfig {
-  kind: ThemeKind;
-  title: string;
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PLAN-053: Tab bar yang bisa di-swipe — "Gratis" & "Modern".
+ * Tab horizontal, konten berubah berdasarkan tab aktif (pager).
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+interface TabDef {
+  key: ThemeTier;
+  label: string;
   emoji: string;
-  subtitle: string;
 }
 
-// PLAN-052: tema aplikasi dikelompokkan per JENIS — Gratis (bawaan) vs
-// Premium (koleksi eksklusif). Grup dirender berurutan: Gratis dulu.
-const TIER_META: Record<ThemeTier, { emoji: string; title: string; subtitle: string }> = {
-  free: {
-    emoji: "🆓",
-    title: "Gratis",
-    subtitle: "Tema bawaan — langsung bisa dipakai tanpa syarat.",
-  },
-  premium: {
-    emoji: "💎",
-    title: "Premium",
-    subtitle: "Koleksi eksklusif KotaKata — tampilan paling istimewa.",
-  },
-};
+const TABS: TabDef[] = [
+  { key: "free", label: "Gratis", emoji: "🆓" },
+  { key: "premium", label: "Modern", emoji: "✨" },
+];
 
-/** Header grup tema (Gratis / Premium) di dalam seksi Tema Aplikasi. */
-function ThemeGroupHeader({ tier, count }: { tier: ThemeTier; count: number }) {
-  const { theme } = useTheme();
-  const meta = TIER_META[tier];
+/** Tab bar horizontal — bisa di-tap, item aktif menonjol. */
+function ThemeTabBar({
+  activeTab,
+  onSelect,
+  counts,
+  colors,
+}: {
+  activeTab: ThemeTier;
+  onSelect: (key: ThemeTier) => void;
+  counts: Record<ThemeTier, number>;
+  colors: { text: string; textSecondary: string; primary: string; border: string; secondaryContainer: string };
+}) {
   return (
-    <View
-      style={[
-        styles.groupHeader,
-        { backgroundColor: theme.colors.secondaryContainer },
-      ]}
-    >
-      <Text style={[styles.groupEmoji, { color: theme.colors.primary }]}>{meta.emoji}</Text>
-      <View style={styles.groupHeaderCol}>
-        <Text style={[styles.groupTitle, { color: theme.colors.text }]}>{meta.title}</Text>
-        <Text style={[styles.groupSubtitle, { color: theme.colors.textSecondary }]}>
-          {meta.subtitle}
-        </Text>
-      </View>
-      <Text style={[styles.groupCount, { color: theme.colors.textSecondary }]}>
-        {count} tema
-      </Text>
+    <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+      {TABS.map((tab) => {
+        const isActive = tab.key === activeTab;
+        return (
+          <TouchableOpacity
+            key={tab.key}
+            activeOpacity={0.7}
+            onPress={() => onSelect(tab.key)}
+            style={[
+              styles.tabItem,
+              isActive && { backgroundColor: colors.primary + "1A" },
+            ]}
+          >
+            <Text style={[styles.tabEmoji]}>{tab.emoji}</Text>
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: isActive ? colors.primary : colors.textSecondary },
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {counts[tab.key] > 0 ? (
+              <View
+                style={[
+                  styles.tabCount,
+                  { backgroundColor: isActive ? colors.primary + "22" : colors.secondaryContainer },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabCountText,
+                    { color: isActive ? colors.primary : colors.textSecondary },
+                  ]}
+                >
+                  {counts[tab.key]}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
-// PLAN-033: hanya Tema Aplikasi yang dijual di Pasar untuk saat ini. Tema
-// papan & keyboard sengaja dihapus dari pasar (pemilik akan mendesain ulang
-// keduanya); papan & keyboard selalu mengikuti tema aplikasi yang aktif.
-const SECTIONS: SectionConfig[] = [
-  {
-    kind: "app",
-    title: "Tema Aplikasi",
-    emoji: "🎨",
-    subtitle: "Palet global untuk semua halaman — papan & keyboard ikut senada. Terang & gelap penuh.",
-  },
-];
-
 /**
  * Halaman Pasar (Store): katalog tema dari DATABASE (tabel `themes`) dengan
- * 3 seksi — Tema Aplikasi, Tema Papan, dan Tema Keyboard. Tiap tema bisa
- * langsung diaktifkan (pilihan tersimpan permanen di perangkat).
+ * tab Gratis & Modern (PLAN-053). Tiap tema bisa langsung diaktifkan.
+ *
+ * Tab didukung swipe/geser (ScrollView pagingEnabled) supaya siap menerima
+ * tab/tema baru di masa depan.
  *
  * Saat katalog cloud tidak bisa dijangkau (offline), layar jatuh ke registry
  * lokal (themeData.ts) — katalog yang sama, jadi pengalaman tetap utuh.
@@ -358,13 +369,16 @@ const SECTIONS: SectionConfig[] = [
 export default function StoreScreen() {
   const { theme, appThemeId, setAppThemeId } = useTheme();
   const C = theme.colors;
+  const { width: winW } = useWindowDimensions();
 
   const [catalog, setCatalog] = useState<ThemeCatalogRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [fromCloud, setFromCloud] = useState(false);
-  // Tema yang sedang di-preview (modal mockup) — hanya state UI, tidak mengubah
-  // pilihan aktif sampai user menekan "Aktifkan" di kartu.
   const [previewCard, setPreviewCard] = useState<ThemeCardModel | null>(null);
+
+  /* Tab state — PLAN-053 */
+  const [activeTab, setActiveTab] = useState<ThemeTier>("free");
+  const tabPagerRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -376,7 +390,6 @@ export default function StoreScreen() {
         setFromCloud(true);
       })
       .catch(() => {
-        // Offline / Supabase tidak terjangkau → fallback registry lokal.
         if (disposed) return;
         setCatalog(null);
         setFromCloud(false);
@@ -394,12 +407,63 @@ export default function StoreScreen() {
     return localCards(kind);
   };
 
-  // Hanya tema aplikasi yang dijual di Pasar (PLAN-033) — papan & keyboard
-  // mengikuti tema aplikasi, jadi tidak ada pilihan terpisah lagi.
-  const activeIdFor = (kind: ThemeKind): string => appThemeId;
+  const allAppCards = cardsFor("app");
+  const activeId = appThemeId;
 
   const activateFor = (_kind: ThemeKind, id: string): void => {
     void setAppThemeId(id);
+  };
+
+  const freeCards = allAppCards.filter((c) => c.themeType === "free");
+  const modernCards = allAppCards.filter((c) => c.themeType === "premium");
+  const counts: Record<ThemeTier, number> = { free: freeCards.length, premium: modernCards.length };
+
+  /* Tab pager */
+  const activeIndex = TABS.findIndex((t) => t.key === activeTab);
+  const onTabPress = useCallback(
+    (key: ThemeTier) => {
+      setActiveTab(key);
+      const idx = TABS.findIndex((t) => t.key === key);
+      tabPagerRef.current?.scrollTo({ x: idx * winW, animated: true });
+    },
+    [winW],
+  );
+
+  const onTabScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const idx = Math.round(x / winW);
+      if (idx >= 0 && idx < TABS.length && TABS[idx].key !== activeTab) {
+        setActiveTab(TABS[idx].key);
+      }
+    },
+    [winW, activeTab],
+  );
+
+  const renderTabContent = (tier: ThemeTier) => {
+    const cards = tier === "free" ? freeCards : modernCards;
+    return (
+      <View style={[styles.tabContent, { width: winW }]}>
+        {cards.length === 0 ? (
+          <View style={[styles.emptyTab, { backgroundColor: C.secondaryContainer }]}>
+            <Text style={[styles.emptyTabText, { color: C.textSecondary }]}>
+              Belum ada tema di kategori ini.
+            </Text>
+          </View>
+        ) : (
+          cards.map((card) => (
+            <ThemeCard
+              key={`app-${card.id}`}
+              card={card}
+              active={card.id === activeId}
+              accent={C.primary}
+              onPreview={() => setPreviewCard(card)}
+              onActivate={(id) => activateFor("app", id)}
+            />
+          ))
+        )}
+      </View>
+    );
   };
 
   return (
@@ -411,10 +475,8 @@ export default function StoreScreen() {
           <Text style={[styles.heroEmoji, { color: C.primary }]}>🛍️</Text>
           <Text style={[styles.heroTitle, { color: C.text }]}>Pasar</Text>
           <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
-            Ganti tampilan KotaKata sesukamu: 4 tema gratis selalu bisa
-            dipakai, dan koleksi premium hadir untuk tampilan paling
-            istimewa. Papan & keyboard otomatis mengikuti tema yang sama —
-            mode terang & gelap penuh di tiap tema.
+            Ganti tampilan KotaKata sesukamu — tema gratis & modern pilihanmu.
+            Papan & keyboard otomatis mengikuti tema yang sama.
           </Text>
         </View>
 
@@ -429,55 +491,32 @@ export default function StoreScreen() {
         {loading ? (
           <ActivityIndicator size="large" color={C.primary} style={styles.loading} />
         ) : (
-          SECTIONS.map((section) => {
-            const activeId = activeIdFor(section.kind);
-            const cards = cardsFor(section.kind);
-            // PLAN-052: seksi Tema Aplikasi dipecah jadi grup Gratis & Premium.
-            const groups: { tier: ThemeTier; cards: ThemeCardModel[] }[] =
-              section.kind === "app"
-                ? (
-                    [
-                      {
-                        tier: "free" as const,
-                        cards: cards.filter((c) => c.themeType === "free"),
-                      },
-                      {
-                        tier: "premium" as const,
-                        cards: cards.filter((c) => c.themeType === "premium"),
-                      },
-                    ] satisfies { tier: ThemeTier; cards: ThemeCardModel[] }[]
-                  ).filter((g) => g.cards.length > 0)
-                : [{ tier: "free" as const, cards }];
-            return (
-              <View key={section.kind} style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionEmoji, { color: C.primary }]}>{section.emoji}</Text>
-                  <View style={styles.sectionHeaderCol}>
-                    <Text style={[styles.sectionTitle, { color: C.text }]}>{section.title}</Text>
-                    <Text style={[styles.sectionSubtitle, { color: C.textSecondary }]}>
-                      {section.subtitle}
-                    </Text>
-                  </View>
-                </View>
+          <>
+            {/* ═══ Tab Bar (PLAN-053) ═══ */}
+            <ThemeTabBar
+              activeTab={activeTab}
+              onSelect={onTabPress}
+              counts={counts}
+              colors={C}
+            />
 
-                {groups.map((group, gi) => (
-                  <View key={`${section.kind}-group-${group.tier}-${gi}`} style={styles.group}>
-                    <ThemeGroupHeader tier={group.tier} count={group.cards.length} />
-                    {group.cards.map((card) => (
-                      <ThemeCard
-                        key={`${section.kind}-${card.id}`}
-                        card={card}
-                        active={card.id === activeId}
-                        accent={C.primary}
-                        onPreview={() => setPreviewCard(card)}
-                        onActivate={(id) => activateFor(section.kind, id)}
-                      />
-                    ))}
-                  </View>
-                ))}
-              </View>
-            );
-          })
+            {/* ═══ Tab Pager (swipeable) ═══ */}
+            <ScrollView
+              ref={tabPagerRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={onTabScroll}
+              scrollEventThrottle={16}
+              style={styles.tabPager}
+            >
+              {TABS.map((tab) => (
+                <View key={tab.key} style={{ width: winW }}>
+                  {renderTabContent(tab.key)}
+                </View>
+              ))}
+            </ScrollView>
+          </>
         )}
 
         {/* ═══ Catatan ═══ */}
@@ -485,22 +524,19 @@ export default function StoreScreen() {
           <Text style={[styles.comingSoonEmoji, { color: C.secondary }]}>✨</Text>
           <Text style={[styles.comingSoonTitle, { color: C.text }]}>Koleksi tema terus bertambah</Text>
           <Text style={[styles.comingSoonText, { color: C.textSecondary }]}>
-            Tema Premium sedang disiapkan mekanisme pembeliannya. Sambil
-            menunggu, 4 tema gratis (Puitis, Senja, Hutan, Samudra) bisa
-            langsung kamu pakai!
+            Geser ke tab Modern untuk melihat koleksi eksklusif. Mekanisme
+            pembelian akan segera hadir!
           </Text>
         </View>
       </ScrollView>
 
-      {/* Preview tema — mockup sesuai jenis tema, sebelum user mengaktifkan */}
+      {/* Preview tema */}
       <ThemePreviewModal
         visible={previewCard !== null}
         kind={previewCard?.kind ?? "app"}
         name={previewCard?.name ?? ""}
         tagline={previewCard?.tagline ?? ""}
-        palettes={
-          previewCard?.palettes ?? { light: {}, dark: {} }
-        }
+        palettes={previewCard?.palettes ?? { light: {}, dark: {} }}
         onClose={() => setPreviewCard(null)}
       />
     </ScreenFade>
@@ -509,43 +545,52 @@ export default function StoreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, gap: 12, paddingBottom: 32 },
+  content: { paddingBottom: 32 },
 
   /* ─── Hero ─── */
-  hero: { alignItems: "center", gap: 6, paddingVertical: 12 },
+  hero: { alignItems: "center", gap: 6, paddingVertical: 12, paddingHorizontal: 16 },
   heroEmoji: { fontSize: 44 },
   heroTitle: { fontSize: 26, fontWeight: "900", letterSpacing: -0.5 },
-  heroSubtitle: { fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 330 },
+  heroSubtitle: { fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 330, paddingHorizontal: 16 },
 
   /* ─── Status katalog ─── */
-  offlineNote: { borderRadius: 12, padding: 10, alignItems: "center" },
+  offlineNote: { borderRadius: 12, padding: 10, alignItems: "center", marginHorizontal: 16 },
   offlineNoteText: { fontSize: 12, fontWeight: "700" },
   loading: { marginVertical: 48 },
 
-  /* ─── Seksi ─── */
-  section: { gap: 10 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
-  sectionEmoji: { fontSize: 26 },
-  sectionHeaderCol: { flex: 1, gap: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: "900", letterSpacing: -0.2 },
-  sectionSubtitle: { fontSize: 12, lineHeight: 17 },
-
-  /* ─── Grup tema (Gratis / Premium — PLAN-052) ─── */
-  group: { gap: 10, marginTop: 2 },
-  groupHeader: {
+  /* ─── Tab Bar (PLAN-053) ─── */
+  tabBar: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+  },
+  tabItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    marginRight: 8,
   },
-  groupEmoji: { fontSize: 22 },
-  groupHeaderCol: { flex: 1, gap: 1 },
-  groupTitle: { fontSize: 15, fontWeight: "900", letterSpacing: -0.2 },
-  groupSubtitle: { fontSize: 11, lineHeight: 15 },
-  groupCount: { fontSize: 11, fontWeight: "800" },
+  tabEmoji: { fontSize: 16 },
+  tabLabel: { fontSize: 14, fontWeight: "800" },
+  tabCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 5,
+  },
+  tabCountText: { fontSize: 10, fontWeight: "800" },
+
+  /* ─── Tab Pager ─── */
+  tabPager: { flexGrow: 0 },
+  tabContent: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
+  emptyTab: { borderRadius: 12, padding: 24, alignItems: "center" },
+  emptyTabText: { fontSize: 13, fontWeight: "600" },
 
   /* ─── Kartu Tema ─── */
   themeCard: { borderRadius: 14, borderWidth: 1, padding: 16, gap: 12 },
@@ -566,14 +611,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   ambientChipText: { fontSize: 11, fontWeight: "700" },
-  premiumChip: {
+  modernChip: {
     alignSelf: "flex-start",
     marginTop: 3,
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  premiumChipText: { fontSize: 11, fontWeight: "800" },
+  modernChipText: { fontSize: 11, fontWeight: "800" },
   activeBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   activeBadgeText: { fontSize: 11, fontWeight: "800" },
 
@@ -608,7 +653,8 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     gap: 6,
-    marginTop: 4,
+    marginTop: 8,
+    marginHorizontal: 16,
   },
   comingSoonEmoji: { fontSize: 30 },
   comingSoonTitle: { fontSize: 15, fontWeight: "800" },

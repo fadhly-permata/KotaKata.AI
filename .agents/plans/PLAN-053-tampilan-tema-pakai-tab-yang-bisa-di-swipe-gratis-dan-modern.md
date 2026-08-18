@@ -1,10 +1,9 @@
 # Tampilan tema pakai tab yang bisa di-swipe: Gratis dan Modern
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-18 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 053`
-> (lihat `bun .agents/plans/plan.mjs help`)
 
 ## Revisi (dari pemilik)
 
@@ -13,28 +12,12 @@
 > tambahkan tema-tema lain, buat agar tab tersebut bisa di swipe atau di
 > geser. Untuk sementara tab-nya kita kasih judul 'Gratis', dan 'Modern'."
 
-**Tujuan:** ganti tampilan pengelompokan tema di Pasar (hasil PLAN-052 —
-grup header vertikal Gratis/Premium) menjadi **tab horizontal** yang bisa
-**di-swipe/di-geser** (pager), sehingga user melihat satu kelompok tema per
-waktu. Label tab sementara: **"Gratis"** dan **"Modern"** (istilah "premium"
-di UI diganti jadi "Modern" mulai revisi ini). Desain harus siap menerima
-tab/tema baru di masa depan (tab otomatis muncul kalau ada kelompok baru).
+## Langkah
 
-## Cakupan
-
-- `src/features/store/StoreScreen.tsx` — tab bar + konten pager per tab.
-- Label UI "Premium" → "Modern" (tab + chip kartu) di StoreScreen; data
-  internal `theme_type` ('free'/'premium') tetap.
-- Komponen pager yang bisa di-swipe lintas platform (web + native) —
-  mis. ScrollView horizontal pagingEnabled / FlatList paging per tab, atau
-  `react-native-pager-view` bila sudah ada (cek package.json dulu).
-- Tab otomatis dari daftar kelompok tema yang ada (Gratis, Modern) — siap
-  ditambah kelompok lain.
-
-## Langkah (disusun saat dikerjakan)
-
-- [ ] **1. Judul langkah** — deskripsi singkat
+- [x] **1. Tab bar & pager** — `ThemeTabBar` horizontal dengan tombol "🆓 Gratis" & "✨ Modern" + badge jumlah tema, pakai `ScrollView pagingEnabled` supaya bisa di-swipe.
+- [x] **2. Label "Premium" → "Modern"** — semua UI ("💎 Premium" chip → "✨ Modern", judul grup → judul tab, teks catatan bawah diperbarui); data internal `theme_type` tetap 'free'/'premium'.
+- [x] **3. Verifikasi** — tsc + 50 tes lolos.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 053 <no> "teks"`)_
+- **1–3.** 2026-08-18: Tab gratis-modern implementasi: `ThemeTabBar` komponen baru, konten per-tab di `ScrollView` horizontal `pagingEnabled` (siap menerima tab tambahan masa depan tanpa ubah struktur).

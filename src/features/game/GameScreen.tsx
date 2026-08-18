@@ -72,7 +72,8 @@ export default function GameScreen() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRevealLetterConfirm, setShowRevealLetterConfirm] = useState(false);
   const [showRevealWordConfirm, setShowRevealWordConfirm] = useState(false);
-  const [showRevealClueConfirm, setShowRevealClueConfirm] = useState(false);
+  const [showRevealClue2Confirm, setShowRevealClue2Confirm] = useState(false);
+  const [showRevealClue3Confirm, setShowRevealClue3Confirm] = useState(false);
   // Level clue yang sedang ditampilkan di pill (1 = utama, 2 = penjelasan, 3 = sinonim/antonim).
   const [clueLevel, setClueLevel] = useState<1 | 2 | 3>(1);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -787,9 +788,9 @@ export default function GameScreen() {
   const clue2Opened = !!selectedHintUsage?.clue2Used;
   const clue3Opened = !!selectedHintUsage?.clue3Used;
   const allCluesOpened = clue2Opened && clue3Opened;
-  // Level clue berikutnya yang akan dibuka lewat tombol reveal clue (2 dulu, lalu 3).
-  const nextClueToReveal: 2 | 3 = clue2Opened ? 3 : 2;
-  const revealClueDisabled = clueActionsDisabled || allCluesOpened;
+  // PLAN-057: tombol Clue 2 & Clue 3 dipisah — masing-masing punya disabled sendiri.
+  const clue2Disabled = clueActionsDisabled || clue2Opened;
+  const clue3Disabled = clueActionsDisabled || clue3Opened || !clue2Opened;
 
   // Level clue yang benar-benar ditampilkan di pill: kalau clueLevel menunjuk
   // ke clue yang belum dibuka untuk kata saat ini (mis. baru pindah kata),
@@ -841,19 +842,22 @@ export default function GameScreen() {
     });
   }, [clue2Opened, clue3Opened]);
 
-  // Konfirmasi reveal clue berikutnya (2 lalu 3). XP potong sekali lalu gratis.
-  const confirmRevealClue = useCallback(() => {
+  // PLAN-057: konfirmasi reveal clue 2 & 3 terpisah.
+  const confirmRevealClue2 = useCallback(() => {
     if (selectedWordIndex === null) return;
     play("hint");
-    if (nextClueToReveal === 2) {
-      useClue2(selectedWordIndex);
-      setClueLevel(2);
-    } else {
-      useClue3(selectedWordIndex);
-      setClueLevel(3);
-    }
-    setShowRevealClueConfirm(false);
-  }, [selectedWordIndex, nextClueToReveal, useClue2, useClue3]);
+    useClue2(selectedWordIndex);
+    setClueLevel(2);
+    setShowRevealClue2Confirm(false);
+  }, [selectedWordIndex, useClue2]);
+
+  const confirmRevealClue3 = useCallback(() => {
+    if (selectedWordIndex === null) return;
+    play("hint");
+    useClue3(selectedWordIndex);
+    setClueLevel(3);
+    setShowRevealClue3Confirm(false);
+  }, [selectedWordIndex, useClue3]);
 
   useEffect(() => {
     if (Platform.OS !== "web" || !board) return;
@@ -1037,13 +1041,19 @@ export default function GameScreen() {
             play("tap");
             zoomIn();
           }}
+          clue2Opened={clue2Opened}
+          clue3Opened={clue3Opened}
           allCluesOpened={allCluesOpened}
-          nextClueToReveal={nextClueToReveal}
           aiMode={aiMode}
-          revealClueDisabled={revealClueDisabled}
-          onRevealClue={() => {
+          clue2Disabled={clue2Disabled}
+          onRevealClue2={() => {
             play("tap");
-            setShowRevealClueConfirm(true);
+            setShowRevealClue2Confirm(true);
+          }}
+          clue3Disabled={clue3Disabled}
+          onRevealClue3={() => {
+            play("tap");
+            setShowRevealClue3Confirm(true);
           }}
           revealLetterDisabled={revealLetterDisabled}
           onRevealLetter={() => {
@@ -1103,23 +1113,38 @@ export default function GameScreen() {
         cancelIcon="↩️"
       />
 
-      {/* Reveal clue confirmation — buka clue 2 lalu 3, potong XP sekali */}
+      {/* PLAN-057: Reveal clue 2 confirmation (terpisah) */}
       <ConfirmDialog
-        visible={showRevealClueConfirm}
-        title={`Buka Petunjuk Ke-${nextClueToReveal}?`}
+        visible={showRevealClue2Confirm}
+        title="Buka Petunjuk Ke-2?"
         message={
           aiMode
-            ? `Membuka petunjuk ke-${nextClueToReveal}? Mode AI: tidak ada XP yang dihitung.`
-            : `Membuka petunjuk ke-${nextClueToReveal} akan mengurangi XP sebesar ${
-                nextClueToReveal === 2 ? XP_PENALTY_CLUE_2 : XP_PENALTY_CLUE_3
-              }. Lanjutkan?`
+            ? "Membuka petunjuk ke-2? Mode AI: tidak ada XP yang dihitung."
+            : `Membuka petunjuk ke-2 akan mengurangi XP sebesar ${XP_PENALTY_CLUE_2}. Lanjutkan?`
         }
         confirmText="Ya, Buka"
         cancelText="Batal"
-        onConfirm={confirmRevealClue}
-        onCancel={() => setShowRevealClueConfirm(false)}
+        onConfirm={confirmRevealClue2}
+        onCancel={() => setShowRevealClue2Confirm(false)}
         variant="danger"
-        emoji={nextClueToReveal === 2 ? "📖" : "🔤"}
+        emoji="📖"
+      />
+
+      {/* PLAN-057: Reveal clue 3 confirmation (terpisah) */}
+      <ConfirmDialog
+        visible={showRevealClue3Confirm}
+        title="Buka Petunjuk Ke-3?"
+        message={
+          aiMode
+            ? "Membuka petunjuk ke-3? Mode AI: tidak ada XP yang dihitung."
+            : `Membuka petunjuk ke-3 akan mengurangi XP sebesar ${XP_PENALTY_CLUE_3}. Lanjutkan?`
+        }
+        confirmText="Ya, Buka"
+        cancelText="Batal"
+        onConfirm={confirmRevealClue3}
+        onCancel={() => setShowRevealClue3Confirm(false)}
+        variant="danger"
+        emoji="🔤"
       />
 
       {/* Reveal letter confirmation */}

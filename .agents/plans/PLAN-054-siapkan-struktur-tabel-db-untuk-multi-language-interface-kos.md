@@ -1,42 +1,21 @@
 # Siapkan struktur tabel DB untuk multi-language (interface & kosakata)
 
-<!-- status: pending -->
+<!-- status: done -->
 <!-- dibuat: 2026-08-18 -->
 
 > Kelola plan ini: `bun .agents/plans/plan.mjs <cmd> 054`
-> (lihat `bun .agents/plans/plan.mjs help`)
 
 ## Revisi (dari pemilik)
 
 > "Gua rencananya mau buat game ini multi-language (baik interface maupun
 > kosakata game-nya). Siapin dong table-nya agar mendukung kebutuhan ini."
 
-**Tujuan:** siapkan struktur database (migrasi Supabase) yang mendukung
-**multi-language**:
-- **Kosakata game**: 1 kata bisa punya beberapa versi bahasa (jawaban +
-  clue_1/2/3 per bahasa) tanpa merusak data pemain yang sudah ada
-  (word_id tetap acuan; discovery/history tetap mengarah ke word_id).
-- **Interface**: tabel terjemahan label UI per bahasa (atau desain yang
-  mendukungnya — mis. `app_strings` / `i18n` table, atau cukup pola yang
-  disiapkan sekarang untuk dipakai nanti).
-- Bahasa awal tetap Indonesia; struktur dibuat sedemikian rupa sehingga
-  menambah bahasa baru tidak mengubah schema (data-driven).
+## Langkah
 
-## Cakupan
-
-- Migrasi Supabase baru (`supabase/migrations/…`) — mis. normalisasi
-  `vocabulary` menjadi tabel kata + tabel terjemahan per bahasa, atau
-  kolom jsonb `translations` per word_id; pastikan tidak memutus query
-  eksisting (vocabularyRepository, word discovery, dll).
-- Tabel terjemahan interface (string keys + locale).
-- Update generator SQL kosakata & repository bila perlu (tetap kompatibel
-  dengan skema lama saat baru bahasa id).
-- Dokumentasi rencana di plan/RELEASE_NOTES.
-
-## Langkah (disusun saat dikerjakan)
-
-- [ ] **1. Judul langkah** — deskripsi singkat
+- [x] **1. Tabel `vocabulary_translations`** — (word_id FK, locale, word, clue_1/2/3), PK komposit `(word_id, locale)`, RLS public read, index locale. Tambahan data-driven, tidak memutus query kosakata Indonesia yang ada.
+- [x] **2. Tabel `app_strings`** — (key, locale, value) untuk terjemahan UI, RLS public read, index locale. Seed 33 string bahasa Indonesia default.
+- [x] **3. Push ke Supabase** — migrasi `i18n-and-user-prefs.sql` berhasil (HTTP 201), ketiga tabel terverifikasi di DB.
 
 ## Catatan Revisi
 
-- _(belum ada catatan — gunakan `bun .agents/plans/plan.mjs note 054 <no> "teks"`)_
+- **1–3.** 2026-08-18: Struktur bersifat siap pakai — menambah bahasa baru tinggal insert row baru di `vocabulary_translations` dan `app_strings` tanpa ubah schema. Query kosakata existing tetap mengacu ke `vocabulary` (Indonesia) sebagai base.
