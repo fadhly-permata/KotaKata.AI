@@ -614,7 +614,7 @@ export const TIER_2_WORDS: [string, string, string, string][] = [
   ["sekarang", "waktu yang sedang berlangsung; masa ini", "kini; pada saat ini", "Sinonim: kini"],
   ["kemudian", "sesudah itu; waktu yang akan datang", "kelak; belakangan hari", "Antonim: dahulu"],
   ["olahraga", "gerak badan untuk menguatkan dan menyehatkan tubuh", "seperti sepak bola", "Sinonim: senam"],
-  ["berhitung", "mengerjakan hitungan (menjumlahkan, mengurangi, dan sebagainya)", "berunding untuk memeriksa laba-rugi perniagaan", "Contoh: anak-anak sedang …"],
+  ["berhitung", "melakukan kalkulasi matematika", "berunding untuk memeriksa laba-rugi perniagaan", "Contoh: anak-anak sedang …"],
   ["menggambar", "membuat gambar", "melukis dengan pensil atau kuas", "Contoh: ia pandai … pemandangan"],
   ["merak", "burung besar berbulu indah", "burung dengan ekor yang bisa mengembang", "Ekor jantannya seperti kipas"],
   ["abis", "bagian paling dalam dari lautan", "kedalaman laut lebih dari 400 meter", "Sinonim: laut dalam"],
