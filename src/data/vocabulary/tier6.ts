@@ -872,7 +872,7 @@ export const TIER_6_WORDS: [string, string, string, string][] = [
   ["penukaran", "proses, cara, perbuatan menukar (menukari, menukarkan)", "penggantian", "Sinonim: penyilihan"],
   ["sederajat", "sama tingkatan (pangkat, dan sebagainya)", "kedudukan", "Sinonim: egaliter"],
   ["tergabung", "telah disatukan", "melakukan disatukan", "telah menjadi satu"],
-  ["protestan", "penganut Protestantisme", "penganut ajaran Kristen hasil reformasi", "Sinonim: reformis"],
+  ["protestan", "Aliran gereja yang terpisah dari Katolik Roma", "penganut ajaran Kristen hasil reformasi", "Sinonim: reformis"],
   ["rekrutmen", "pengerahan, misalnya tenaga kerja", "Contoh: 2.262 TKI dan TKW oleh sebuah perusahaan tenaga kerja ke luar negeri membuktikan sulitnya lapangan kerja di tanah air", "Sinonim: perekrutan"],
   ["kemerahan", "kemerah-merahan", "berwarna mendekati merah", "Sinonim: merah jambu"],
   ["keretakan", "hal (keadaan) retak", "Contoh: … ini hendaknya dapat diatasi", "keadaan retak"],
