@@ -243,6 +243,17 @@ export async function testAiConnection(
     return { ok: true, message: "Koneksi berhasil ✓ Model merespons." };
   } catch (err: any) {
     const msg = err?.name === "AbortError" ? "Tes koneksi terputus (waktu habis)." : err?.message;
+    // Deteksi CORS / network error untuk provider lokal
+    if (isLocalProvider(cfg.provider) && (msg?.includes("Failed to fetch") || msg?.includes("NetworkError") || msg?.includes("CORS") || msg?.includes("ERR_CONNECTION_REFUSED") || msg?.includes("0"))) {
+      return {
+        ok: false,
+        message: "Gagal terhubung ke server lokal. Pastikan:\n\n"
+          + "1. Server sudah berjalan (Ollama/LM Studio)\n"
+          + "2. App dijalankan LOKAL (bukan dari expo.app)\n\n"
+          + "Jalankan: bunx expo start --web\n"
+          + "Bukan dari URL deployed (kotakata-ai.expo.app).",
+      };
+    }
     return { ok: false, message: msg ?? "Gagal terhubung ke provider." };
   }
 }

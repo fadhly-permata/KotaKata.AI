@@ -251,22 +251,18 @@ export default function AiProviderScreen() {
             </>
           )}
           {isLocalProvider(provider) && (
-            <View style={[styles.localInfo, { backgroundColor: C.secondaryContainer + "40", borderColor: C.border }]}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: C.text, marginBottom: 4 }}>
-                🏠 Provider lokal — tidak perlu API key
+            <View style={[styles.localInfo, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B" }]}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
+                ⚠️ Provider lokal hanya bisa diakses dari app yang dijalankan di komputer yang sama
               </Text>
-              {provider === "ollama" ? (
-                <Text style={{ fontSize: 11, color: C.textSecondary, lineHeight: 16 }}>
-                  {"Untuk akses dari browser, jalankan Ollama dengan CORS:"
-                  + "\n\nOLLAMA_ORIGINS=* ollama serve"
-                  + "\n\nAtau di Windows:"}
-                </Text>
-              ) : (
-                <Text style={{ fontSize: 11, color: C.textSecondary, lineHeight: 16 }}>
-                  {"Di LM Studio → tab Server → centang \"Enable CORS\"."
-                  + "\n\nPastikan server berjalan (port 1234)."}
-                </Text>
-              )}
+              <Text style={{ fontSize: 11, color: "#92400E", lineHeight: 16 }}>
+                {provider === "ollama"
+                  ? "Jalankan app lokal: bunx expo start --web\nLalu jalankan Ollama: OLLAMA_ORIGINS=* ollama serve"
+                  : "Jalankan app lokal: bunx expo start --web\nLalu aktifkan server di LM Studio (port 1234)"}
+              </Text>
+              <Text style={{ fontSize: 10, color: "#B45309", marginTop: 6, lineHeight: 14 }}>
+                Tidak bisa dari URL deployed (kotakata-ai.expo.app) karena\nlocalhost di browser ≠ localhost di komputermu.
+              </Text>
             </View>
           )}
 
