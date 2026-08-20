@@ -112,24 +112,24 @@ export default function QuestionEditorScreen() {
     setAiError("");
   }, []);
 
-  // ─── Save changes ───
+  // ─── Save changes via RPC ───
   const handleSave = useCallback(async () => {
     if (!selectedWord) return;
     setSaving(true);
     setSaveMsg("");
     try {
-      const { error } = await supabase
-        .from("vocabulary")
-        .update({
-          word: editWord.trim(),
-          clue_1: editClue1.trim(),
-          clue_2: editClue2.trim() || null,
-          clue_3: editClue3.trim() || null,
-          tier_level: parseInt(editTier, 10) || 1,
-        })
-        .eq("word_id", selectedWord.word_id);
+      const { data, error } = await supabase.rpc("update_vocabulary_admin", {
+        p_word_id: selectedWord.word_id,
+        p_word: editWord.trim(),
+        p_clue_1: editClue1.trim(),
+        p_clue_2: editClue2.trim(),
+        p_clue_3: editClue3.trim(),
+        p_tier_level: parseInt(editTier, 10) || 1,
+      });
       if (error) throw error;
-      setSaveMsg("✅ Berhasil disimpan!");
+      const result = data as { ok: boolean; error?: string; message?: string };
+      if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
+      setSaveMsg(`✅ ${result.message ?? "Berhasil disimpan!"}`);
       // Update local state
       setWords((prev) =>
         prev.map((w) =>
