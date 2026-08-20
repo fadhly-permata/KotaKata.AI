@@ -22,7 +22,12 @@ import {
 } from "../../utils/sound";
 import {
   getAiProviderConfig,
+  getAllSavedProviders,
+  getActiveProvider,
+  setActiveProvider,
   providerLabel,
+  providerPreset,
+  type AiProviderPreset,
 } from "../../utils/aiProvider";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
@@ -35,17 +40,24 @@ export default function SettingsScreen() {
   const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
   const [ambientEnabled, setAmbientEnabledState] = useState(isAmbientEnabled());
   const [aiStatus, setAiStatus] = useState<{ label: string; model: string } | null>(null);
+  const [savedProviders, setSavedProviders] = useState<AiProviderPreset[]>([]);
+  const [activeProvider, setActiveProviderState] = useState<AiProviderPreset>("openrouter");
 
   // Baca status provider AI tersimpan (BYOK) untuk ditampilkan di pengaturan.
   useEffect(() => {
     let cancelled = false;
-    getAiProviderConfig().then((cfg) => {
-      if (cancelled || !cfg) return;
-      setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
-    });
-    return () => {
-      cancelled = true;
-    };
+    (async () => {
+      const [cfg, saved, active] = await Promise.all([
+        getAiProviderConfig(),
+        getAllSavedProviders(),
+        getActiveProvider(),
+      ]);
+      if (cancelled) return;
+      if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
+      setSavedProviders(saved);
+      setActiveProviderState(active);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
@@ -115,23 +127,83 @@ export default function SettingsScreen() {
         {/* Main Mode AI */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Main Mode AI</Text>
-          <Text style={[styles.settingHint, { color: theme.colors.textSecondary }]}>
-            {aiStatus
-              ? `Aktif: ${aiStatus.label} · ${aiStatus.model}`
-              : "Main dengan soal yang dibuat AI. Belum ada provider diatur."}
-          </Text>
-          <TouchableOpacity
-            style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }, buttonShadow(theme)]}
-            activeOpacity={0.7}
-            onPress={() => {
-              play("tap");
-              navigation.navigate("AiProvider");
-            }}
-          >
-            <Text style={[styles.logOpenBtnText, { color: theme.colors.secondary }]}>
-              🤖 {aiStatus ? "Ubah Provider AI" : "Tambahkan Provider AI"}
-            </Text>
-          </TouchableOpacity>
+          {savedProviders.length === 0 ? (
+            <>
+              <Text style={[styles.settingHint, { color: theme.colors.textSecondary }]}>
+                Main dengan soal yang dibuat AI. Belum ada provider diatur.
+              </Text>
+              <TouchableOpacity
+                style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer }, buttonShadow(theme)]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  play("tap");
+                  navigation.navigate("AiProvider");
+                }}
+              >
+                <Text style={[styles.logOpenBtnText, { color: theme.colors.secondary }]}>
+                  🤖 Tambahkan Provider AI
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.settingHint, { color: theme.colors.textSecondary, marginBottom: 4 }]}>
+                Pilih provider default untuk Main Mode AI & Editor Soal:
+              </Text>
+              {savedProviders.map((p) => {
+                const isActive = p === activeProvider;
+                const cfgLabel = providerLabel(p);
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[styles.providerRow, {
+                      backgroundColor: isActive
+                        ? theme.colors.primary + "15"
+                        : theme.colors.secondaryContainer,
+                      borderColor: isActive ? theme.colors.primary : "transparent",
+                    }]}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      play("tap");
+                      await setActiveProvider(p);
+                      setActiveProviderState(p);
+                      const cfg = await getAiProviderConfig();
+                      if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
+                    }}
+                  >
+                    <Text style={[styles.providerRowRadio, { color: isActive ? theme.colors.primary : theme.colors.textSecondary }]}>
+                      {isActive ? "◉" : "○"}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.providerRowLabel, { color: theme.colors.text }]}>
+                        {cfgLabel}
+                      </Text>
+                      {isActive && aiStatus && (
+                        <Text style={[styles.providerRowModel, { color: theme.colors.textSecondary }]}>
+                          {aiStatus.model}
+                        </Text>
+                      )}
+                    </View>
+                    {isActive && (
+                      <Text style={[styles.providerRowActive, { color: theme.colors.primary }]}>Aktif</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[styles.logOpenBtn, { backgroundColor: theme.colors.secondaryContainer, marginTop: 4 }, buttonShadow(theme)]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  play("tap");
+                  navigation.navigate("AiProvider");
+                }}
+              >
+                <Text style={[styles.logOpenBtnText, { color: theme.colors.secondary }]}>
+                  ⚙️ Kelola Provider AI
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Log Aplikasi — detail dibuka lewat layar terpisah */}
@@ -191,6 +263,19 @@ const styles = StyleSheet.create({
   settingValue: { fontSize: 14, fontWeight: "600" },
   settingHint: { fontSize: 13, lineHeight: 18 },
   divider: { height: 1 },
+  providerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 10,
+  },
+  providerRowRadio: { fontSize: 18 },
+  providerRowLabel: { fontSize: 14, fontWeight: "600" },
+  providerRowModel: { fontSize: 12, marginTop: 2 },
+  providerRowActive: { fontSize: 12, fontWeight: "700" },
   logOpenBtn: {
     paddingVertical: 12,
     borderRadius: 10,
