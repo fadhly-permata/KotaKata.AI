@@ -30,6 +30,20 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "QuestionEditor">;
 const VOCAB_COLUMNS = "word_id, word, clue_1, clue_2, clue_3, tier_level";
 const PAGE_SIZE = 50;
 
+type NotifType = "success" | "error" | "warning" | "info";
+
+interface Notification {
+  type: NotifType;
+  message: string;
+}
+
+const NOTIF_COLORS: Record<NotifType, { bg: string; border: string; text: string }> = {
+  success: { bg: "#D1FAE5", border: "#10B981", text: "#065F46" },
+  error: { bg: "#FEE2E2", border: "#EF4444", text: "#991B1B" },
+  warning: { bg: "#FEF3C7", border: "#F59E0B", text: "#92400E" },
+  info: { bg: "#DBEAFE", border: "#3B82F6", text: "#1E40AF" },
+};
+
 export default function QuestionEditorScreen() {
   const { theme } = useTheme();
   const C = theme.colors;
@@ -49,9 +63,7 @@ export default function QuestionEditorScreen() {
   const [editTier, setEditTier] = useState("1");
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
-  const [aiLeakWarnings, setAiLeakWarnings] = useState<string[]>([]);
-  const [saveMsg, setSaveMsg] = useState("");
+  const [notification, setNotification] = useState<Notification | null>(null);
   const [page, setPage] = useState(1);
 
   // ─── Fetch vocabulary ───
@@ -101,6 +113,12 @@ export default function QuestionEditorScreen() {
     setPage(1);
   }, [search]);
 
+  // ─── Current index in filtered list (for prev/next) ───
+  const currentIdx = useMemo(() => {
+    if (!selectedWord) return -1;
+    return filtered.findIndex((w) => w.word_id === selectedWord.word_id);
+  }, [filtered, selectedWord]);
+
   // ─── Select word for editing ───
   const handleSelect = useCallback((word: VocabularyDoc) => {
     setSelectedWord(word);
@@ -109,16 +127,30 @@ export default function QuestionEditorScreen() {
     setEditClue2(word.clue_2 ?? "");
     setEditClue3(word.clue_3 ?? "");
     setEditTier(String(word.tier_level));
-    setSaveMsg("");
-    setAiError("");
-    setAiLeakWarnings([]);
+    setNotification(null);
   }, []);
+
+  // ─── Navigate to word at given index ───
+  const navigateToWord = useCallback(
+    (idx: number) => {
+      if (idx < 0 || idx >= filtered.length) return;
+      const w = filtered[idx];
+      setSelectedWord(w);
+      setEditWord(w.word);
+      setEditClue1(w.clue_1);
+      setEditClue2(w.clue_2 ?? "");
+      setEditClue3(w.clue_3 ?? "");
+      setEditTier(String(w.tier_level));
+      setNotification(null);
+    },
+    [filtered],
+  );
 
   // ─── Save changes via RPC ───
   const handleSave = useCallback(async () => {
     if (!selectedWord) return;
     setSaving(true);
-    setSaveMsg("");
+    setNotification(null);
     try {
       const { data, error } = await supabase.rpc("update_vocabulary_admin", {
         p_word_id: selectedWord.word_id,
@@ -131,7 +163,7 @@ export default function QuestionEditorScreen() {
       if (error) throw error;
       const result = data as { ok: boolean; error?: string; message?: string };
       if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
-      setSaveMsg(`✅ ${result.message ?? "Berhasil disimpan!"}`);
+      setNotification({ type: "success", message: `✅ ${result.message ?? "Berhasil disimpan!"}` });
       // Update local state — tanpa re-fetch dari database
       const updated = {
         ...selectedWord,
@@ -144,10 +176,9 @@ export default function QuestionEditorScreen() {
       setWords((prev) =>
         prev.map((w) => (w.word_id === selectedWord.word_id ? updated : w)),
       );
-      // Sync selectedWord supaya list juga ter-update
       setSelectedWord(updated);
     } catch (err: any) {
-      setSaveMsg(`❌ Gagal: ${err.message}`);
+      setNotification({ type: "error", message: `❌ Gagal: ${err.message}` });
     } finally {
       setSaving(false);
     }
@@ -157,11 +188,11 @@ export default function QuestionEditorScreen() {
   const handleAiRevision = useCallback(async () => {
     if (!selectedWord) return;
     setAiLoading(true);
-    setAiError("");
+    setNotification(null);
     try {
       const config = await getAiProviderConfig();
       if (!config) {
-        setAiError("Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI.");
+        setNotification({ type: "error", message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI." });
         return;
       }
       const revised = await requestAiRevision(config, {
@@ -176,15 +207,16 @@ export default function QuestionEditorScreen() {
         if (revised.clue_2) setEditClue2(revised.clue_2);
         if (revised.clue_3) setEditClue3(revised.clue_3);
         if (revised.leaks && revised.leaks.length > 0) {
-          setAiLeakWarnings(revised.leaks);
-          setSaveMsg("⚠️ AI merevisi clue, tapi beberapa masih bocor. Silakan perbaiki manual.");
+          setNotification({
+            type: "warning",
+            message: `⚠️ AI merevisi clue, tapi ${revised.leaks.join(", ")} masih bocor. Silakan perbaiki manual.`,
+          });
         } else {
-          setAiLeakWarnings([]);
-          setSaveMsg("🤖 AI merevisi clue. Review & simpan jika sudah sesuai.");
+          setNotification({ type: "info", message: "🤖 AI merevisi clue. Review & simpan jika sudah sesuai." });
         }
       }
     } catch (err: any) {
-      setAiError(err.message || "Gagal merevisi via AI");
+      setNotification({ type: "error", message: err.message || "Gagal merevisi via AI" });
     } finally {
       setAiLoading(false);
     }
@@ -207,6 +239,8 @@ export default function QuestionEditorScreen() {
       </View>
     );
   }
+
+  const notif = notification ? NOTIF_COLORS[notification.type] : null;
 
   return (
     <ScreenFade style={[styles.root, { backgroundColor: C.background }]}>
@@ -328,15 +362,34 @@ export default function QuestionEditorScreen() {
           onClose={() => setSelectedWord(null)}
         >
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-            {/* ─── Leak Warning Block ─── */}
-            {aiLeakWarnings.length > 0 && (
-              <View style={[styles.warningBlock, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B" }]}>
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
-                  ⚠️ Peringatan Bocor Jawaban
+            {/* ─── Prev / Next navigation ─── */}
+            {currentIdx >= 0 && (
+              <View style={styles.navRow}>
+                <TouchableOpacity
+                  disabled={currentIdx <= 0}
+                  onPress={() => navigateToWord(currentIdx - 1)}
+                  style={[styles.navBtn, { opacity: currentIdx <= 0 ? 0.3 : 1, backgroundColor: C.surface, borderColor: C.border }]}
+                >
+                  <Text style={{ color: C.text, fontWeight: "600" }}>◀ Prev</Text>
+                </TouchableOpacity>
+                <Text style={{ color: C.textSecondary, fontSize: 12 }}>
+                  {currentIdx + 1} / {filtered.length}
                 </Text>
-                <Text style={{ fontSize: 13, color: "#92400E" }}>
-                  {aiLeakWarnings.join(", ")} masih memuat kata jawaban.{'\n'}
-                  Silakan perbaiki manual sebelum menyimpan.
+                <TouchableOpacity
+                  disabled={currentIdx >= filtered.length - 1}
+                  onPress={() => navigateToWord(currentIdx + 1)}
+                  style={[styles.navBtn, { opacity: currentIdx >= filtered.length - 1 ? 0.3 : 1, backgroundColor: C.surface, borderColor: C.border }]}
+                >
+                  <Text style={{ color: C.text, fontWeight: "600" }}>Next ▶</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ─── Notification Block ─── */}
+            {notification && notif && (
+              <View style={[styles.notifBlock, { backgroundColor: notif.bg, borderColor: notif.border }]}>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: notif.text }}>
+                  {notification.message}
                 </Text>
               </View>
             )}
@@ -437,14 +490,6 @@ export default function QuestionEditorScreen() {
                 )}
               </TouchableOpacity>
             </View>
-
-            {/* Messages */}
-            {saveMsg ? (
-              <Text style={[styles.msg, { color: saveMsg.startsWith("✅") ? "#10B981" : saveMsg.startsWith("❌") ? "#EF4444" : C.primary }]}>
-                {saveMsg}
-              </Text>
-            ) : null}
-            {aiError ? <Text style={[styles.msg, { color: "#EF4444" }]}>{aiError}</Text> : null}
           </ScrollView>
         </AppModal>
       </KeyboardAvoidingView>
@@ -506,6 +551,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   pageBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  navBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
   label: { fontSize: 13, fontWeight: "600", marginTop: 12, marginBottom: 4 },
   input: {
     borderWidth: 1,
@@ -532,12 +589,11 @@ const styles = StyleSheet.create({
   },
   aiBtn: {},
   btnText: { fontSize: 14, fontWeight: "700" },
-  warningBlock: {
+  notifBlock: {
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
   },
-  msg: { fontSize: 13, marginTop: 10, textAlign: "center" },
 });

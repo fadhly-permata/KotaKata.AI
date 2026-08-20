@@ -81,49 +81,49 @@ export default function AppModal({
         activeOpacity={1}
         onPress={dismissable ? onClose : undefined}
       >
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              width: cardWidth,
-              maxHeight: winH * 0.85,
-              backgroundColor: C.surface,
-              opacity: opacityAnim,
-              transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
-            },
-            // Skin (PLAN-038): radius + bayangan permukaan dari token tema
-            // (neumorfik → kartu dialog "timbul"; tema lain tanpa efek).
-            // PLAN-043: kartu DIALOG selalu SOLID (tidak transparan) supaya
-            // teks terbaca walau tema glass/frost memakai surface rgba.
-            surfaceStyleOpaque(theme, "raised", 18),
-          ]}
-          onStartShouldSetResponder={() => true}
+        {/* Card wrapper — onPress kosong mencegah click di dalam kartu
+            terbaca sebagai tap backdrop (web: TouchableOpacity.onPress
+            fires untuk semua click di dalam bounds DOM-nya). */}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => {}}
+          style={{ alignItems: "center" }}
         >
-          {title != null ? (
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: C.text }]}>{title}</Text>
-              {dismissable && (
-                <TouchableOpacity
-                  style={[styles.closeBtn, buttonShadow(theme)]}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  onPress={() => {
-                    play("tap");
-                    onClose();
-                  }}
-                >
-                  <Text style={[styles.closeIcon, { color: C.textSecondary }]}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : null}
-          {/* Body dibungkus View flexShrink:1 — saat kartu dibatasi maxHeight,
-              area ini menyusut sehingga ScrollView di dalamnya punya tinggi
-              terbatas dan bisa di-scroll dengan jari di HP (tanpa ini, daftar
-              panjang seperti Daftar Tier / Leaderboard hanya bisa di-scroll
-              dengan mouse di web, bukan swipe di ponsel). */}
-          <View style={styles.body}>{children}</View>
-        </Animated.View>
+          <Animated.View
+            style={[
+              styles.card,
+              {
+                width: cardWidth,
+                maxHeight: winH * 0.85,
+                backgroundColor: C.surface,
+                opacity: opacityAnim,
+                transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
+              },
+              surfaceStyleOpaque(theme, "raised", 18),
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            {title != null ? (
+              <View style={styles.header}>
+                <Text style={[styles.title, { color: C.text }]}>{title}</Text>
+                {dismissable && (
+                  <TouchableOpacity
+                    style={[styles.closeBtn, buttonShadow(theme)]}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => {
+                      play("tap");
+                      onClose();
+                    }}
+                  >
+                    <Text style={[styles.closeIcon, { color: C.textSecondary }]}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null}
+            <View style={styles.body}>{children}</View>
+          </Animated.View>
+        </TouchableOpacity>
       </TouchableOpacity>
       {/* Konfeti/hujan SELURUH LAYAR — dirender PALING ATAS (di atas backdrop
           & kartu) supaya meriah, pointerEvents none di dalam Confetti jadi
