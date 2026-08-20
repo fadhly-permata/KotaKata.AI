@@ -98,7 +98,7 @@ export default function ThemedBackground({ spec, style, children }: ThemedBackgr
   const stops = gradient && gradient.length >= 2 ? gradient : undefined;
 
   return (
-    <View style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, style, { pointerEvents: "none" as const }]}>
       {/* 1) Warna solid dasar (fallback & pengganti gradien bila tidak ada). */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: color }]} />
 

@@ -502,8 +502,8 @@ export default function MainMenuScreen() {
             </Text>
           </View>
         </View>
-
-        {/* ═══ Main Action: Mulai Bermain ═══ */}          <TouchableOpacity
+        {/* ═══ Main Action: Mulai Bermain ═══ */}
+        <TouchableOpacity
             style={[
               styles.playButton,
               { backgroundColor: C.primary },
