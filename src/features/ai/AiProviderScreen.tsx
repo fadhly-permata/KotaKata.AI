@@ -224,7 +224,7 @@ export default function AiProviderScreen() {
               : provider === "huggingface"
                 ? "HuggingFace — Inference Providers router (huggingface.co)."
                 : provider === "ollama"
-                  ? "Ollama — model lokal di komputermu. Jalankan Ollama di terminal, lalu pilih model yang sudah di-pull."
+                  ? "Ollama — model lokal di komputermu. Jalankan: OLLAMA_ORIGINS=* ollama serve"
                   : provider === "lmstudio"
                     ? "LM Studio — GUI lokal untuk load model GGUF. Jalankan LM Studio, aktifkan server, lalu pilih model."
                     : "URL kustom — endpoint chat-completions milikmu sendiri."}
@@ -252,9 +252,21 @@ export default function AiProviderScreen() {
           )}
           {isLocalProvider(provider) && (
             <View style={[styles.localInfo, { backgroundColor: C.secondaryContainer + "40", borderColor: C.border }]}>
-              <Text style={{ fontSize: 12, color: C.textSecondary, lineHeight: 17 }}>
-                🏠 Provider lokal — tidak perlu API key. Pastikan server sudah berjalan di perangkatmu.
+              <Text style={{ fontSize: 12, fontWeight: "700", color: C.text, marginBottom: 4 }}>
+                🏠 Provider lokal — tidak perlu API key
               </Text>
+              {provider === "ollama" ? (
+                <Text style={{ fontSize: 11, color: C.textSecondary, lineHeight: 16 }}>
+                  {"Untuk akses dari browser, jalankan Ollama dengan CORS:"
+                  + "\n\nOLLAMA_ORIGINS=* ollama serve"
+                  + "\n\nAtau di Windows:"}
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 11, color: C.textSecondary, lineHeight: 16 }}>
+                  {"Di LM Studio → tab Server → centang \"Enable CORS\"."
+                  + "\n\nPastikan server berjalan (port 1234)."}
+                </Text>
+              )}
             </View>
           )}
 
