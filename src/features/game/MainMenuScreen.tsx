@@ -696,6 +696,30 @@ export default function MainMenuScreen() {
             </View>
           </View>
         </View>
+        {/* ═══ Editor Soal — admin only ═══ */}
+        {user?.isAdmin && (
+          <TouchableOpacity
+            style={[
+              styles.pasarBtn,
+              { backgroundColor: C.secondaryContainer, borderColor: C.border },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
+            activeOpacity={0.85}
+            onPress={() => {
+              play("tap");
+              navigation.navigate("QuestionEditor");
+            }}
+          >
+            <Text style={styles.pasarEmoji}>📝</Text>
+            <View style={styles.pasarCol}>
+              <Text style={[styles.pasarLabel, { color: C.text }]}>Editor Soal</Text>
+              <Text style={[styles.pasarHint, { color: C.textSecondary }]} numberOfLines={1}>
+                Kelola & revisi kosakata
+              </Text>
+            </View>
+            <Text style={[styles.pasarChevron, { color: C.secondary }]}>›</Text>
+          </TouchableOpacity>
+        )}
         {/* ═══ Pasar — tombol memanjang di posisi paling bawah ═══ */}
         <TouchableOpacity
           style={[

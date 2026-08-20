@@ -11,6 +11,7 @@ export type AuthUser = {
   displayName?: string;
   avatarUrl?: string;
   isAnonymous: boolean;
+  isAdmin: boolean;
 };
 
 export function useAuth() {
@@ -125,14 +126,20 @@ export function useAuth() {
   };
 }
 
+const ADMIN_EMAIL = "fadhly.permata@gmail.com";
+const ADMIN_NAME = "Fadhly Permata";
+
 function mapSession(session: Session | null): AuthUser | null {
   if (!session?.user) return null;
+  const email = session.user.email ?? undefined;
+  const displayName = displayNameFromMetadata(session.user.user_metadata);
   return {
     id: session.user.id,
-    email: session.user.email ?? undefined,
-    displayName: displayNameFromMetadata(session.user.user_metadata),
+    email,
+    displayName,
     avatarUrl: avatarUrlFromMetadata(session.user.user_metadata),
     isAnonymous: session.user.is_anonymous ?? false,
+    isAdmin: email === ADMIN_EMAIL && displayName === ADMIN_NAME,
   };
 }
 

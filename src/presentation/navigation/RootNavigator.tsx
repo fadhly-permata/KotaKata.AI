@@ -25,6 +25,7 @@ import LogViewerScreen from "../../features/settings/LogViewerScreen";
 import AiProviderScreen from "../../features/ai/AiProviderScreen";
 import MarkdownScreen from "../../features/legal/MarkdownScreen";
 import StoreScreen from "../../features/store/StoreScreen";
+import QuestionEditorScreen from "../../features/admin/QuestionEditorScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -39,6 +40,7 @@ export type RootStackParamList = {
   Settings: undefined;
   AiProvider: undefined;
   Store: undefined;
+  QuestionEditor: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,6 +63,7 @@ const ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
   LogViewer: "Log Aplikasi",
   Markdown: "Dokumen",
   Store: "Pasar",
+  QuestionEditor: "Editor Soal",
 };
 
 /** Set judul tab browser sesuai rute aktif (web). No-op di native. */
@@ -277,6 +280,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="Store"
           component={StoreScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="QuestionEditor"
+          component={QuestionEditorScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

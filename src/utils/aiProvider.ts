@@ -350,3 +350,81 @@ export async function requestAiWords(
   }
   return words;
 }
+
+/** Input untuk fitur Revisi Via AI (Editor Soal). */
+export interface RevisionInput {
+  word: string;
+  clue_1: string;
+  clue_2?: string;
+  clue_3?: string;
+  tier_level: number;
+}
+
+/** Output dari revisi AI — hanya clue yang direvisi. */
+export interface RevisionOutput {
+  clue_1: string;
+  clue_2?: string;
+  clue_3?: string;
+}
+
+const REVISION_SYSTEM_PROMPT = `Kamu adalah ahli kurasi soal teka-teki silang (TTS) Bahasa Indonesia.
+Tugas: merevisi clue agar lebih baik, tidak membocorkan jawaban, dan sesuai KBBI.
+Aturan:
+1. Clue TIDAK BOLEH memuat kata jawaban (atau akar katanya).
+2. Clue harus jelas, menarik, dan bisa dijawab oleh pemain Indonesia.
+3. Clue tidak boleh vulgar, kasar, atau tidak pantas.
+4. Jaga tier tetap sesuai.
+Jawab HANYA JSON valid tanpa teks lain:
+{"clue_1":"...","clue_2":"...","clue_3":"..."}`;
+
+/**
+ * Minta AI merevisi clue untuk satu soal. Mengembalikan clue baru yang
+ * sudah divalidasi (minimal clue_1 wajib ada, clue_2/clue_3 opsional).
+ */
+export async function requestAiRevision(
+  cfg: AiProviderConfig,
+  input: RevisionInput,
+  signal?: AbortSignal,
+): Promise<RevisionOutput> {
+  const userPrompt = [
+    `Revisi clue untuk kata "${input.word}" (tier ${input.tier_level}).`,
+    `Clue saat ini:`,
+    `- Clue 1: ${input.clue_1}`,
+    input.clue_2 ? `- Clue 2: ${input.clue_2}` : null,
+    input.clue_3 ? `- Clue 3: ${input.clue_3}` : null,
+    ``,
+    `Perbaiki agar clue tidak bocor (tidak menyebut kata jawaban), lebih jelas, dan menarik.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const content = await chatRequest(
+    cfg,
+    [
+      { role: "system", content: REVISION_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    600,
+    signal,
+  );
+
+  const json = extractJson(content) as Record<string, string>;
+  const clue1 = String(json?.clue_1 ?? "").trim();
+  if (!clue1 || clue1.length < 4) {
+    throw new Error("AI tidak menghasilkan clue_1 yang valid.");
+  }
+  // Validasi: clue tidak boleh memuat kata jawaban
+  const wordLower = input.word.toLowerCase();
+  if (clue1.toLowerCase().includes(wordLower)) {
+    throw new Error("AI masih menghasilkan clue yang bocor (memuat jawaban). Coba lagi.");
+  }
+  const clue2 = String(json?.clue_2 ?? "").trim() || undefined;
+  const clue3 = String(json?.clue_3 ?? "").trim() || undefined;
+  if (clue2 && clue2.toLowerCase().includes(wordLower)) {
+    throw new Error("Clue 2 dari AI masih memuat jawaban.");
+  }
+  if (clue3 && clue3.toLowerCase().includes(wordLower)) {
+    throw new Error("Clue 3 dari AI masih memuat jawaban.");
+  }
+  return { clue_1: clue1, clue_2: clue2, clue_3: clue3 };
+}
