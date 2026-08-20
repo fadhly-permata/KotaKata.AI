@@ -17,7 +17,7 @@ import { useTheme } from "../../presentation/components/providers/ThemeProvider"
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import type { VocabularyDoc } from "../../data/models/schemas";
 import { supabase } from "../../data/sources/supabase";
-import { getAiProviderConfig, getAiProviderConfigFor, getAllSavedProviders, setActiveProvider, requestAiRevision, providerLabel, isLocalProvider, type AiProviderConfig, type AiProviderPreset } from "../../utils/aiProvider";
+import { getAiProviderConfig, requestAiRevision } from "../../utils/aiProvider";
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
 import { solidSurfaceColor, contrastText, textOnPrimary, buttonShadow } from "../../utils/skin";
@@ -65,20 +65,6 @@ export default function QuestionEditorScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [page, setPage] = useState(1);
-  const [savedProviders, setSavedProviders] = useState<AiProviderPreset[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<AiProviderPreset | null>(null);
-
-  // ─── Load saved AI providers ───
-  useEffect(() => {
-    (async () => {
-      const saved = await getAllSavedProviders();
-      setSavedProviders(saved);
-      if (saved.length > 0 && !selectedProvider) {
-        setSelectedProvider(saved[0]);
-      }
-    })();
-  }, []);
-
   // ─── Fetch vocabulary ───
   const fetchWords = useCallback(async () => {
     setLoading(true);
@@ -203,14 +189,7 @@ export default function QuestionEditorScreen() {
     setAiLoading(true);
     setNotification(null);
     try {
-      let config: AiProviderConfig | null = null;
-      if (selectedProvider) {
-        config = await getAiProviderConfigFor(selectedProvider);
-        if (config) await setActiveProvider(selectedProvider);
-      }
-      if (!config) {
-        config = await getAiProviderConfig();
-      }
+      const config = await getAiProviderConfig();
       if (!config) {
         setNotification({ type: "error", message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI." });
         return;
@@ -240,7 +219,7 @@ export default function QuestionEditorScreen() {
     } finally {
       setAiLoading(false);
     }
-  }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier, selectedProvider]);
+  }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
@@ -497,52 +476,18 @@ export default function QuestionEditorScreen() {
                 )}
               </TouchableOpacity>
 
-              <View style={{ flex: 1 }}>
-                {savedProviders.length > 1 && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ marginBottom: 6 }}
-                    contentContainerStyle={{ gap: 4 }}
-                  >
-                    {savedProviders.map((p) => (
-                      <TouchableOpacity
-                        key={p}
-                        style={{
-                          paddingHorizontal: 10,
-                          paddingVertical: 4,
-                          borderRadius: 8,
-                          borderWidth: 1.5,
-                          borderColor: selectedProvider === p ? C.primary : C.border,
-                          backgroundColor: selectedProvider === p ? C.tertiaryContainer : C.surface,
-                        }}
-                        onPress={() => setSelectedProvider(p)}
-                      >
-                        <Text style={{ fontSize: 11, fontWeight: "600", color: selectedProvider === p ? C.primary : C.textSecondary }}>
-                          {providerLabel(p)}{isLocalProvider(p) ? ' 🔗' : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+              <TouchableOpacity
+                style={[styles.btn, styles.aiBtn, { backgroundColor: C.secondary }, buttonShadow(theme)]}
+                activeOpacity={0.8}
+                onPress={handleAiRevision}
+                disabled={aiLoading}
+              >
+                {aiLoading ? (
+                  <ActivityIndicator color={textOnPrimary(theme)} size="small" />
+                ) : (
+                  <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>🤖 Revisi Via AI</Text>
                 )}
-                {savedProviders.length === 1 && (
-                  <Text style={{ fontSize: 11, color: C.textSecondary, marginBottom: 6 }}>
-                    Provider: {providerLabel(savedProviders[0])}
-                  </Text>
-                )}
-                <TouchableOpacity
-                  style={[styles.btn, styles.aiBtn, { backgroundColor: C.secondary }, buttonShadow(theme)]}
-                  activeOpacity={0.8}
-                  onPress={handleAiRevision}
-                  disabled={aiLoading}
-                >
-                  {aiLoading ? (
-                    <ActivityIndicator color={textOnPrimary(theme)} size="small" />
-                  ) : (
-                    <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>🤖 Revisi Via AI</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </AppModal>

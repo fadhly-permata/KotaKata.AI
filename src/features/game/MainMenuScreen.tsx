@@ -41,7 +41,7 @@ import FloatingOrbs, {
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { useAmbientLoops } from "../../utils/ambientLoop";
-import { getAiProviderConfig, requestAiWords } from "../../utils/aiProvider";
+import { getAiProviderConfig, getAiProviderConfigFor, getAllSavedProviders, setActiveProvider, requestAiWords, providerLabel, type AiProviderConfig, type AiProviderPreset } from "../../utils/aiProvider";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import { buttonShadow, chipStyle, chipTextColor, contrastText, solidSurfaceColor, textOnPrimary } from "../../utils/skin";
 
@@ -213,6 +213,7 @@ export default function MainMenuScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSetupVisible, setAiSetupVisible] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiProviderSelector, setAiProviderSelector] = useState<AiProviderPreset[]>([]);
   const aiAbortRef = useRef<AbortController | null>(null);
 
   // ─── Dialog perubahan tier (naik/turun) — HANYA di Main Menu ───
@@ -353,80 +354,65 @@ export default function MainMenuScreen() {
   // "Main Mode AI": cek provider tersimpan → minta soal dari AI → main.
   // Belum diatur → dialog ajakan atur; request gagal → dialog error dengan
   // opsi coba lagi / main mode normal (mode normal tidak pernah rusak).
+  const startAiGame = useCallback(async (cfg: AiProviderConfig) => {
+    setAiLoading(true);
+    setAiError(null);
+    aiAbortRef.current?.abort();
+    const controller = new AbortController();
+    aiAbortRef.current = controller;
+    const timer = setTimeout(() => controller.abort(), 35000);
+    try {
+      const playerTier = calcTier(useGameStore.getState().totalXp);
+      let excludeWords: string[] = [];
+      if (user?.id) {
+        try {
+          const discoveredIds = await wordDiscoveryRepository.getDiscoveredWordIds(user.id, 300);
+          if (discoveredIds.length > 0) {
+            const docs = await vocabularyRepository.getByIds(discoveredIds);
+            excludeWords = docs.map((d) => d.word).filter((w): w is string => !!w);
+          }
+        } catch (err) {
+          loggerInfo("Gagal ambil kata yang sudah ditemukan untuk Mode AI — lanjut tanpa exclude", err);
+        }
+      }
+      const words = await requestAiWords(cfg, playerTier, excludeWords, controller.signal);
+      reset();
+      useGameStore.getState().setAiMode(true);
+      useGameStore.getState().setAiWords(words);
+      navigation.navigate("Game");
+      vocabularyRepository
+        .saveAiWords(words.map((w) => ({ word: w.word, clue_1: w.clue_1, clue_2: w.clue_2, tier_level: playerTier })))
+        .then((n) => { if (n > 0) loggerInfo(`${n} kata baru dari Main Mode AI tersimpan ke database`); })
+        .catch((err) => loggerInfo("Gagal simpan soal AI ke database", err));
+    } catch (err: any) {
+      if (controller.signal.aborted) { setAiLoading(false); return; }
+      setAiError(err?.message ?? "Gagal memuat soal dari AI.");
+    } finally {
+      clearTimeout(timer);
+      setAiLoading(false);
+    }
+  }, [navigation, reset, user?.id]);
+
   const handlePlayAi = useCallback(async () => {
     play("tap");
     try {
-      const cfg = await getAiProviderConfig();
-      if (!cfg) {
+      const saved = await getAllSavedProviders();
+      if (saved.length === 0) {
         setAiSetupVisible(true);
         return;
       }
-      setAiLoading(true);
-      setAiError(null);
-      aiAbortRef.current?.abort();
-      const controller = new AbortController();
-      aiAbortRef.current = controller;
-      const timer = setTimeout(() => controller.abort(), 35000);
-      try {
-        // Soal AI disesuaikan dengan tier pemain (kata di tier rendah mudah,
-        // makin tinggi makin menantang) supaya tetap seru.
-        const playerTier = calcTier(useGameStore.getState().totalXp);
-        // Exclude kata yang sudah pernah ditemukan/dipecahkan (PLAN-050) —
-        // Mode AI sering mengulang soal yang sama. Ambil maksimal 300 kata
-        // terbaru (riwayat bisa ribuan; cukup yang terbaru biar tidak boros
-        // token provider). Gagal ambil riwayat = lanjut tanpa exclude (fallback
-        // aman, jangan sampai memblokir Mode AI karena jaringan/error).
-        let excludeWords: string[] = [];
-        if (user?.id) {
-          try {
-            const discoveredIds = await wordDiscoveryRepository.getDiscoveredWordIds(user.id, 300);
-            if (discoveredIds.length > 0) {
-              const docs = await vocabularyRepository.getByIds(discoveredIds);
-              excludeWords = docs.map((d) => d.word).filter((w): w is string => !!w);
-            }
-          } catch (err) {
-            loggerInfo("Gagal ambil kata yang sudah ditemukan untuk Mode AI — lanjut tanpa exclude", err);
-          }
-        }
-        const words = await requestAiWords(cfg, playerTier, excludeWords, controller.signal);
-        // Papan AI selalu fresh: reset membersihkan state (termasuk aiWords lama),
-        // lalu kata AI dari provider dipasang sebelum masuk ke layar Game.
-        // aiMode di-set EKSPLISIT — papan ini tidak akan menghitung XP sama sekali.
-        reset();
-        useGameStore.getState().setAiMode(true);
-        useGameStore.getState().setAiWords(words);
-        navigation.navigate("Game");
-        // Simpan soal AI yang BELUM terdaftar ke database vocabulary (dedup di
-        // server via RPC) supaya kosakata game makin bertambah. Fire-and-forget:
-        // tidak menahan jalannya game kalau jaringan lambat / offline.
-        vocabularyRepository
-          .saveAiWords(
-            words.map((w) => ({
-              word: w.word,
-              clue_1: w.clue_1,
-              clue_2: w.clue_2,
-              tier_level: playerTier,
-            })),
-          )
-          .then((n) => {
-            if (n > 0) loggerInfo(`${n} kata baru dari Main Mode AI tersimpan ke database`);
-          })
-          .catch((err) => loggerInfo("Gagal simpan soal AI ke database", err));
-      } catch (err: any) {
-        if (controller.signal.aborted) {
-          setAiLoading(false);
-          return;
-        }
-        setAiError(err?.message ?? "Gagal memuat soal dari AI.");
-      } finally {
-        clearTimeout(timer);
-        setAiLoading(false);
+      if (saved.length === 1) {
+        const cfg = await getAiProviderConfigFor(saved[0]);
+        if (cfg) { await startAiGame(cfg); return; }
+        setAiSetupVisible(true);
+        return;
       }
+      // Multiple providers → show selector
+      setAiProviderSelector(saved);
     } catch {
-      // Gagal baca config (mis. storage) — anggap belum diatur.
       setAiSetupVisible(true);
     }
-  }, [navigation, reset]);
+  }, [startAiGame]);
 
   // Hero card mengikuti token tema (PLAN-038): surface tema + transparansi
   // ringan supaya latar/gradien tema tetap terlihat di baliknya.
@@ -801,6 +787,32 @@ export default function MainMenuScreen() {
         emoji="🤖"
       />
 
+      {/* ─── Pilih provider AI ─── */}
+      <AppModal
+        visible={aiProviderSelector.length > 0}
+        title="🤖 Pilih Provider AI"
+        onClose={() => setAiProviderSelector([])}
+      >
+        <Text style={{ fontSize: 13, color: C.textSecondary, marginBottom: 12 }}>
+          Kamu punya beberapa provider. Pilih yang mau dipakai:
+        </Text>
+        {aiProviderSelector.map((p) => (
+          <TouchableOpacity
+            key={p}
+            style={[styles.aiProviderBtn, { backgroundColor: C.secondaryContainer, borderColor: C.border }]}
+            onPress={async () => {
+              play("tap");
+              setAiProviderSelector([]);
+              const cfg = await getAiProviderConfigFor(p);
+              if (cfg) await setActiveProvider(p);
+              if (cfg) await startAiGame(cfg);
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: "700", color: C.text }}>{providerLabel(p)}</Text>
+          </TouchableOpacity>
+        ))}
+      </AppModal>
+
       {/* ─── Overlay: menyusun soal dari AI ─── */}
       <Modal
         visible={aiLoading}
@@ -850,7 +862,10 @@ export default function MainMenuScreen() {
         title="😕 Soal AI Gagal Dimuat"
         onClose={() => setAiError(null)}
       >
-        <Text style={[styles.aiErrorMsg, { color: C.textSecondary }]}>{aiError}</Text>
+        <View style={[styles.aiErrorBox, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FECACA' }]}>
+          <Text style={styles.aiErrorBoxIcon}>⚠️</Text>
+          <Text style={[styles.aiErrorMsg, { color: isDark ? '#FCA5A5' : '#991B1B' }]}>{aiError}</Text>
+        </View>
         <Text style={[styles.aiErrorHint, { color: C.textSecondary }]}>
           Periksa pengaturan provider, atau main mode normal dulu.
         </Text>
@@ -1355,7 +1370,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   aiCancelText: { fontSize: 14, fontWeight: "700" },
-  aiErrorMsg: { fontSize: 13, lineHeight: 19, textAlign: "center" },
+  aiErrorBox: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 8, width: '100%' },
+  aiErrorBoxIcon: { fontSize: 14 },
+  aiErrorMsg: { fontSize: 13, lineHeight: 19, flex: 1 },
   aiErrorHint: { fontSize: 12, lineHeight: 17, textAlign: "center" },
   aiErrorButtons: { gap: 8, width: "100%", marginTop: 6 },
   aiErrorBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
@@ -1421,4 +1438,12 @@ const styles = StyleSheet.create({
   tierDialogName: { fontSize: 18, fontWeight: "900", textAlign: "center" },
   tierDialogPhil: { fontSize: 12, lineHeight: 18, textAlign: "center", fontStyle: "italic" },
   tierDialogMsg: { fontSize: 13, lineHeight: 19, textAlign: "center" },
+  aiProviderBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 8,
+    alignItems: "center",
+  },
 });
