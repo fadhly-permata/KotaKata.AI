@@ -18,8 +18,10 @@ import { play } from "../../utils/sound";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import {
   getAiProviderConfig,
+  getAiProviderConfigFor,
+  getActiveProvider,
   saveAiProviderConfig,
-  clearAiProviderConfig,
+  clearAiProviderConfigFor,
   markAiProviderOwner,
   clearAiProviderOwner,
   testAiConnection,
@@ -53,36 +55,61 @@ export default function AiProviderScreen() {
   const [testResult, setTestResult] = useState<AiTestResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [savedProviders, setSavedProviders] = useState<Set<AiProviderPreset>>(new Set());
+  const [activeProvider, setActiveProviderState] = useState<AiProviderPreset>("openrouter");
   const abortRef = useRef<AbortController | null>(null);
 
-  // Prefill dari config tersimpan (kalau ada).
+  // Load saved providers list
   useEffect(() => {
     let cancelled = false;
-    getAiProviderConfig().then((cfg) => {
+    (async () => {
+      const { getAllSavedProviders } = await import("../../utils/aiProvider");
+      const saved = await getAllSavedProviders();
+      if (!cancelled) setSavedProviders(new Set(saved));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Prefill dari config tersimpan provider yang aktif.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const active = await getActiveProvider();
+      if (cancelled) return;
+      setProvider(active);
+      const cfg = await getAiProviderConfigFor(active);
       if (cancelled || !cfg) return;
-      setProvider(cfg.provider);
       setApiKey(cfg.apiKey);
       setModel(cfg.model);
       setBaseUrl(cfg.baseUrl);
-    });
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const selectProvider = (p: AiProviderPreset) => {
+  const selectProvider = async (p: AiProviderPreset) => {
     play("tap");
     setProvider(p);
     setTestResult(null);
-    const preset = providerPreset(p);
-    if (p === "custom") {
-      setModel("");
-      setBaseUrl("");
-      setApiKey("");
+    // Load saved config untuk provider ini
+    const saved = await getAiProviderConfigFor(p);
+    if (saved) {
+      setApiKey(saved.apiKey);
+      setModel(saved.model);
+      setBaseUrl(saved.baseUrl);
     } else {
-      setModel(preset.defaultModel);
-      setBaseUrl(preset.baseUrl);
-      if (!isApiKeyRequired(p)) setApiKey("");
+      // Gunakan default
+      const preset = providerPreset(p);
+      if (p === "custom") {
+        setModel("");
+        setBaseUrl("");
+        setApiKey("");
+      } else {
+        setModel(preset.defaultModel);
+        setBaseUrl(preset.baseUrl);
+        if (!isApiKeyRequired(p)) setApiKey("");
+      }
     }
   };
 
@@ -142,8 +169,10 @@ export default function AiProviderScreen() {
           loggerWarn("Gagal sinkron config AI ke cloud", err);
         }
       }
-      setTestResult({ ok: true, message: "Pengaturan tersimpan ✓" });
+      setTestResult({ ok: true, message: `✓ ${providerLabel(provider)} tersimpan & aktif` });
       setSavedFlash(true);
+      setSavedProviders((prev) => new Set([...prev, provider]));
+      setActiveProviderState(provider);
       setTimeout(() => setSavedFlash(false), 1600);
       play("word");
     } finally {
@@ -153,9 +182,8 @@ export default function AiProviderScreen() {
 
   const handleRemove = async () => {
     play("tap");
-    await clearAiProviderConfig();
+    await clearAiProviderConfigFor(provider);
     await clearAiProviderOwner();
-    // Hapus juga dari cloud supaya tidak "muncul lagi" di device lain.
     if (user?.id) {
       try {
         await userRepository.saveAiProviderConfig(user.id, null);
@@ -163,11 +191,11 @@ export default function AiProviderScreen() {
         loggerWarn("Gagal hapus config AI dari cloud", err);
       }
     }
+    const preset = providerPreset(provider);
     setApiKey("");
-    setModel(providerPreset("openrouter").defaultModel);
-    setBaseUrl(providerPreset("openrouter").baseUrl);
-    setProvider("openrouter");
-    setTestResult({ ok: true, message: "Provider AI dihapus." });
+    setModel(preset.defaultModel);
+    setBaseUrl(preset.baseUrl);
+    setTestResult({ ok: true, message: `${providerLabel(provider)} dihapus.` });
   };
 
   const inputStyle = [styles.input, { backgroundColor: C.secondaryContainer, color: C.text }];
@@ -192,14 +220,18 @@ export default function AiProviderScreen() {
           <Text style={[styles.sectionTitle, { color: C.text }]}>Provider</Text>
           <View style={styles.presetRow}>
             {PRESETS.map((p) => {
-              const active = provider === p;
+              const selected = provider === p;
+              const isSaved = savedProviders.has(p);
+              const isActive = activeProvider === p && isSaved;
               return (
                 <TouchableOpacity
                   key={p}
                   style={[
                     styles.presetBtn,
                     {
-                      backgroundColor: active ? C.primary : C.secondaryContainer,
+                      backgroundColor: selected ? C.primary : C.secondaryContainer,
+                      borderColor: isActive ? C.success : selected ? C.primary : "transparent",
+                      borderWidth: isActive ? 2 : selected ? 2 : 0,
                     },
                     buttonShadow(theme),
                   ]}
@@ -209,10 +241,10 @@ export default function AiProviderScreen() {
                   <Text
                     style={[
                       styles.presetBtnText,
-                      { color: active ? textOnPrimary(theme) : C.textSecondary },
+                      { color: selected ? textOnPrimary(theme) : C.textSecondary },
                     ]}
                   >
-                    {providerLabel(p)}
+                    {providerLabel(p)}{isSaved ? " ✓" : ""}
                   </Text>
                 </TouchableOpacity>
               );

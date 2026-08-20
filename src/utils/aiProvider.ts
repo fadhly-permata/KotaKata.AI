@@ -40,10 +40,17 @@ export interface AiTestResult {
   message: string;
 }
 
-const STORAGE_KEY = "kotakata.aiProvider";
+const STORAGE_PREFIX = "kotakata.aiProvider."; // + provider name
+const ACTIVE_KEY = "kotakata.aiProvider.active";
+// Legacy key untuk migrasi dari config global lama
+const LEGACY_KEY = "kotakata.aiProvider";
 // Uid Supabase yang config lokalnya milik. Dipakai supaya config tidak bocor
 // antar akun di device yang sama & untuk backfill config lama ke cloud.
 const OWNER_KEY = "kotakata.aiProviderOwner";
+
+function providerKey(p: AiProviderPreset): string {
+  return STORAGE_PREFIX + p;
+}
 
 interface ProviderPreset {
   label: string;
@@ -100,14 +107,27 @@ export function isApiKeyRequired(p: AiProviderPreset): boolean {
   return PROVIDER_PRESETS[p].apiKeyRequired !== false;
 }
 
-/** Baca config provider tersimpan; null kalau belum diatur / tidak valid. */
-export async function getAiProviderConfig(): Promise<AiProviderConfig | null> {
+/** Ambil nama provider yang sedang aktif. */
+export async function getActiveProvider(): Promise<AiProviderPreset> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(ACTIVE_KEY);
+    if (raw && raw in PROVIDER_PRESETS) return raw as AiProviderPreset;
+  } catch {}
+  return "openrouter";
+}
+
+/** Set provider aktif. */
+export async function setActiveProvider(p: AiProviderPreset): Promise<void> {
+  await AsyncStorage.setItem(ACTIVE_KEY, p);
+}
+
+/** Ambil config untuk provider tertentu. */
+export async function getAiProviderConfigFor(p: AiProviderPreset): Promise<AiProviderConfig | null> {
+  try {
+    const raw = await AsyncStorage.getItem(providerKey(p));
     if (!raw) return null;
     const cfg = JSON.parse(raw) as AiProviderConfig;
     if (!cfg?.model || !cfg?.baseUrl) return null;
-    // API key wajib untuk provider cloud
     if (isApiKeyRequired(cfg.provider) && !cfg.apiKey) return null;
     return cfg;
   } catch {
@@ -115,12 +135,52 @@ export async function getAiProviderConfig(): Promise<AiProviderConfig | null> {
   }
 }
 
+/** Ambil semua provider yang sudah punya config tersimpan. */
+export async function getAllSavedProviders(): Promise<AiProviderPreset[]> {
+  const result: AiProviderPreset[] = [];
+  for (const p of Object.keys(PROVIDER_PRESETS) as AiProviderPreset[]) {
+    const cfg = await getAiProviderConfigFor(p);
+    if (cfg) result.push(p);
+  }
+  return result;
+}
+
+/** Baca config provider tersimpan; null kalau belum diatur / tidak valid. */
+export async function getAiProviderConfig(): Promise<AiProviderConfig | null> {
+  // Baca config untuk provider yang sedang aktif
+  const active = await getActiveProvider();
+  const cfg = await getAiProviderConfigFor(active);
+  if (cfg) return cfg;
+  // Fallback: migrasi dari legacy key (config global lama)
+  try {
+    const raw = await AsyncStorage.getItem(LEGACY_KEY);
+    if (!raw) return null;
+    const legacy = JSON.parse(raw) as AiProviderConfig;
+    if (!legacy?.model || !legacy?.baseUrl) return null;
+    if (isApiKeyRequired(legacy.provider) && !legacy.apiKey) return null;
+    // Migrate: simpan ke slot provider yang benar
+    await AsyncStorage.setItem(providerKey(legacy.provider), raw);
+    await setActiveProvider(legacy.provider);
+    await AsyncStorage.removeItem(LEGACY_KEY);
+    return legacy;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveAiProviderConfig(cfg: AiProviderConfig): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  await AsyncStorage.setItem(providerKey(cfg.provider), JSON.stringify(cfg));
+  await setActiveProvider(cfg.provider);
 }
 
 export async function clearAiProviderConfig(): Promise<void> {
-  await AsyncStorage.removeItem(STORAGE_KEY);
+  const active = await getActiveProvider();
+  await AsyncStorage.removeItem(providerKey(active));
+}
+
+/** Hapus config untuk provider tertentu. */
+export async function clearAiProviderConfigFor(p: AiProviderPreset): Promise<void> {
+  await AsyncStorage.removeItem(providerKey(p));
 }
 
 /** Uid Supabase pemilik config lokal; null kalau belum pernah ditandai. */

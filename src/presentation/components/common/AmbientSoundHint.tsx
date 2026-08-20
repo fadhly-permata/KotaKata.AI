@@ -30,7 +30,7 @@ export default function AmbientSoundHint() {
   if (Platform.OS !== "web" || !visible) return null;
 
   return (
-    <View style={[styles.wrap, { pointerEvents: "none" }]}>
+    <View style={[styles.wrap, { pointerEvents: "none" as const }]}>
       <View
         style={[
           styles.pill,
@@ -60,10 +60,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
   },
   text: { fontSize: 13, fontWeight: "600" },
 });

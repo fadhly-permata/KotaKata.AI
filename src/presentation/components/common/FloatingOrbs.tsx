@@ -30,7 +30,7 @@ interface FloatingOrbsProps {
  */
 export default function FloatingOrbs({ scrollY, orbs, orbBounce }: FloatingOrbsProps) {
   return (
-    <View style={styles.floatingContainer} pointerEvents="none">
+    <View style={[styles.floatingContainer, { pointerEvents: "none" as const }]}>
       {orbs.map((spec, i) => (
         <Animated.View
           key={i}

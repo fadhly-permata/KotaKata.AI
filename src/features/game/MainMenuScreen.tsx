@@ -430,7 +430,6 @@ export default function MainMenuScreen() {
       {/* ─── Floating Background Shapes (Parallax + idle bounce) — komponen
           bersama FloatingOrbs (dipakai juga oleh halaman login) ─── */}
       <FloatingOrbs scrollY={scrollY} orbs={orbSpecs} orbBounce={orbBounce} />
-
       {/* ─── Scrollable Content ─── */}
       <ScrollView
         style={styles.scroll}
