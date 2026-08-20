@@ -360,11 +360,13 @@ export interface RevisionInput {
   tier_level: number;
 }
 
-/** Output dari revisi AI — hanya clue yang direvisi. */
+/** Output dari revisi AI — clue yang direvisi + info bocoran. */
 export interface RevisionOutput {
   clue_1: string;
   clue_2?: string;
   clue_3?: string;
+  /** Daftar clue yang masih memuat kata jawaban (leak). */
+  leaks?: string[];
 }
 
 const REVISION_SYSTEM_PROMPT = `Kamu adalah ahli kurasi soal teka-teki silang (TTS) Bahasa Indonesia.
@@ -413,18 +415,18 @@ export async function requestAiRevision(
   if (!clue1 || clue1.length < 4) {
     throw new Error("AI tidak menghasilkan clue_1 yang valid.");
   }
-  // Validasi: clue tidak boleh memuat kata jawaban
-  const wordLower = input.word.toLowerCase();
-  if (clue1.toLowerCase().includes(wordLower)) {
-    throw new Error("AI masih menghasilkan clue yang bocor (memuat jawaban). Coba lagi.");
-  }
   const clue2 = String(json?.clue_2 ?? "").trim() || undefined;
   const clue3 = String(json?.clue_3 ?? "").trim() || undefined;
-  if (clue2 && clue2.toLowerCase().includes(wordLower)) {
-    throw new Error("Clue 2 dari AI masih memuat jawaban.");
-  }
-  if (clue3 && clue3.toLowerCase().includes(wordLower)) {
-    throw new Error("Clue 3 dari AI masih memuat jawaban.");
-  }
-  return { clue_1: clue1, clue_2: clue2, clue_3: clue3 };
+  // Deteksi bocoran — kumpulkan, jangan lempar error
+  const wordLower = input.word.toLowerCase();
+  const leaks: string[] = [];
+  if (clue1.toLowerCase().includes(wordLower)) leaks.push("Clue 1");
+  if (clue2 && clue2.toLowerCase().includes(wordLower)) leaks.push("Clue 2");
+  if (clue3 && clue3.toLowerCase().includes(wordLower)) leaks.push("Clue 3");
+  return {
+    clue_1: clue1,
+    clue_2: clue2,
+    clue_3: clue3,
+    leaks: leaks.length > 0 ? leaks : undefined,
+  };
 }

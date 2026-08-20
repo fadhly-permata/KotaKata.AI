@@ -50,6 +50,7 @@ export default function QuestionEditorScreen() {
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [aiLeakWarnings, setAiLeakWarnings] = useState<string[]>([]);
   const [saveMsg, setSaveMsg] = useState("");
   const [page, setPage] = useState(1);
 
@@ -110,6 +111,7 @@ export default function QuestionEditorScreen() {
     setEditTier(String(word.tier_level));
     setSaveMsg("");
     setAiError("");
+    setAiLeakWarnings([]);
   }, []);
 
   // ─── Save changes via RPC ───
@@ -174,7 +176,13 @@ export default function QuestionEditorScreen() {
         setEditClue1(revised.clue_1);
         if (revised.clue_2) setEditClue2(revised.clue_2);
         if (revised.clue_3) setEditClue3(revised.clue_3);
-        setSaveMsg("🤖 AI merevisi clue. Review & simpan jika sudah sesuai.");
+        if (revised.leaks && revised.leaks.length > 0) {
+          setAiLeakWarnings(revised.leaks);
+          setSaveMsg("⚠️ AI merevisi clue, tapi beberapa masih bocor. Silakan perbaiki manual.");
+        } else {
+          setAiLeakWarnings([]);
+          setSaveMsg("🤖 AI merevisi clue. Review & simpan jika sudah sesuai.");
+        }
       }
     } catch (err: any) {
       setAiError(err.message || "Gagal merevisi via AI");
@@ -319,6 +327,19 @@ export default function QuestionEditorScreen() {
           onClose={() => setSelectedWord(null)}
         >
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+            {/* ─── Leak Warning Block ─── */}
+            {aiLeakWarnings.length > 0 && (
+              <View style={[styles.warningBlock, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B" }]}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
+                  ⚠️ Peringatan Bocor Jawaban
+                </Text>
+                <Text style={{ fontSize: 13, color: "#92400E" }}>
+                  {aiLeakWarnings.join(", ")} masih memuat kata jawaban.{'\n'}
+                  Silakan perbaiki manual sebelum menyimpan.
+                </Text>
+              </View>
+            )}
+
             {/* Word */}
             <Text style={[styles.label, { color: C.text }]}>Kata</Text>
             <TextInput
@@ -500,5 +521,12 @@ const styles = StyleSheet.create({
   },
   aiBtn: {},
   btnText: { fontSize: 14, fontWeight: "700" },
+  warningBlock: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
   msg: { fontSize: 13, marginTop: 10, textAlign: "center" },
 });
