@@ -132,21 +132,20 @@ export default function QuestionEditorScreen() {
       const result = data as { ok: boolean; error?: string; message?: string };
       if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
       setSaveMsg(`✅ ${result.message ?? "Berhasil disimpan!"}`);
-      // Update local state
+      // Update local state — tanpa re-fetch dari database
+      const updated = {
+        ...selectedWord,
+        word: editWord.trim(),
+        clue_1: editClue1.trim(),
+        clue_2: editClue2.trim() || undefined,
+        clue_3: editClue3.trim() || undefined,
+        tier_level: parseInt(editTier, 10) || 1,
+      };
       setWords((prev) =>
-        prev.map((w) =>
-          w.word_id === selectedWord.word_id
-            ? {
-                ...w,
-                word: editWord.trim(),
-                clue_1: editClue1.trim(),
-                clue_2: editClue2.trim() || undefined,
-                clue_3: editClue3.trim() || undefined,
-                tier_level: parseInt(editTier, 10) || 1,
-              }
-            : w,
-        ),
+        prev.map((w) => (w.word_id === selectedWord.word_id ? updated : w)),
       );
+      // Sync selectedWord supaya list juga ter-update
+      setSelectedWord(updated);
     } catch (err: any) {
       setSaveMsg(`❌ Gagal: ${err.message}`);
     } finally {
