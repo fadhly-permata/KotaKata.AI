@@ -23,6 +23,7 @@ import FloatingOrbs, {
 } from "../../presentation/components/common/FloatingOrbs";
 import { surfaceStyle } from "../../utils/skin";
 import { useAmbientLoops } from "../../utils/ambientLoop";
+import { loggerError } from "../../utils/logger";
 
 // Dokumen legal dimuat dari raw.githubusercontent.com (pengganti rawgit.com
 // yang sudah berhenti beroperasi). Markdown di-render oleh MarkdownScreen.
@@ -165,6 +166,7 @@ export default function AuthScreen() {
     try {
       await signInWithGoogle();
     } catch (e: any) {
+      loggerError("Login Google gagal", e);
       setError(e.message || "Gagal masuk dengan Google");
     } finally {
       setActionLoading(false);

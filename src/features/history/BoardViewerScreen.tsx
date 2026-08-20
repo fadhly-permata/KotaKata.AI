@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { loggerWarn } from "../../utils/logger";
 import {
   View,
   Text,
@@ -148,7 +149,8 @@ export default function BoardViewerScreen({ route }: Props) {
       setTierAtGeneration(board.tier_at_generation);
       setUpdatedAt(board.updated_at);
       if (!parsed) setError(true);
-    } catch {
+    } catch (err) {
+      loggerWarn("Gagal memuat papan dari Supabase", err);
       setError(true);
     } finally {
       setLoading(false);

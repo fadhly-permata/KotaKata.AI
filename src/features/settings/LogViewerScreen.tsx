@@ -29,6 +29,27 @@ import { useAuth } from "../auth/useAuth";
 
 type LogFilter = "all" | LogLevel;
 
+/**
+ * Sembunyikan detail sensitif (API key, token, URL dengan secret, dsb.) dari
+ * tampilan UI. Stacktrace / inner exception TIDAK PERNAH ditampilkan — hanya
+ * disimpan di log DB untuk debugging.
+ */
+function sanitizeForDisplay(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  let s = text;
+  // Mask API key patterns (sk-..., hf_..., Bearer ..., Authorization header)
+  s = s.replace(/(sk-[a-zA-Z0-9_-]{8})[a-zA-Z0-9_-]+/g, "$1****");
+  s = s.replace(/(hf_[a-zA-Z0-9_-]{8})[a-zA-Z0-9_-]+/g, "$1****");
+  s = s.replace(/Bearer\s+([a-zA-Z0-9_\-.]{12})[a-zA-Z0-9_\-.]+/gi, "Bearer $1****");
+  // Mask Authorization header values
+  s = s.replace(/(Authorization["':]\s*["']?\s*)([a-zA-Z0-9_\-.]{12})[a-zA-Z0-9_\-.]+/gi, "$1$2****");
+  // Mask URLs with embedded tokens (e.g., https://...?token=xxx...)
+  s = s.replace(/(token=)([a-zA-Z0-9_\-.]{8})[a-zA-Z0-9_\-.]+/gi, "$1$2****");
+  // Mask base64-encoded secrets (long base64 strings)
+  s = s.replace(/(["':]\s*)([A-Za-z0-9+/]{20})[A-Za-z0-9+/=]{20,}/g, "$1$2****");
+  return s;
+}
+
 const FILTERS: { key: LogFilter; label: string }[] = [
   { key: "all", label: "Semua" },
   { key: "error", label: "Error" },
@@ -171,7 +192,7 @@ export default function LogViewerScreen() {
       logs
         .map(
           (l) =>
-            `[${l.level.toUpperCase()}] ${new Date(l.createdAt).toLocaleString()} ${l.source}: ${l.message}${l.details ? `\n${l.details}` : ""}`,
+            `[${l.level.toUpperCase()}] ${new Date(l.createdAt).toLocaleString()} ${l.source}: ${l.message}${l.details ? `\n${sanitizeForDisplay(l.details)}` : ""}`,
         )
         .join("\n\n") || "(belum ada log)";
     try {
@@ -363,10 +384,10 @@ export default function LogViewerScreen() {
                   <Text style={[styles.logSource, { color: theme.colors.textSecondary }]}>
                     {entry.source}
                   </Text>
-                  {expanded && entry.details ? (
-                    <Text style={[styles.logDetails, { color: theme.colors.textSecondary }]}>
-                      {entry.details}
-                    </Text>
+                  {expanded && entry.details ? (                  <Text
+                    style={[styles.logDetails, { color: theme.colors.textSecondary }]}>
+                    {sanitizeForDisplay(entry.details)}
+                  </Text>
                   ) : null}
                   {expanded ? (
                     <Text style={[styles.logTimestamp, { color: theme.colors.textSecondary }]}>

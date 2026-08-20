@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { loggerWarn } from "../../utils/logger";
 import {
   View,
   Text,
@@ -76,8 +77,8 @@ export default function ProfileScreen() {
         .then((n) => {
           if (active) setWordsSolved(n);
         })
-        .catch(() => {
-          // Offline/gagal — biarkan nilai terakhir; tidak mengganggu profil.
+        .catch((err) => {
+          loggerWarn("Gagal menghitung jumlah kata terpecahkan", err);
         })
         .finally(() => {
           if (active) setWordsSolvedLoading(false);
@@ -87,8 +88,8 @@ export default function ProfileScreen() {
         .then((n) => {
           if (active) setFinishedBoards(n);
         })
-        .catch(() => {
-          // Offline/gagal — biarkan nilai terakhir.
+        .catch((err) => {
+          loggerWarn("Gagal menghitung jumlah board selesai", err);
         })
         .finally(() => {
           if (active) setFinishedBoardsLoading(false);
@@ -121,8 +122,8 @@ export default function ProfileScreen() {
       await signOut();
       reset();
       navigation.reset({ index: 0, routes: [{ name: "Auth" }] });
-    } catch {
-      // Gagal keluar (mis. offline) — user tetap di halaman profil.
+    } catch (err) {
+      loggerWarn("Gagal keluar akun", err);
     } finally {
       setSigningOut(false);
       setShowSignOutConfirm(false);

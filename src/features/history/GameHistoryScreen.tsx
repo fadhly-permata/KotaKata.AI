@@ -18,7 +18,7 @@ import { boardRepository } from "../../data/repositories/boardRepository";
 import type { SavedBoardDoc } from "../../data/models/schemas";
 import { TIER_NAMES } from "../../domain/usecases/xpEngine";
 import { timeAgo } from "../../utils/timeAgo";
-import { loggerWarn } from "../../utils/logger";
+import { loggerWarn, loggerInfo } from "../../utils/logger";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import {
@@ -52,8 +52,8 @@ function parseMeta(board: SavedBoardDoc): FinishedBoardMeta {
     const parsed = JSON.parse(board.layout_data) as { words?: unknown[]; size?: number };
     if (typeof parsed?.size === "number") size = parsed.size;
     wordCount = Array.isArray(parsed?.words) ? parsed.words.length : 0;
-  } catch {
-    // layout_data tidak valid — pakai nilai dari kolom.
+  } catch (err) {
+    loggerInfo("layout_data board tidak valid, menggunakan default", err);
   }
   return { board, size, wordCount };
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Linking, Platform } from "react-native";
+import { loggerWarn } from "../../utils/logger";
 import Constants from "expo-constants";
 import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata, avatarUrlFromMetadata } from "../../utils/userMetadata";
@@ -18,9 +19,11 @@ export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+  useEffect(() => {      supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(mapSession(session));
+      setLoading(false);
+    }).catch((err) => {
+      loggerWarn("Gagal mengambil sesi auth", err);
       setLoading(false);
     });
 

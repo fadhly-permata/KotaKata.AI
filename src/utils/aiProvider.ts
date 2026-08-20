@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { userRepository } from "../data/repositories/userRepository";
+import { loggerWarn } from "./logger";
 
 /**
  * Main Mode AI (BYOK) — integrasi provider AI untuk membuat soal TTS.
@@ -112,7 +113,9 @@ export async function getActiveProvider(): Promise<AiProviderPreset> {
   try {
     const raw = await AsyncStorage.getItem(ACTIVE_KEY);
     if (raw && raw in PROVIDER_PRESETS) return raw as AiProviderPreset;
-  } catch {}
+  } catch (err) {
+    loggerWarn("Gagal membaca provider aktif dari storage", err);
+  }
   return "openrouter";
 }
 
@@ -130,7 +133,8 @@ export async function getAiProviderConfigFor(p: AiProviderPreset): Promise<AiPro
     if (!cfg?.model || !cfg?.baseUrl) return null;
     if (isApiKeyRequired(cfg.provider) && !cfg.apiKey) return null;
     return cfg;
-  } catch {
+  } catch (err) {
+    loggerWarn(`Gagal membaca config provider ${p} dari storage`, err);
     return null;
   }
 }
@@ -163,7 +167,8 @@ export async function getAiProviderConfig(): Promise<AiProviderConfig | null> {
     await setActiveProvider(legacy.provider);
     await AsyncStorage.removeItem(LEGACY_KEY);
     return legacy;
-  } catch {
+  } catch (err) {
+    loggerWarn("Gagal membaca config AI legacy dari storage", err);
     return null;
   }
 }
@@ -187,7 +192,8 @@ export async function clearAiProviderConfigFor(p: AiProviderPreset): Promise<voi
 export async function getAiProviderConfigOwner(): Promise<string | null> {
   try {
     return await AsyncStorage.getItem(OWNER_KEY);
-  } catch {
+  } catch (err) {
+    loggerWarn("Gagal membaca pemilik config AI dari storage", err);
     return null;
   }
 }
@@ -213,31 +219,35 @@ export async function clearAiProviderOwner(): Promise<void> {
  *    akun di device bersama)
  */
 export async function syncAiProviderConfigWithCloud(userId: string): Promise<void> {
-  const cloudCfg = await userRepository.getAiProviderConfig(userId);
-  const [localCfg, owner] = await Promise.all([
-    getAiProviderConfig(),
-    getAiProviderConfigOwner(),
-  ]);
+  try {
+    const cloudCfg = await userRepository.getAiProviderConfig(userId);
+    const [localCfg, owner] = await Promise.all([
+      getAiProviderConfig(),
+      getAiProviderConfigOwner(),
+    ]);
 
-  if (cloudCfg) {
-    await saveAiProviderConfig(cloudCfg);
-    await markAiProviderOwner(userId);
-    return;
-  }
+    if (cloudCfg) {
+      await saveAiProviderConfig(cloudCfg);
+      await markAiProviderOwner(userId);
+      return;
+    }
 
-  // Tidak ada config di cloud: backfill kalau config lokal milik akun ini
-  // (owner null = config lama yang belum pernah ditandai — anggap milik user
-  // pertama yang login, lalu tandai).
-  if (localCfg && (owner === null || owner === userId)) {
-    await userRepository.saveAiProviderConfig(userId, localCfg);
-    await markAiProviderOwner(userId);
-    return;
-  }
+    // Tidak ada config di cloud: backfill kalau config lokal milik akun ini
+    // (owner null = config lama yang belum pernah ditandai — anggap milik user
+    // pertama yang login, lalu tandai).
+    if (localCfg && (owner === null || owner === userId)) {
+      await userRepository.saveAiProviderConfig(userId, localCfg);
+      await markAiProviderOwner(userId);
+      return;
+    }
 
-  // Config lokal milik akun lain di device yang sama → jangan bocor.
-  if (localCfg && owner && owner !== userId) {
-    await clearAiProviderConfig();
-    await clearAiProviderOwner();
+    // Config lokal milik akun lain di device yang sama → jangan bocor.
+    if (localCfg && owner && owner !== userId) {
+      await clearAiProviderConfig();
+      await clearAiProviderOwner();
+    }
+  } catch (err) {
+    loggerWarn("Gagal sinkron config provider AI dengan cloud", err);
   }
 }
 

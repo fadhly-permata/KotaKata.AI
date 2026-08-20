@@ -20,6 +20,7 @@ import { supabase } from "../../data/sources/supabase";
 import { getAiProviderConfig, requestAiRevision } from "../../utils/aiProvider";
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
+import { loggerWarn } from "../../utils/logger";
 import { solidSurfaceColor, contrastText, textOnPrimary, buttonShadow } from "../../utils/skin";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import AppModal from "../../presentation/components/common/AppModal";
@@ -76,7 +77,8 @@ export default function QuestionEditorScreen() {
         .order("word", { ascending: true });
       if (error) throw error;
       setWords((data ?? []) as VocabularyDoc[]);
-    } catch {
+    } catch (err) {
+      loggerWarn("Gagal mengambil daftar vocabulary", err);
       setWords([]);
     } finally {
       setLoading(false);

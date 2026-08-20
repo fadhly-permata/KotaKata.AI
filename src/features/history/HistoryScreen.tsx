@@ -20,7 +20,7 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { timeAgo } from "../../utils/timeAgo";
 import { overlayColor, solidSurfaceColor } from "../../utils/skin";
-import { loggerWarn } from "../../utils/logger";
+import { loggerWarn, loggerError } from "../../utils/logger";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 import {
   masonryCardHeight,
@@ -158,16 +158,28 @@ export default function HistoryScreen() {
         if (reset) await wordDiscoveryRepository.flushDiscoveries();
 
         const searchTerm = searchRef.current || undefined;
-        const discoveries: WordDiscoveryDoc[] =
-          await wordDiscoveryRepository.getByUserFromCloud(user.id, {
-            search: searchTerm,
-            limit: PAGE_SIZE,
-            offset,
-          });
+        let discoveries: WordDiscoveryDoc[] = [];
+        try {
+          discoveries =
+            await wordDiscoveryRepository.getByUserFromCloud(user.id, {
+              search: searchTerm,
+              limit: PAGE_SIZE,
+              offset,
+            });
+        } catch (err) {
+          loggerError("Gagal mengambil data discovery dari cloud", err);
+          throw err;
+        }
 
-        const words = await vocabularyRepository.getByIdsFromCloud(
-          discoveries.map((d) => d.word_id),
-        );
+        let words: Awaited<ReturnType<typeof vocabularyRepository.getByIdsFromCloud>> = [];
+        try {
+          words = await vocabularyRepository.getByIdsFromCloud(
+            discoveries.map((d) => d.word_id),
+          );
+        } catch (err) {
+          loggerError("Gagal mengambil data vocabulary dari cloud", err);
+          throw err;
+        }
         const vocabMap = new Map(words.map((v) => [v.word_id, v]));
 
         const mapped: DiscoveryItem[] = [];

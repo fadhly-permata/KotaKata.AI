@@ -8,6 +8,7 @@ import {
   Linking,
 } from "react-native";
 import { useState, useCallback, useEffect } from "react";
+import { loggerWarn } from "../../utils/logger";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
@@ -47,15 +48,19 @@ export default function SettingsScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [cfg, saved, active] = await Promise.all([
-        getAiProviderConfig(),
-        getAllSavedProviders(),
-        getActiveProvider(),
-      ]);
-      if (cancelled) return;
-      if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
-      setSavedProviders(saved);
-      setActiveProviderState(active);
+      try {
+        const [cfg, saved, active] = await Promise.all([
+          getAiProviderConfig(),
+          getAllSavedProviders(),
+          getActiveProvider(),
+        ]);
+        if (cancelled) return;
+        if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
+        setSavedProviders(saved);
+        setActiveProviderState(active);
+      } catch (err) {
+        loggerWarn("Gagal memuat status provider AI di Pengaturan", err);
+      }
     })();
     return () => { cancelled = true; };
   }, []);

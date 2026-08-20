@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loggerWarn } from "./logger";
 
 /**
  * Identitas guest berbasis device (cara #3 yang direkomendasikan):
@@ -27,15 +28,15 @@ export async function getOrCreateDeviceId(): Promise<string> {
       cached = existing;
       return existing;
     }
-  } catch {
-    // Storage tidak tersedia (mis. mode pribadi browser) — lanjut generate ID baru.
+  } catch (err) {
+    loggerWarn("Gagal membaca device ID dari storage", err);
   }
 
   const id = generateUuid();
   try {
     await AsyncStorage.setItem(DEVICE_ID_KEY, id);
-  } catch {
-    // Gagal persist: ID tetap dipakai untuk sesi ini saja.
+  } catch (err) {
+    loggerWarn("Gagal menyimpan device ID ke storage", err);
   }
   cached = id;
   return id;
@@ -77,7 +78,7 @@ export async function clearDeviceId(): Promise<void> {
   cached = null;
   try {
     await AsyncStorage.removeItem(DEVICE_ID_KEY);
-  } catch {
-    // Identitas hanya lokal — gagal hapus tidak fatal.
+  } catch (err) {
+    loggerWarn("Gagal menghapus device ID dari storage", err);
   }
 }

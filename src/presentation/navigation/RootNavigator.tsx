@@ -89,7 +89,9 @@ export default function RootNavigator() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (disposed) return;
       if (session?.user?.is_anonymous) {
-        void supabase.auth.signOut().catch(() => {});
+        void supabase.auth.signOut().catch((err) => {
+          loggerWarn("Gagal sign-out session anonim", err);
+        });
       }
     });
 
@@ -108,7 +110,9 @@ export default function RootNavigator() {
       // session anonim (tamu) tidak diterima: langsung dikeluarkan kembali ke
       // halaman login. Data guest lama tidak dipulihkan lagi.
       if (session.user.is_anonymous) {
-        void supabase.auth.signOut().catch(() => {});
+        void supabase.auth.signOut().catch((err) => {
+          loggerWarn("Gagal sign-out session anonim", err);
+        });
         useGameStore.getState().setProfileReady(false);
         return;
       }

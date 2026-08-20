@@ -57,6 +57,7 @@ export const loggerDebug = (...args: unknown[]) => {
 
 export const loggerInfo = (...args: unknown[]) => {
   log.info(...args);
+  persist("info", args);
 };
 
 export const loggerWarn = (...args: unknown[]) => {

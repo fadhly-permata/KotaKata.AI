@@ -119,4 +119,66 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
   hasil (URL produksi + status deploy) ke pemilik.
 - Kalau deploy web gagal, perbaiki penyebabnya (jangan biarkan gagal
   menggantung), lalu coba lagi sampai berhasil atau laporkan kendalanya.
+
+### 7. Wajib Try-Catch + Logging di Setiap Operasi Asinkron (aturan permanen)
+Semua kode yang menjalankan operasi asinkron (fetch, DB query, storage,
+navigasi, dll.) **WAJIB** dibungkus try-catch dengan logging menggunakan
+fungsi logger dari `src/utils/logger.ts`:
+
+- **`loggerError(msg, err)`** — untuk error yang menggagalkan operasi
+  (HTTP 500, DB error, auth gagal). Selalu sertakan error object supaya
+  stacktrace tersimpan di log DB.
+- **`loggerWarn(msg, err)`** — untuk error yang ditangani gracefully
+  (offline, fallback ke cache, gagal sync tapi app tetap jalan).
+- **`loggerInfo(msg, err)`** — untuk info penting yang perlu di-track
+  (board selesai, user login, config tersimpan).
+- **`loggerDebug(msg)`** — untuk debug verbose (hanya di __DEV__).
+
+**Aturan penulisan:**
+```typescript
+// ✅ BENAR: try-catch + logging dengan context yang jelas
+try {
+  const data = await supabase.from("table").select("*");
+  // ...proses data...
+} catch (err) {
+  loggerError("Gagal mengambil data dari tabel", err);
+  // fallback / re-throw sesuai kebutuhan
+}
+
+// ❌ SALAH: catch tanpa logging
+try {
+  await doSomething();
+} catch {
+  // error hilang, debugging jadi sulit
+}
+
+// ❌ SALAH: catch tanpa err object
+try {
+  await doSomething();
+} catch (err) {
+  loggerError("Gagal", "unknown"); // stacktrace hilang
+}
+```
+
+**LogViewerScreen (keamanan):**
+- UI **TIDAK PERNAH** menampilkan `stack` field (stacktrace/inner exception).
+- `details` field di-sanitize sebelum ditampilkan (mask API key, token,
+  base64 secret) lewat `sanitizeForDisplay()`.
+- Stacktrace & detail lengkap HANYA tersimpan di log DB untuk debugging
+  developer — bukan untuk user.
+
+**Pengecualian (boleh tanpa logger):**
+- Catch block yang memang sengaja menelan error untuk operasi non-kritis
+  (mis. `play("tap").catch(() => {})` untuk suara).
+- Tapi tetap harus pakai komentar `// abaikan — [alasan]`.
+
+### 8. Konsistensi Error Handling di Repository Layer
+Repository (`src/data/repositories/`) sudah menggunakan pola:
+```typescript
+const { data, error } = await supabase.from("table").select("*");
+if (error) throw new Error(`Gagal [aksi]: ${error.message}`);
+```
+Panggilan ke repository di screen/hook tetap harus dibungkus try-catch
++ logging di LEVEL PEMANGGIL (screen/component), bukan di repository.
+Repository melempar error → pemanggil menangkap + logging.
 <!-- ATURAN_PROYEK_END -->

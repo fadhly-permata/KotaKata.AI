@@ -92,24 +92,28 @@ export default function AiProviderScreen() {
     play("tap");
     setProvider(p);
     setTestResult(null);
-    // Load saved config untuk provider ini
-    const saved = await getAiProviderConfigFor(p);
-    if (saved) {
-      setApiKey(saved.apiKey);
-      setModel(saved.model);
-      setBaseUrl(saved.baseUrl);
-    } else {
-      // Gunakan default
-      const preset = providerPreset(p);
-      if (p === "custom") {
-        setModel("");
-        setBaseUrl("");
-        setApiKey("");
+    try {
+      // Load saved config untuk provider ini
+      const saved = await getAiProviderConfigFor(p);
+      if (saved) {
+        setApiKey(saved.apiKey);
+        setModel(saved.model);
+        setBaseUrl(saved.baseUrl);
       } else {
-        setModel(preset.defaultModel);
-        setBaseUrl(preset.baseUrl);
-        if (!isApiKeyRequired(p)) setApiKey("");
+        // Gunakan default
+        const preset = providerPreset(p);
+        if (p === "custom") {
+          setModel("");
+          setBaseUrl("");
+          setApiKey("");
+        } else {
+          setModel(preset.defaultModel);
+          setBaseUrl(preset.baseUrl);
+          if (!isApiKeyRequired(p)) setApiKey("");
+        }
       }
+    } catch (err) {
+      loggerWarn("Gagal memuat config provider", err);
     }
   };
 
@@ -182,20 +186,25 @@ export default function AiProviderScreen() {
 
   const handleRemove = async () => {
     play("tap");
-    await clearAiProviderConfigFor(provider);
-    await clearAiProviderOwner();
-    if (user?.id) {
-      try {
-        await userRepository.saveAiProviderConfig(user.id, null);
-      } catch (err) {
-        loggerWarn("Gagal hapus config AI dari cloud", err);
+    try {
+      await clearAiProviderConfigFor(provider);
+      await clearAiProviderOwner();
+      if (user?.id) {
+        try {
+          await userRepository.saveAiProviderConfig(user.id, null);
+        } catch (err) {
+          loggerWarn("Gagal hapus config AI dari cloud", err);
+        }
       }
+      const preset = providerPreset(provider);
+      setApiKey("");
+      setModel(preset.defaultModel);
+      setBaseUrl(preset.baseUrl);
+      setTestResult({ ok: true, message: `${providerLabel(provider)} dihapus.` });
+    } catch (err) {
+      loggerWarn("Gagal menghapus provider", err);
+      setTestResult({ ok: false, message: "Gagal menghapus provider. Coba lagi." });
     }
-    const preset = providerPreset(provider);
-    setApiKey("");
-    setModel(preset.defaultModel);
-    setBaseUrl(preset.baseUrl);
-    setTestResult({ ok: true, message: `${providerLabel(provider)} dihapus.` });
   };
 
   const inputStyle = [styles.input, { backgroundColor: C.secondaryContainer, color: C.text }];

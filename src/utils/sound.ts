@@ -470,7 +470,7 @@ async function resolveWebUri(source: unknown): Promise<string | null> {
     }
     return uri;
   } catch (err) {
-    loggerWarn("Efek suara tidak tersedia (web)", err);
+    loggerWarn("Gagal resolve URI asset suara (web)", err);
     return null;
   }
 }
@@ -577,8 +577,8 @@ export async function loadSoundPrefs(): Promise<void> {
   try {
     const stored = await AsyncStorage.getItem(SOUND_KEY);
     if (stored !== null) enabled = stored === "true";
-  } catch {
-    // Abaikan — default nyala.
+  } catch (err) {
+    loggerWarn("Gagal membaca preferensi suara dari storage", err);
   } finally {
     soundPrefsReady = true;
     maybeResolvePrefs();
@@ -592,8 +592,8 @@ export async function setSoundEnabled(value: boolean): Promise<void> {
   else stopAmbient();
   try {
     await AsyncStorage.setItem(SOUND_KEY, String(value));
-  } catch {
-    // Preferensi hanya lokal — gagal simpan tidak fatal.
+  } catch (err) {
+    loggerWarn("Gagal menyimpan preferensi suara", err);
   }
 }
 
@@ -607,8 +607,8 @@ export async function loadAmbientPrefs(): Promise<void> {
   try {
     const stored = await AsyncStorage.getItem(AMBIENT_KEY);
     if (stored !== null) ambientEnabled = stored === "true";
-  } catch {
-    // Abaikan — default nyala.
+  } catch (err) {
+    loggerWarn("Gagal membaca preferensi backsound dari storage", err);
   } finally {
     ambientPrefsReady = true;
     maybeResolvePrefs();
@@ -626,8 +626,8 @@ export async function setAmbientEnabled(value: boolean): Promise<void> {
   else stopAmbient();
   try {
     await AsyncStorage.setItem(AMBIENT_KEY, String(value));
-  } catch {
-    // Preferensi hanya lokal — gagal simpan tidak fatal.
+  } catch (err) {
+    loggerWarn("Gagal menyimpan preferensi backsound", err);
   }
 }
 
@@ -666,7 +666,7 @@ function getNativePlayer(name: SoundName): AudioPlayer | null {
     nativePlayers[name] = player;
     return player;
   } catch (err) {
-    loggerWarn("Gagal memuat efek suara", name, err);
+    loggerWarn("Gagal membuat player native", name, err);
     return null;
   }
 }

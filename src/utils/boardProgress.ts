@@ -1,4 +1,5 @@
 import type { Board } from "../domain/entities/board";
+import { loggerWarn } from "./logger";
 
 /** Penggunaan hint per kata — bentuknya sama dengan HintUsage di gameStore. */
 export interface BoardProgressHints {
@@ -65,7 +66,8 @@ export function deserializeBoardProgress(json: string): BoardProgressState | nul
       totalXp: parsed.totalXp ?? 0,
       aiMode: parsed.aiMode ?? false,
     };
-  } catch {
+  } catch (err) {
+    loggerWarn("Gagal deserialize progres board", err);
     return null;
   }
 }

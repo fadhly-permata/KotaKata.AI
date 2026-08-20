@@ -30,6 +30,7 @@ import ThemePreviewModal, {
   type ThemeKind,
   type ThemePreviewPalettes,
 } from "./ThemePreviewModal";
+import { loggerWarn } from "../../utils/logger";
 
 /** Satu kartu tema di halaman Pasar (model UI, independen dari sumber data). */
 interface ThemeCardModel {
@@ -389,7 +390,8 @@ export default function StoreScreen() {
         setCatalog(rows);
         setFromCloud(true);
       })
-      .catch(() => {
+      .catch((err) => {
+        loggerWarn("Gagal mengambil katalog tema dari cloud", err);
         if (disposed) return;
         setCatalog(null);
         setFromCloud(false);
