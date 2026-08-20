@@ -232,14 +232,16 @@ export default function QuestionEditorScreen() {
         {/* ─── Search bar ─── */}
         <View style={[styles.searchWrap, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
           <Text style={{ fontSize: 16, marginRight: 6 }}>🔍</Text>
-          <TextInput
-            style={[styles.searchInput, { color: C.text }]}
-            placeholder="Cari kata, clue, atau tier..."
-            placeholderTextColor={C.textSecondary}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-          />
+          <View onStartShouldSetResponder={() => true} style={{ flex: 1 }}>
+            <TextInput
+              style={[styles.searchInput, { color: C.text }]}
+              placeholder="Cari kata, clue, atau tier..."
+              placeholderTextColor={C.textSecondary}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+            />
+          </View>
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch("")}>
               <Text style={{ fontSize: 16, color: C.textSecondary }}>✕</Text>
@@ -341,61 +343,71 @@ export default function QuestionEditorScreen() {
 
             {/* Word */}
             <Text style={[styles.label, { color: C.text }]}>Kata</Text>
-            <TextInput
-              style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
-              value={editWord}
-              onChangeText={setEditWord}
-              placeholder="Kata jawaban"
-              placeholderTextColor={C.textSecondary}
-            />
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={editWord}
+                onChangeText={setEditWord}
+                placeholder="Kata jawaban"
+                placeholderTextColor={C.textSecondary}
+              />
+            </View>
 
             {/* Clue 1 */}
             <Text style={[styles.label, { color: C.text }]}>Clue 1 (Utama)</Text>
-            <TextInput
-              style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
-              value={editClue1}
-              onChangeText={setEditClue1}
-              placeholder="Definisi utama"
-              placeholderTextColor={C.textSecondary}
-              multiline
-              numberOfLines={3}
-            />
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={editClue1}
+                onChangeText={setEditClue1}
+                placeholder="Definisi utama"
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
 
             {/* Clue 2 */}
             <Text style={[styles.label, { color: C.text }]}>Clue 2 (Tambahan)</Text>
-            <TextInput
-              style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
-              value={editClue2}
-              onChangeText={setEditClue2}
-              placeholder="Petunjuk tambahan"
-              placeholderTextColor={C.textSecondary}
-              multiline
-              numberOfLines={3}
-            />
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={editClue2}
+                onChangeText={setEditClue2}
+                placeholder="Petunjuk tambahan"
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
 
             {/* Clue 3 */}
             <Text style={[styles.label, { color: C.text }]}>Clue 3 (Sinonim/Deskripsi)</Text>
-            <TextInput
-              style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
-              value={editClue3}
-              onChangeText={setEditClue3}
-              placeholder="Sinonim atau deskripsi lengkap"
-              placeholderTextColor={C.textSecondary}
-              multiline
-              numberOfLines={3}
-            />
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={editClue3}
+                onChangeText={setEditClue3}
+                placeholder="Sinonim atau deskripsi lengkap"
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
 
             {/* Tier */}
             <Text style={[styles.label, { color: C.text }]}>Tier (1-10)</Text>
-            <TextInput
-              style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
-              value={editTier}
-              onChangeText={setEditTier}
-              placeholder="1"
-              placeholderTextColor={C.textSecondary}
-              keyboardType="numeric"
-              maxLength={2}
-            />
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={editTier}
+                onChangeText={setEditTier}
+                placeholder="1"
+                placeholderTextColor={C.textSecondary}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
 
             {/* Save + AI Revision buttons */}
             <View style={styles.btnRow}>
