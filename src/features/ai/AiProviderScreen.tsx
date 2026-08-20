@@ -25,6 +25,8 @@ import {
   testAiConnection,
   providerPreset,
   providerLabel,
+  isLocalProvider,
+  isApiKeyRequired,
   type AiProviderConfig,
   type AiProviderPreset,
   type AiTestResult,
@@ -35,7 +37,7 @@ import { loggerWarn } from "../../utils/logger";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "AiProvider">;
 
-const PRESETS: AiProviderPreset[] = ["openrouter", "huggingface", "custom"];
+const PRESETS: AiProviderPreset[] = ["openrouter", "huggingface", "ollama", "lmstudio", "custom"];
 
 export default function AiProviderScreen() {
   const { theme } = useTheme();
@@ -72,13 +74,15 @@ export default function AiProviderScreen() {
     play("tap");
     setProvider(p);
     setTestResult(null);
-    // Ganti preset → isi default provider itu (API key milik user tidak disentuh).
+    const preset = providerPreset(p);
     if (p === "custom") {
       setModel("");
       setBaseUrl("");
+      setApiKey("");
     } else {
-      setModel(providerPreset(p).defaultModel);
-      setBaseUrl(providerPreset(p).baseUrl);
+      setModel(preset.defaultModel);
+      setBaseUrl(preset.baseUrl);
+      if (!isApiKeyRequired(p)) setApiKey("");
     }
   };
 
@@ -90,9 +94,9 @@ export default function AiProviderScreen() {
   });
 
   const canSave =
-    apiKey.trim().length > 0 &&
     buildConfig().model.length > 0 &&
-    buildConfig().baseUrl.length > 0;
+    buildConfig().baseUrl.length > 0 &&
+    (isApiKeyRequired(provider) ? apiKey.trim().length > 0 : true);
 
   const handleTest = async () => {
     if (!canSave) {
@@ -219,7 +223,11 @@ export default function AiProviderScreen() {
               ? "OpenRouter — akses banyak model lewat satu key (openrouter.ai)."
               : provider === "huggingface"
                 ? "HuggingFace — Inference Providers router (huggingface.co)."
-                : "URL kustom — endpoint chat-completions milikmu sendiri (mis. LM Studio, Ollama, gateway lain)."}
+                : provider === "ollama"
+                  ? "Ollama — model lokal di komputermu. Jalankan Ollama di terminal, lalu pilih model yang sudah di-pull."
+                  : provider === "lmstudio"
+                    ? "LM Studio — GUI lokal untuk load model GGUF. Jalankan LM Studio, aktifkan server, lalu pilih model."
+                    : "URL kustom — endpoint chat-completions milikmu sendiri."}
           </Text>
         </View>
 
@@ -227,17 +235,28 @@ export default function AiProviderScreen() {
         <View style={[styles.section, { backgroundColor: C.surface }]}>
           <Text style={[styles.sectionTitle, { color: C.text }]}>Koneksi</Text>
 
-          <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>API Key</Text>
-          <TextInput
-            style={inputStyle}
-            value={apiKey}
-            onChangeText={setApiKey}
-            placeholder="sk-… / hf_…"
-            placeholderTextColor={C.textSecondary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-          />
+          {isApiKeyRequired(provider) && (
+            <>
+              <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>API Key</Text>
+              <TextInput
+                style={inputStyle}
+                value={apiKey}
+                onChangeText={setApiKey}
+                placeholder="sk-… / hf_…"
+                placeholderTextColor={C.textSecondary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
+            </>
+          )}
+          {isLocalProvider(provider) && (
+            <View style={[styles.localInfo, { backgroundColor: C.secondaryContainer + "40", borderColor: C.border }]}>
+              <Text style={{ fontSize: 12, color: C.textSecondary, lineHeight: 17 }}>
+                🏠 Provider lokal — tidak perlu API key. Pastikan server sudah berjalan di perangkatmu.
+              </Text>
+            </View>
+          )}
 
           <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Model</Text>
           <TextInput
@@ -333,7 +352,7 @@ const styles = StyleSheet.create({
   langHint: { fontSize: 13, lineHeight: 19, fontWeight: "600", marginTop: 6 },
   section: { borderRadius: 12, padding: 16, gap: 10 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
-  presetRow: { flexDirection: "row", gap: 8 },
+  presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   presetBtn: {
     flex: 1,
     paddingVertical: 10,
@@ -368,6 +387,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   resultText: { fontSize: 13, fontWeight: "600", textAlign: "center", lineHeight: 18 },
+  localInfo: {
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 10,
+  },
   removeBtn: { alignItems: "center", paddingVertical: 10 },
   removeText: { color: "#E74C3C", fontSize: 13, fontWeight: "600" },
 });

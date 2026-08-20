@@ -19,7 +19,7 @@ import { userRepository } from "../data/repositories/userRepository";
  *   ke user (mis. di dialog "Soal AI Gagal Dimuat").
  */
 
-export type AiProviderPreset = "openrouter" | "huggingface" | "custom";
+export type AiProviderPreset = "openrouter" | "huggingface" | "ollama" | "lmstudio" | "custom";
 
 export interface AiProviderConfig {
   provider: AiProviderPreset;
@@ -51,21 +51,36 @@ interface ProviderPreset {
   defaultModel: string;
 }
 
-const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset> = {
+const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset & { apiKeyRequired?: boolean }> = {
   openrouter: {
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
     defaultModel: "openai/gpt-4o-mini",
+    apiKeyRequired: true,
   },
   huggingface: {
     label: "HuggingFace",
     baseUrl: "https://router.huggingface.co/v1",
     defaultModel: "meta-llama/Llama-3.3-70B-Instruct",
+    apiKeyRequired: true,
+  },
+  ollama: {
+    label: "Ollama",
+    baseUrl: "http://localhost:11434/v1",
+    defaultModel: "llama3.1",
+    apiKeyRequired: false,
+  },
+  lmstudio: {
+    label: "LM Studio",
+    baseUrl: "http://localhost:1234/v1",
+    defaultModel: "",
+    apiKeyRequired: false,
   },
   custom: {
     label: "URL Kustom",
     baseUrl: "",
     defaultModel: "",
+    apiKeyRequired: false,
   },
 };
 
@@ -77,13 +92,23 @@ export function providerLabel(p: AiProviderPreset): string {
   return PROVIDER_PRESETS[p].label;
 }
 
+export function isLocalProvider(p: AiProviderPreset): boolean {
+  return p === "ollama" || p === "lmstudio";
+}
+
+export function isApiKeyRequired(p: AiProviderPreset): boolean {
+  return PROVIDER_PRESETS[p].apiKeyRequired !== false;
+}
+
 /** Baca config provider tersimpan; null kalau belum diatur / tidak valid. */
 export async function getAiProviderConfig(): Promise<AiProviderConfig | null> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const cfg = JSON.parse(raw) as AiProviderConfig;
-    if (!cfg?.apiKey || !cfg?.model || !cfg?.baseUrl) return null;
+    if (!cfg?.model || !cfg?.baseUrl) return null;
+    // API key wajib untuk provider cloud
+    if (isApiKeyRequired(cfg.provider) && !cfg.apiKey) return null;
     return cfg;
   } catch {
     return null;
@@ -166,12 +191,15 @@ async function chatRequest(
   maxTokens: number,
   signal?: AbortSignal,
 ): Promise<string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (cfg.apiKey) {
+    headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+  }
   const res = await fetch(chatUrl(cfg), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${cfg.apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: cfg.model,
       messages,
