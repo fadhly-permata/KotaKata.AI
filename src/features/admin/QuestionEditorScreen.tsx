@@ -66,6 +66,7 @@ export default function QuestionEditorScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [page, setPage] = useState(1);
+  const [jumpValue, setJumpValue] = useState("");
   // ─── Fetch vocabulary ───
   const fetchWords = useCallback(async () => {
     setLoading(true);
@@ -288,6 +289,42 @@ export default function QuestionEditorScreen() {
         <Text style={[styles.stats, { color: C.textSecondary }]}>
           {filtered.length} soal ditemukan · Halaman {page}/{totalPages}
         </Text>
+
+        {/* ─── Top Pagination ─── */}
+        {totalPages > 1 && (
+          <View style={[styles.pagination, { marginBottom: 8 }]}>
+            <TouchableOpacity
+              disabled={page <= 1}
+              onPress={() => setPage((p) => Math.max(1, p - 1))}
+              style={[styles.pageBtn, { opacity: page <= 1 ? 0.4 : 1, backgroundColor: C.primary }]}
+            >
+              <Text style={{ color: textOnPrimary(theme), fontWeight: "600" }}>◀ Prev</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={[styles.jumpInput, { color: C.text, borderColor: C.border, backgroundColor: C.surface }]}
+              keyboardType="numeric"
+              placeholder={`1-${totalPages}`}
+              placeholderTextColor={C.textSecondary}
+              value={jumpValue}
+              onChangeText={setJumpValue}
+              onSubmitEditing={() => {
+                const num = parseInt(jumpValue, 10);
+                if (!isNaN(num) && num >= 1 && num <= totalPages) {
+                  setPage(num);
+                }
+                setJumpValue("");
+              }}
+              returnKeyType="go"
+            />
+            <TouchableOpacity
+              disabled={page >= totalPages}
+              onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+              style={[styles.pageBtn, { opacity: page >= totalPages ? 0.4 : 1, backgroundColor: C.primary }]}
+            >
+              <Text style={{ color: textOnPrimary(theme), fontWeight: "600" }}>Next ▶</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {loading ? (
           <View style={styles.center}>
@@ -545,6 +582,16 @@ const styles = StyleSheet.create({
   tierText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
   wordText: { fontSize: 15, fontWeight: "600", flex: 1 },
   cluePreview: { fontSize: 13, marginLeft: 36 },
+  jumpInput: {
+    width: 50,
+    height: 36,
+    borderWidth: 1,
+    borderRadius: 8,
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "600",
+    marginHorizontal: 4,
+  },
   pagination: {
     flexDirection: "row",
     justifyContent: "center",

@@ -1,5 +1,7 @@
 import { userRepository } from "../data/repositories/userRepository";
 import { loggerWarn } from "./logger";
+import { generateText } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 /**
  * Main Mode AI (BYOK) — integrasi provider AI untuk membuat soal TTS.
@@ -333,54 +335,50 @@ export async function syncAllProvidersToCloud(userId: string): Promise<void> {
   }
 }
 
-function chatUrl(cfg: AiProviderConfig): string {
-  return `${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-}
-
+/**
+ * Kirim prompt ke provider AI menggunakan Vercel AI SDK.
+ * Semua provider OpenAI-compatible (Groq, Cerebras, DeepSeek, dsb.) bisa
+ * dipakai dengan `createOpenAICompatible`. BYOK: API key user dikirim langsung.
+ */
 async function chatRequest(
   cfg: AiProviderConfig,
   messages: Array<{ role: string; content: string }>,
   maxTokens: number,
   signal?: AbortSignal,
 ): Promise<string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (cfg.apiKey) {
-    headers["Authorization"] = `Bearer ${cfg.apiKey}`;
-  }
-  const res = await fetch(chatUrl(cfg), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: cfg.model,
-      messages,
-      temperature: 0.9,
-      max_tokens: maxTokens,
-    }),
-    signal,
+  const provider = createOpenAICompatible({
+    name: cfg.provider,
+    apiKey: cfg.apiKey || undefined,
+    baseURL: cfg.baseUrl,
   });
 
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const j = await res.json();
-      detail = j?.error?.message ?? JSON.stringify(j).slice(0, 160);
-    } catch {
-      // body bukan JSON — detail tetap kosong
-    }
-    throw new Error(`HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
-  }
+  const model = provider(cfg.model);
 
-  const j = await res.json();
-  const content = j?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) {
+  const systemMsg = messages.find((m) => m.role === "system");
+  const userMsgs = messages.filter((m) => m.role !== "system");
+
+  const { text } = await generateText({
+    model,
+    system: systemMsg?.content,
+    prompt: userMsgs.map((m) => m.content).join("\n"),
+    maxOutputTokens: maxTokens,
+    temperature: 0.9,
+    abortSignal: signal,
+  });
+
+  if (!text || !text.trim()) {
     throw new Error("Respons kosong dari provider.");
   }
-  return content;
+  return text;
 }
 
 /** Uji koneksi: kirim prompt minimal dan pastikan model merespons. */
+
+/** URL chat-completions (dipakai testAiConnection untuk deteksi CORS). */
+function chatUrl(cfg: AiProviderConfig): string {
+  return `${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+}
+
 export async function testAiConnection(
   cfg: AiProviderConfig,
   signal?: AbortSignal,

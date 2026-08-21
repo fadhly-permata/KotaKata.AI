@@ -33,28 +33,30 @@ const cfg: AiProviderConfig = {
   baseUrl: "https://example.com/v1",
 };
 
-/** Mock fetch global → respons chat-completions dengan daftar kata; simpan body terakhir. */
+/** Mock generateText dari AI SDK — intercept panggilan dan return daftar kata. */
+let mockGenerateText: ((opts: any) => Promise<{ text: string }>) | null = null;
+
+mock.module("ai", () => ({
+  generateText: async (opts: any) => {
+    if (mockGenerateText) return mockGenerateText(opts);
+    return { text: JSON.stringify({ words: [] }) };
+  },
+}));
+
 function mockChat(words: Array<{ word: string; clue: string; clue2?: string }>) {
-  let lastBody: { messages?: Array<{ role: string; content: string }> } | null = null;
-  (globalThis as any).fetch = async (_url: unknown, init: { body?: string }) => {
-    lastBody = JSON.parse(init.body ?? "{}");
-    return {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ words }) } }],
-      }),
-    };
+  let lastPrompt = "";
+  mockGenerateText = async (opts: any) => {
+    lastPrompt = opts.prompt ?? "";
+    return { text: JSON.stringify({ words }) };
   };
   return {
-    /** Ambil pesan user terakhir yang dikirim ke provider. */
-    lastUserPrompt: () =>
-      lastBody?.messages?.find((m) => m.role === "user")?.content ?? "",
+    /** Ambil prompt user terakhir yang dikirim ke AI SDK. */
+    lastUserPrompt: () => lastPrompt,
   };
 }
 
-const originalFetch = globalThis.fetch;
 afterEach(() => {
-  (globalThis as any).fetch = originalFetch;
+  mockGenerateText = null;
 });
 
 describe("provider presets — cloud providers", () => {
