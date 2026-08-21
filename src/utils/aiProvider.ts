@@ -481,6 +481,8 @@ export interface RevisionInput {
   clue_2?: string;
   clue_3?: string;
   tier_level: number;
+  /** Pesan custom dari user — jika diisi, diprioritaskan sebagai instruksi utama ke AI. */
+  customMessage?: string;
 }
 
 /** Output dari revisi AI — clue yang direvisi + info bocoran. */
@@ -511,6 +513,11 @@ export async function requestAiRevision(
   input: RevisionInput,
   signal?: AbortSignal,
 ): Promise<RevisionOutput> {
+  // Jika user mengisi custom message, prioritaskan sebagai instruksi utama
+  const baseInstruction = input.customMessage
+    ? input.customMessage
+    : `Perbaiki agar clue tidak bocor (tidak menyebut kata jawaban), lebih jelas, dan menarik.`;
+
   const userPrompt = [
     `Revisi clue untuk kata "${input.word}" (tier ${input.tier_level}).`,
     `Clue saat ini:`,
@@ -518,7 +525,7 @@ export async function requestAiRevision(
     input.clue_2 ? `- Clue 2: ${input.clue_2}` : null,
     input.clue_3 ? `- Clue 3: ${input.clue_3}` : null,
     ``,
-    `Perbaiki agar clue tidak bocor (tidak menyebut kata jawaban), lebih jelas, dan menarik.`,
+    baseInstruction,
   ]
     .filter(Boolean)
     .join("\n");

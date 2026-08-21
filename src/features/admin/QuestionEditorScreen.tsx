@@ -62,6 +62,7 @@ export default function QuestionEditorScreen() {
   const [editClue2, setEditClue2] = useState("");
   const [editClue3, setEditClue3] = useState("");
   const [editTier, setEditTier] = useState("1");
+  const [editCustomMessage, setEditCustomMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
@@ -128,6 +129,7 @@ export default function QuestionEditorScreen() {
     setEditClue2(word.clue_2 ?? "");
     setEditClue3(word.clue_3 ?? "");
     setEditTier(String(word.tier_level));
+    setEditCustomMessage("");
     setNotification(null);
   }, []);
 
@@ -142,6 +144,7 @@ export default function QuestionEditorScreen() {
       setEditClue2(w.clue_2 ?? "");
       setEditClue3(w.clue_3 ?? "");
       setEditTier(String(w.tier_level));
+      setEditCustomMessage("");
       setNotification(null);
     },
     [filtered],
@@ -202,6 +205,7 @@ export default function QuestionEditorScreen() {
         clue_2: editClue2.trim() || undefined,
         clue_3: editClue3.trim() || undefined,
         tier_level: parseInt(editTier, 10) || 1,
+        customMessage: editCustomMessage.trim() || undefined,
       });
       if (revised) {
         setEditClue1(revised.clue_1);
@@ -221,7 +225,7 @@ export default function QuestionEditorScreen() {
     } finally {
       setAiLoading(false);
     }
-  }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier]);
+  }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier, editCustomMessage]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
@@ -463,6 +467,21 @@ export default function QuestionEditorScreen() {
               />
             </View>
 
+            {/* Custom Message for AI */}
+            <Text style={[styles.label, { color: C.text }]}>💬 Pesan Custom untuk AI (opsional)</Text>
+            <Text style={[styles.hint, { color: C.textSecondary }]}>Jika diisi, pesan ini diprioritaskan saat revisi AI</Text>
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={editCustomMessage}
+                onChangeText={setEditCustomMessage}
+                placeholder="Contoh: Ubah clue agar lebih cocok untuk anak-anak..."
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
             {/* Save + AI Revision buttons */}
             <View style={styles.btnRow}>
               <TouchableOpacity
@@ -596,5 +615,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
+  },
+  hint: {
+    fontSize: 11,
+    marginBottom: 4,
+    fontStyle: "italic",
   },
 });
