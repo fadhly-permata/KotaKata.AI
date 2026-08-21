@@ -17,8 +17,14 @@ mock.module("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-const { requestAiWords } = await import("./aiProvider");
-import type { AiProviderConfig } from "./aiProvider";
+const {
+  requestAiWords,
+  providerPreset,
+  providerLabel,
+  isLocalProvider,
+  isApiKeyRequired,
+} = await import("./aiProvider");
+import type { AiProviderConfig, AiProviderPreset } from "./aiProvider";
 
 const cfg: AiProviderConfig = {
   provider: "openrouter",
@@ -49,6 +55,34 @@ function mockChat(words: Array<{ word: string; clue: string; clue2?: string }>) 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   (globalThis as any).fetch = originalFetch;
+});
+
+describe("provider presets — cloud providers", () => {
+  const cloudPresets: AiProviderPreset[] = ["gemini", "mistral", "openai", "openrouter", "huggingface"];
+
+  for (const p of cloudPresets) {
+    test(`${p}: punya preset lengkap + butuh API key`, () => {
+      const preset = providerPreset(p);
+      expect(preset.label.length).toBeGreaterThan(0);
+      expect(preset.baseUrl.length).toBeGreaterThan(0);
+      expect(isApiKeyRequired(p)).toBe(true);
+      expect(isLocalProvider(p)).toBe(false);
+    });
+  }
+
+  test("lmstudio: preset lokal tanpa API key", () => {
+    const preset = providerPreset("lmstudio");
+    expect(isLocalProvider("lmstudio")).toBe(true);
+    expect(isApiKeyRequired("lmstudio")).toBe(false);
+    expect(preset.baseUrl).toContain("localhost");
+  });
+
+  test("custom: preset kustom tanpa API key + URL kosong", () => {
+    const preset = providerPreset("custom");
+    expect(isLocalProvider("custom")).toBe(false);
+    expect(isApiKeyRequired("custom")).toBe(false);
+    expect(preset.baseUrl).toBe("");
+  });
 });
 
 describe("requestAiWords — exclude kata (PLAN-050)", () => {

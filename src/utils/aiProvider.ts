@@ -13,14 +13,15 @@ import { loggerWarn } from "./logger";
  * - Pemilik config lokal ditandai di "kotakata.aiProviderOwner" supaya config
  *   milik akun lain tidak bocor di device bersama (dan bisa di-backfill ke
  *   cloud untuk data lama).
- * - Provider yang didukung: OpenRouter, HuggingFace (Inference Providers
- *   router), dan URL kustom — semuanya berbicara API chat-completions gaya
- *   OpenAI, jadi cukup satu implementasi request.
+ * - Provider yang didukung: OpenAI, Google Gemini, OpenRouter, HuggingFace
+ *   (Inference Providers router), LM Studio (intranet/LAN), dan URL kustom —
+ *   semuanya berbicara API chat-completions gaya OpenAI, jadi cukup satu
+ *   implementasi request.
  * - Semua error dilempar sebagai Error dengan pesan ramah untuk ditampilkan
  *   ke user (mis. di dialog "Soal AI Gagal Dimuat").
  */
 
-export type AiProviderPreset = "openrouter" | "huggingface" | "ollama" | "lmstudio" | "custom";
+export type AiProviderPreset = "gemini" | "mistral" | "openai" | "openrouter" | "huggingface" | "lmstudio" | "custom";
 
 export interface AiProviderConfig {
   provider: AiProviderPreset;
@@ -60,6 +61,24 @@ interface ProviderPreset {
 }
 
 const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset & { apiKeyRequired?: boolean }> = {
+  openai: {
+    label: "OpenAI (GPT)",
+    baseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
+    apiKeyRequired: true,
+  },
+  gemini: {
+    label: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    defaultModel: "gemini-2.0-flash",
+    apiKeyRequired: true,
+  },
+  mistral: {
+    label: "Mistral AI",
+    baseUrl: "https://api.mistral.ai/v1",
+    defaultModel: "mistral-small-latest",
+    apiKeyRequired: true,
+  },
   openrouter: {
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
@@ -71,12 +90,6 @@ const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset & { apiKeyRequir
     baseUrl: "https://router.huggingface.co/v1",
     defaultModel: "meta-llama/Llama-3.3-70B-Instruct",
     apiKeyRequired: true,
-  },
-  ollama: {
-    label: "Ollama",
-    baseUrl: "http://localhost:11434/v1",
-    defaultModel: "llama3.1",
-    apiKeyRequired: false,
   },
   lmstudio: {
     label: "LM Studio",
@@ -101,7 +114,7 @@ export function providerLabel(p: AiProviderPreset): string {
 }
 
 export function isLocalProvider(p: AiProviderPreset): boolean {
-  return p === "ollama" || p === "lmstudio";
+  return p === "lmstudio";
 }
 
 export function isApiKeyRequired(p: AiProviderPreset): boolean {
@@ -318,8 +331,9 @@ export async function testAiConnection(
       return {
         ok: false,
         message: "Gagal terhubung ke server lokal. Pastikan:\n\n"
-          + "1. Server sudah berjalan (Ollama/LM Studio)\n"
-          + "2. App dijalankan LOKAL (bukan dari expo.app)\n\n"
+          + "1. LM Studio sudah berjalan + server aktif\n"
+          + "2. Base URL sudah benar (localhost / IP LAN)\n"
+          + "3. App dijalankan LOKAL (bukan dari expo.app)\n\n"
           + "Jalankan: bunx expo start --web\n"
           + "Bukan dari URL deployed (kotakata-ai.expo.app).",
       };
@@ -433,7 +447,7 @@ export async function requestAiWords(
   const json = extractJson(content);
   const arr = (json as any)?.words;
   if (!Array.isArray(arr)) {
-    throw new Error("Respons AI tidak valid: field \"words\" tidak ditemukan.");
+    throw new Error('Respons AI tidak valid: field "words" tidak ditemukan.');
   }
 
   const seen = new Set<string>();

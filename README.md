@@ -75,7 +75,13 @@ Setiap kata punya 3 clue yang selalu berbeda dan tidak pernah memuat jawaban:
 
 Main dengan soal yang dibuat AI dari provider pilihanmu (**Bring Your Own Key**):
 
-1. **Atur provider** — Pengaturan → "Tambahkan Provider AI". Pilih preset **OpenRouter**, **HuggingFace**, atau **URL kustom**, isi API key + nama model, lalu **Tes Koneksi** dan **Simpan**.
+1. **Atur provider** — Pengaturan → "Tambahkan Provider AI". Pilih provider dari dropdown:
+   - ☁️ **Cloud (GRATIS)**: Google Gemini (✨ 15 RPM gratis), Mistral AI (✨ free tier), OpenRouter, HuggingFace
+   - ☁️ **Cloud (API Key)**: OpenAI (GPT-4o-mini)
+   - 🖥️ **Lokal (Offline)**: LM Studio (intranet/LAN)
+   - 🔧 **URL Kustom**: endpoint chat-completions milikmu sendiri
+
+   Isi API key + nama model, lalu **Tes Koneksi** dan **Simpan**.
 2. **Main** — tombol "Main Mode AI" meminta soal ke provider, divalidasi ketat (kata 3–10 huruf, clue tidak memuat jawaban, tanpa duplikat), lalu digenerate menjadi papan seperti biasa. Tingkat kesulitan soal menyesuaikan tier kamu.
 3. **Tanpa XP** — Mode AI tidak menghitung XP sama sekali: tidak menambah XP saat selesai kata, dan tidak mengurangi XP saat memakai clue/reveal (semua gratis). Ada badge "Mode AI" + info di layar selesai.
 4. **Perkaya database** — kata AI yang belum ada di database otomatis disimpan (deduplikasi) supaya bank kosakata terus bertambah.
@@ -113,7 +119,7 @@ src/
 └── utils/           # Helper (log DB, device identity, board progress, dsb.)
 
 scripts/             # Tooling pengembangan, dikelompokkan per peruntukan
-├── db/              # Operasi database (migrasi, push, query Supabase)
+├── db/              # Operasi database (migrasi, push, query Supabase, diagnostik log)
 ├── vocab/           # Bangun & perbaiki kosakata (seed KBBI, generate SQL, fix clue)
 ├── check/           # Verifikasi & uji kualitas (check-*, verify-*)
 ├── kbbi/            # Diagnostik & analisis data KBBI
@@ -154,6 +160,7 @@ Buat `.env.local` (atau isi lewat tab Keys/API keys di platform):
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable/anonymous key |
 | `EXPO_TOKEN` | Token akses EAS — dipakai `eas build` untuk build APK/AAB (lihat [Build & Deploy](#-build--deploy)) |
 | `SUPABASE_ACCESS_TOKEN` | Token akses Supabase (Management API) — dipakai script DB (`scripts/db/*.mjs`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key Supabase (admin) — dipakai script diagnostik log (`scripts/db/check-log-reports.mjs`) |
 
 ## 🗄 Database (Supabase)
 
@@ -165,6 +172,18 @@ bun scripts/db/supabase-run.mjs "SELECT ..."   # jalankan query ad-hoc
 node scripts/db/supabase-auth-config.mjs      # lihat konfigurasi Auth (site_url, redirect allow-list)
 node scripts/db/supabase-auth-config.mjs '{...}'  # perbarui sebagian (PATCH) — mis. tambah domain ke uri_allow_list
 ```
+
+Cek & hapus log report dari user (tabel `user_log_reports`):
+
+```bash
+bun run logs              # lihat semua log report
+bun run logs:list         # daftar log (filter: --level error --limit 100)
+bun run logs:analyze      # kelompokkan issue serupa
+bun scripts/db/check-log-reports.mjs delete <uuid1> <uuid2>  # hapus baris tertentu
+bun scripts/db/check-log-reports.mjs delete-all              # hapus semua (konfirmasi)
+```
+
+> Butuh `SUPABASE_SERVICE_ROLE_KEY` di `.env.local` atau env shell.
 
 Kosakata di-push dari seed lokal (`src/data/vocabulary/`) ke tabel `vocabulary`:
 

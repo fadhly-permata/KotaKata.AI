@@ -39,7 +39,23 @@ import { loggerWarn } from "../../utils/logger";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "AiProvider">;
 
-const PRESETS: AiProviderPreset[] = ["openrouter", "huggingface", "ollama", "lmstudio", "custom"];
+/** Kategori provider untuk grouping di dropdown. */
+const PROVIDER_GROUPS: { label: string; items: AiProviderPreset[] }[] = [
+  { label: "\u2601\ufe0f Cloud (GRATIS)", items: ["gemini", "mistral", "openrouter", "huggingface"] },
+  { label: "\u2601\ufe0f Cloud (API Key)", items: ["openai"] },
+  { label: "\ud83d\udda5\ufe0f Lokal (Offline)", items: ["lmstudio"] },
+  { label: "\ud83d\udd27 URL Kustom", items: ["custom"] },
+];
+
+const PRESETS: AiProviderPreset[] = PROVIDER_GROUPS.flatMap((g) => g.items);
+
+/** Badge gratis per provider (hanya untuk yang punya free tier). */
+const FREE_BADGES: Partial<Record<AiProviderPreset, string>> = {
+  gemini: "\u2728 15 RPM",
+  mistral: "\u2728 Free tier",
+  openrouter: "\u2728 Bebas model",
+  huggingface: "\u2728 Inference",
+};
 
 export default function AiProviderScreen() {
   const { theme } = useTheme();
@@ -57,6 +73,7 @@ export default function AiProviderScreen() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [savedProviders, setSavedProviders] = useState<Set<AiProviderPreset>>(new Set());
   const [activeProvider, setActiveProviderState] = useState<AiProviderPreset>("openrouter");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Load saved providers list
@@ -224,51 +241,73 @@ export default function AiProviderScreen() {
           🇮🇩 Semua soal, kosakata, dan petunjuk dibuat dalam Bahasa Indonesia.
         </Text>
 
-        {/* Pilih provider */}
+        {/* Pilih provider — dropdown picker */}
         <View style={[styles.section, { backgroundColor: C.surface }]}>
           <Text style={[styles.sectionTitle, { color: C.text }]}>Provider</Text>
-          <View style={styles.presetRow}>
-            {PRESETS.map((p) => {
-              const selected = provider === p;
-              const isSaved = savedProviders.has(p);
-              const isActive = activeProvider === p && isSaved;
-              return (
-                <TouchableOpacity
-                  key={p}
-                  style={[
-                    styles.presetBtn,
-                    {
-                      backgroundColor: selected ? C.primary : C.secondaryContainer,
-                      borderColor: isActive ? C.success : selected ? C.primary : "transparent",
-                      borderWidth: isActive ? 2 : selected ? 2 : 0,
-                    },
-                    buttonShadow(theme),
-                  ]}
-                  activeOpacity={0.7}
-                  onPress={() => selectProvider(p)}
-                >
-                  <Text
-                    style={[
-                      styles.presetBtnText,
-                      { color: selected ? textOnPrimary(theme) : C.textSecondary },
-                    ]}
-                  >
-                    {providerLabel(p)}{isSaved ? " ✓" : ""}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {/* Dropdown trigger */}
+          <TouchableOpacity
+            style={[styles.dropdownBtn, { backgroundColor: C.secondaryContainer, borderColor: C.textSecondary + "30" }]}
+            activeOpacity={0.7}
+            onPress={() => {
+              play("tap");
+              setDropdownOpen((prev) => !prev);
+            }}
+          >
+            <Text style={[styles.dropdownText, { color: C.text }]}>
+              {dropdownOpen ? "▲" : "▼"}  {providerLabel(provider)}{savedProviders.has(provider) ? " ✓" : ""}
+            </Text>
+          </TouchableOpacity>
+          {/* Dropdown menu */}            {dropdownOpen && (
+            <View style={[styles.dropdownMenu, { backgroundColor: C.secondaryContainer, borderColor: C.textSecondary + "30" }]}>              
+              {PROVIDER_GROUPS.map((group, gi) => (
+                <View key={gi}>
+                  {gi > 0 && <View style={[styles.dropdownDivider, { backgroundColor: C.textSecondary + "20" }]} />}                  
+                  <Text style={[styles.dropdownGroupLabel, { color: C.textSecondary }]}>{group.label}</Text>                  
+                  {group.items.map((p) => {
+                    const isSaved = savedProviders.has(p);
+                    const isActive = activeProvider === p && isSaved;
+                    const isSel = provider === p;
+                    const freeBadge = FREE_BADGES[p];
+                    return (
+                      <TouchableOpacity
+                        key={p}
+                        style={[styles.dropdownItem, { backgroundColor: isSel ? C.primary + "18" : "transparent" }]}
+                        activeOpacity={0.6}
+                        onPress={() => {
+                          play("tap");
+                          setDropdownOpen(false);
+                          selectProvider(p);
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={[styles.dropdownItemText, { color: isSel ? C.primary : C.text }]}>
+                            {providerLabel(p)}{isSaved ? "  ✓" : ""}{isActive ? "  (aktif)" : ""}
+                          </Text>
+                          {freeBadge && (
+                            <Text style={{ fontSize: 11, fontWeight: "700", color: C.primary, opacity: 0.85 }}>{freeBadge}</Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          )}
           <Text style={[styles.fieldHint, { color: C.textSecondary }]}>
-            {provider === "openrouter"
-              ? "OpenRouter — akses banyak model lewat satu key (openrouter.ai)."
-              : provider === "huggingface"
-                ? "HuggingFace — Inference Providers router (huggingface.co)."
-                : provider === "ollama"
-                  ? "Ollama — model lokal di komputermu. Jalankan: OLLAMA_ORIGINS=* ollama serve"
-                  : provider === "lmstudio"
-                    ? "LM Studio — GUI lokal untuk load model GGUF. Jalankan LM Studio, aktifkan server, lalu pilih model."
-                    : "URL kustom — endpoint chat-completions milikmu sendiri."}
+            {provider === "gemini"
+              ? "Google Gemini — model gratis via Google AI Studio. Gratis 15 RPM (gemini-2.0-flash)."
+              : provider === "mistral"
+                ? "Mistral AI — model gratis via La Plateforme (mistral-small-latest). OpenAI-compatible API."
+                : provider === "openai"
+                  ? "OpenAI — model GPT (gpt-4o-mini) via API resmi. Gratis $5 credit awal."
+                  : provider === "openrouter"
+                    ? "OpenRouter — akses banyak model lewat satu key (openrouter.ai)."
+                    : provider === "huggingface"
+                      ? "HuggingFace — Inference Providers router (huggingface.co)."
+                      : provider === "lmstudio"
+                          ? "LM Studio — GUI lokal untuk load model GGUF. Jalankan LM Studio, aktifkan server (default port 1234). Bisa akses via LAN (http://IP_KOMPUTER:1234/v1)."
+                          : "URL kustom — endpoint chat-completions milikmu sendiri."}
           </Text>
         </View>
 
@@ -294,15 +333,13 @@ export default function AiProviderScreen() {
           {isLocalProvider(provider) && (
             <View style={[styles.localInfo, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B" }]}>
               <Text style={{ fontSize: 12, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
-                ⚠️ Provider lokal hanya bisa diakses dari app yang dijalankan di komputer yang sama
+                ⚠️ Provider lokal — harus dari jaringan yang sama (localhost / LAN)
               </Text>
               <Text style={{ fontSize: 11, color: "#92400E", lineHeight: 16 }}>
-                {provider === "ollama"
-                  ? "Jalankan app lokal: bunx expo start --web\nLalu jalankan Ollama: OLLAMA_ORIGINS=* ollama serve"
-                  : "Jalankan app lokal: bunx expo start --web\nLalu aktifkan server di LM Studio (port 1234)"}
+                {"Jalankan app lokal: bunx expo start --web\nLalu aktifkan server di LM Studio (port 1234). Bisa pakai IP LAN/intranet (mis. 192.168.x.x) untuk akses dari device lain di jaringan yang sama."}
               </Text>
               <Text style={{ fontSize: 10, color: "#B45309", marginTop: 6, lineHeight: 14 }}>
-                Tidak bisa dari URL deployed (kotakata-ai.expo.app) karena\nlocalhost di browser ≠ localhost di komputermu.
+                {"Tidak bisa dari URL deployed (kotakata-ai.expo.app) karena\nbrowser dan server harus di jaringan yang sama."}
               </Text>
             </View>
           )}
@@ -364,16 +401,17 @@ export default function AiProviderScreen() {
 
         {/* Hasil tes / status */}
         {testResult && (
-          <View              style={[
-                styles.resultBox,
-                {
-                  backgroundColor: testResult.ok
-                    ? C.success + "1F"
-                    : C.error + "1F",
-                  borderColor: testResult.ok ? C.success : C.error,
-                },
-              ]}
-            >
+          <View
+            style={[
+              styles.resultBox,
+              {
+                backgroundColor: testResult.ok
+                  ? C.success + "1F"
+                  : C.error + "1F",
+                borderColor: testResult.ok ? C.success : C.error,
+              },
+            ]}
+          >
             <Text
               style={[
                 styles.resultText,
@@ -401,15 +439,37 @@ const styles = StyleSheet.create({
   langHint: { fontSize: 13, lineHeight: 19, fontWeight: "600", marginTop: 6 },
   section: { borderRadius: 12, padding: 16, gap: 10 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
-  presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  presetBtn: {
-    flex: 1,
-    paddingVertical: 10,
+  dropdownBtn: {
     borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  presetBtnText: { fontSize: 13, fontWeight: "700" },
+  dropdownText: { fontSize: 14, fontWeight: "600" },
+  dropdownMenu: {
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  dropdownGroupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  dropdownDivider: {
+    height: 1,
+    marginHorizontal: 10,
+    marginTop: 2,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  dropdownItemText: { fontSize: 14, fontWeight: "600" },
   fieldHint: { fontSize: 12, lineHeight: 17 },
   fieldLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
   input: {
