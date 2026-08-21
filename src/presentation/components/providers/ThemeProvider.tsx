@@ -138,6 +138,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEY, mode);
   }, []);
 
+  // Dengarkan event dari RootNavigator saat cloud sync mengubah theme mode.
+  // Ini memastikan UI update tanpa perlu remount.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const mode = (e as CustomEvent).detail as string;
+      if (mode === "light" || mode === "dark" || mode === "system") {
+        setThemeModeState(mode);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("kotakata:themeModeChanged", handler);
+      return () => window.removeEventListener("kotakata:themeModeChanged", handler);
+    }
+  }, []);
+
   const resolvedMode =
     themeMode === "system"
       ? systemScheme === "dark"

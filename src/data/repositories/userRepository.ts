@@ -105,6 +105,63 @@ export const userRepository = {
     }
   },
 
+  /** Baca semua preferensi user (theme_mode, sound, ambient) dari cloud. */
+  async getUserPreferences(userId: string): Promise<{
+    theme_mode: string;
+    sound_enabled: boolean;
+    ambient_enabled: boolean;
+    app_theme_id: string | null;
+  }> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("theme_mode, sound_enabled, ambient_enabled, app_theme_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Gagal ambil preferensi dari Supabase: ${error.message}`);
+    }
+    if (!data) return { theme_mode: "system", sound_enabled: true, ambient_enabled: true, app_theme_id: null };
+    return {
+      theme_mode: (data as any).theme_mode ?? "system",
+      sound_enabled: (data as any).sound_enabled ?? true,
+      ambient_enabled: (data as any).ambient_enabled ?? true,
+      app_theme_id: (data as any).app_theme_id ?? null,
+    };
+  },
+
+  /** Simpan theme_mode ke cloud (fire-and-forget). */
+  async saveThemeMode(userId: string, mode: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ theme_mode: mode })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan theme mode ke Supabase: ${error.message}`);
+    }
+  },
+
+  /** Simpan sound_enabled ke cloud (fire-and-forget). */
+  async saveSoundEnabled(userId: string, enabled: boolean): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ sound_enabled: enabled })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan sound_enabled ke Supabase: ${error.message}`);
+    }
+  },
+
+  /** Simpan ambient_enabled ke cloud (fire-and-forget). */
+  async saveAmbientEnabled(userId: string, enabled: boolean): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ ambient_enabled: enabled })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan ambient_enabled ke Supabase: ${error.message}`);
+    }
+  },
+
   /**
    * Leaderboard satu halaman, urut total_xp DESC lalu updated_at ASC (pemain
    * yang MENCAPAI XP yang sama lebih dulu menang). RLS users hanya membolehkan

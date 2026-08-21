@@ -30,6 +30,8 @@ import {
   providerPreset,
   type AiProviderPreset,
 } from "../../utils/aiProvider";
+import { userRepository } from "../../data/repositories/userRepository";
+import { useAuth } from "../auth/useAuth";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 
@@ -37,6 +39,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
   const { theme, themeMode, setThemeMode } = useTheme();
+  const { user } = useAuth();
   const navigation = useNavigation<Nav>();
   const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
   const [ambientEnabled, setAmbientEnabledState] = useState(isAmbientEnabled());
@@ -68,7 +71,11 @@ export default function SettingsScreen() {
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
 
   const toggleTheme = () => {
-    setThemeMode(isDark ? "light" : "dark");
+    const newMode = isDark ? "light" : "dark";
+    setThemeMode(newMode);
+    if (user?.id) {
+      void userRepository.saveThemeMode(user.id, newMode).catch(() => {});
+    }
   };
 
   // Efek Suara: simpan preferensi ke AsyncStorage. Saat dinyalakan ulang,
@@ -77,14 +84,20 @@ export default function SettingsScreen() {
     setSoundEnabledState(value);
     void setSoundEnabled(value);
     if (value) play("tap");
-  }, []);
+    if (user?.id) {
+      void userRepository.saveSoundEnabled(user.id, value).catch(() => {});
+    }
+  }, [user?.id]);
 
   // Backsound tema: toggle terpisah dari efek suara. Mati → backsound berhenti;
   // nyala → backsound tema aktif diputar lagi (kalau efek suara juga nyala).
   const toggleAmbient = useCallback((value: boolean) => {
     setAmbientEnabledState(value);
     void setAmbientEnabled(value);
-  }, []);
+    if (user?.id) {
+      void userRepository.saveAmbientEnabled(user.id, value).catch(() => {});
+    }
+  }, [user?.id]);
 
   return (
     <ScreenFade style={[styles.container, { backgroundColor: theme.colors.background }]}>

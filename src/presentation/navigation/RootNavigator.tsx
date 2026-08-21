@@ -11,6 +11,8 @@ import { supabase } from "../../data/sources/supabase";
 import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { userRepository } from "../../data/repositories/userRepository";
 import { syncAiProviderConfigWithCloud } from "../../utils/aiProvider";
+import { setSoundEnabled, setAmbientEnabled } from "../../utils/sound";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loggerWarn } from "../../utils/logger";
 import { useGameStore } from "../stores/gameStore";
 import AuthScreen from "../../features/auth/AuthScreen";
@@ -174,6 +176,25 @@ export default function RootNavigator() {
             await syncAiProviderConfigWithCloud(uid);
           } catch (err) {
             loggerWarn("Gagal sinkron config provider AI", err);
+          }
+          // Sinkronkan preferensi user dari cloud ke lokal (theme_mode, sound, ambient).
+          // Harus terjadi SEBELUM UI render supaya tidak ada flash nilai default.
+          try {
+            const prefs = await userRepository.getUserPreferences(uid);
+            // Theme mode: tulis ke AsyncStorage hanya jika berbeda dari lokal
+            const currentMode = await AsyncStorage.getItem("kotakata_theme_mode");
+            if (prefs.theme_mode && prefs.theme_mode !== currentMode) {
+              await AsyncStorage.setItem("kotakata_theme_mode", prefs.theme_mode);
+              // Force reload theme mode di ThemeProvider via window event
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("kotakata:themeModeChanged", { detail: prefs.theme_mode }));
+              }
+            }
+            // Sound & ambient: apply dari cloud (overwrites local)
+            await setSoundEnabled(prefs.sound_enabled);
+            await setAmbientEnabled(prefs.ambient_enabled);
+          } catch (err) {
+            loggerWarn("Gagal sinkron preferensi user dari cloud", err);
           }
           // Profil sudah siap — notifikasi tier (main menu & in-game) baru boleh
           // membandingkan tier sekarang (seed tanpa toast saat pertama kali).
