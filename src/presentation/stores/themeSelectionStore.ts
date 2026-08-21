@@ -35,3 +35,11 @@ export const useThemeSelectionStore = create<ThemeSelectionState>((set, get) => 
 export function markThemeHydrated(): void {
   useThemeSelectionStore.setState({ hydrated: true });
 }
+
+/**
+ * @deprecated Tidak dipakai lagi — cloud-only. Export ini hanya untuk backward
+ * compat dengan Metro cache lama yang masih import fungsi ini.
+ */
+export async function hydrateThemeSelection(): Promise<void> {
+  // No-op: hydrated sudah default true, cloud sync dilakukan oleh RootNavigator.
+}
