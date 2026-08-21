@@ -105,19 +105,24 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
 - Verifikasi DB setelah push: `node scripts/db/check-vulgar-db.mjs` harus
   melaporkan **0 kata vulgar** di Supabase.
 
-### 6. Setiap revisi selesai → LANGSUNG deploy web ke expo.dev (aturan dari pemilik repo)
-- Setiap kali satu batch revisi/pekerjaan SELESAI dan verifikasinya lolos
-  (tsc / test / lint), **wajib langsung build & deploy versi WEB ke expo.dev**
-  (`node scripts/expo-deploy-web.mjs --prod` atau npm `deploy:web`) — bagian
-  dari alur standar, TIDAK perlu menunggu izin lagi.
-- Ini adalah PENGECUALIAN khusus untuk **deploy web** (EAS Hosting) dari
-  aturan #1. Aturan #1 tetap berlaku untuk build NATIVE (APK/AAB via
-  `eas build` / `scripts/expo-build.mjs`): build native tetap butuh perintah
-  eksplisit pemilik tiap sesi.
+### 6. Strategi Deploy (aturan dari pemilik repo)
+- **Freebuff Hosting: TIDAK DIGUNAKAN.** Jangan pernah jalankan
+  `freebuff-deploy start/check/status/logs/env` atau deploy ke Freebuff
+  hosting. Deploy hanya dilakukan ke Expo (expo.dev).
+- **Web DEV (otomatis):** Setiap kali satu batch revisi/pekerjaan SELESAI
+  dan verifikasinya lolos (tsc / test / lint), **wajib langsung build &
+  deploy versi WEB ke expo.dev environment DEV** (`node scripts/expo-deploy-web.mjs --dev`
+  atau npm `deploy:web:dev`). Bagian dari alur standar, TIDAK perlu menunggu
+  izin lagi.
+- **Web PROD & Android (manual):** Deploy ke environment PROD (web atau
+  Android/APK/AAB) **HANYA jika diminta eksplisit** oleh pemilik repo.
+  Contoh perintah: "deploy prod", "build APK", "release android".
+  - Web PROD: `node scripts/expo-deploy-web.mjs --prod`
+  - Android: `node scripts/expo-build.mjs` atau `eas build`
 - Urutan standar satu batch: kerjakan → verifikasi (tsc/test/lint) →
-  `git commit` + `git push origin main` → **deploy web ke expo.dev** → laporkan
-  hasil (URL produksi + status deploy) ke pemilik.
-- Kalau deploy web gagal, perbaiki penyebabnya (jangan biarkan gagal
+  `git commit` + `git push origin main` → **deploy web DEV ke expo.dev** →
+  laporkan hasil (URL dev + status deploy) ke pemilik.
+- Kalau deploy gagal, perbaiki penyebabnya (jangan biarkan gagal
   menggantung), lalu coba lagi sampai berhasil atau laporkan kendalanya.
 
 ### 7. Wajib Try-Catch + Logging di Setiap Operasi Asinkron (aturan permanen)
