@@ -18,7 +18,7 @@ interface ThemeSelectionState {
 
 export const useThemeSelectionStore = create<ThemeSelectionState>((set, get) => ({
   appThemeId: DEFAULT_APP_THEME_ID,
-  hydrated: false,
+  hydrated: true,
 
   setAppThemeId: async (id: string, userId?: string) => {
     set({ appThemeId: id });
