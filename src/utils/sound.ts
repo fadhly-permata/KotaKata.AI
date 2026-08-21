@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { Asset } from "expo-asset";
 import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
@@ -46,8 +45,6 @@ const SOUND_SOURCES: Record<SoundName, unknown> = {
   hint: require("../../assets/sfx/hint.wav"),
 };
 
-const SOUND_KEY = "kotakata.soundEnabled";
-const AMBIENT_KEY = "kotakata.ambientEnabled";
 
 const IS_WEB = Platform.OS === "web";
 
@@ -572,17 +569,10 @@ export function setAmbientSound(spec?: AmbientSoundSpec | null): void {
   else stopAmbient();
 }
 
-/** Baca preferensi suara tersimpan (default: nyala). Panggil sekali di App. */
+/** Tandai preferensi suara siap (default: nyala). Cloud sync dilakukan oleh RootNavigator. */
 export async function loadSoundPrefs(): Promise<void> {
-  try {
-    const stored = await AsyncStorage.getItem(SOUND_KEY);
-    if (stored !== null) enabled = stored === "true";
-  } catch (err) {
-    loggerWarn("Gagal membaca preferensi suara dari storage", err);
-  } finally {
-    soundPrefsReady = true;
-    maybeResolvePrefs();
-  }
+  soundPrefsReady = true;
+  maybeResolvePrefs();
 }
 
 export async function setSoundEnabled(value: boolean): Promise<void> {
@@ -590,11 +580,6 @@ export async function setSoundEnabled(value: boolean): Promise<void> {
   // Backsound ikut mati/nyala mengikuti toggle suara (dan toggle backsound).
   if (value && ambientEnabled) applyAmbient();
   else stopAmbient();
-  try {
-    await AsyncStorage.setItem(SOUND_KEY, String(value));
-  } catch (err) {
-    loggerWarn("Gagal menyimpan preferensi suara", err);
-  }
 }
 
 /** Apakah toggle backsound tema sedang nyala (default: true). */
@@ -602,17 +587,10 @@ export function isAmbientEnabled(): boolean {
   return ambientEnabled;
 }
 
-/** Baca preferensi backsound tersimpan (default: nyala). */
+/** Tandai preferensi backsound siap (default: nyala). Cloud sync dilakukan oleh RootNavigator. */
 export async function loadAmbientPrefs(): Promise<void> {
-  try {
-    const stored = await AsyncStorage.getItem(AMBIENT_KEY);
-    if (stored !== null) ambientEnabled = stored === "true";
-  } catch (err) {
-    loggerWarn("Gagal membaca preferensi backsound dari storage", err);
-  } finally {
-    ambientPrefsReady = true;
-    maybeResolvePrefs();
-  }
+  ambientPrefsReady = true;
+  maybeResolvePrefs();
 }
 
 /**
@@ -624,11 +602,6 @@ export async function setAmbientEnabled(value: boolean): Promise<void> {
   ambientEnabled = value;
   if (value && enabled) applyAmbient();
   else stopAmbient();
-  try {
-    await AsyncStorage.setItem(AMBIENT_KEY, String(value));
-  } catch (err) {
-    loggerWarn("Gagal menyimpan preferensi backsound", err);
-  }
 }
 
 /**
@@ -636,6 +609,15 @@ export async function setAmbientEnabled(value: boolean): Promise<void> {
  * dalam mode silent, muat preferensi, dan di web siapkan semua efek suara.
  * Aman dipanggil berkali-kali.
  */
+
+/** Set preferensi suara dari cloud (dipanggil RootNavigator saat login). */
+export function applySoundPrefsFromCloud(soundOn: boolean, ambientOn: boolean): void {
+  enabled = soundOn;
+  ambientEnabled = ambientOn;
+  soundPrefsReady = true;
+  ambientPrefsReady = true;
+  maybeResolvePrefs();
+}
 export function initSound(): void {
   if (initStarted) return;
   initStarted = true;

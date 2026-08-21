@@ -162,6 +162,88 @@ export const userRepository = {
     }
   },
 
+  /** Baca tema aktif (app_theme_id) dari cloud. */
+  async getAppThemeId(userId: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("app_theme_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Gagal ambil tema dari Supabase: ${error.message}`);
+    }
+    return (data as any)?.app_theme_id as string | null;
+  },
+
+  /** Simpan tema aktif (app_theme_id) ke cloud. */
+  async saveAppThemeId(userId: string, themeId: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ app_theme_id: themeId })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan tema ke Supabase: ${error.message}`);
+    }
+  },
+
+  /** Baca SEMUA config provider AI yang tersimpan di cloud. */
+  async getAllAiProviderConfigs(userId: string): Promise<{ providers: Record<string, AiProviderConfig>; activeProvider: string }> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("ai_provider_config")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Gagal ambil config AI dari Supabase: ${error.message}`);
+    }
+    const raw = (data as any)?.ai_provider_config;
+    if (!raw) return { providers: {}, activeProvider: "openrouter" };
+
+    // Format baru: { providers: {...}, activeProvider: "..." }
+    if (raw.providers && typeof raw.providers === "object") {
+      return {
+        providers: raw.providers as Record<string, AiProviderConfig>,
+        activeProvider: (raw.activeProvider as string) || "openrouter",
+      };
+    }
+
+    // Migrasi dari format lama: single AiProviderConfig object
+    if (raw.apiKey && raw.model && raw.baseUrl && raw.provider) {
+      return {
+        providers: { [raw.provider]: raw as AiProviderConfig },
+        activeProvider: (raw.provider as string) || "openrouter",
+      };
+    }
+
+    return { providers: {}, activeProvider: "openrouter" };
+  },
+
+  /** Simpan SEMUA provider AI ke cloud. */
+  async saveAllAiProviderConfigs(
+    userId: string,
+    providers: Record<string, AiProviderConfig>,
+    activeProvider: string,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ ai_provider_config: { providers, activeProvider } })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan config AI ke Supabase: ${error.message}`);
+    }
+  },
+
+  /** Hapus semua provider AI dari cloud. */
+  async clearAllAiProviderConfigs(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ ai_provider_config: null })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal hapus config AI dari Supabase: ${error.message}`);
+    }
+  },
+
   /**
    * Leaderboard satu halaman, urut total_xp DESC lalu updated_at ASC (pemain
    * yang MENCAPAI XP yang sama lebih dulu menang). RLS users hanya membolehkan

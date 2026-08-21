@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import { useColorScheme } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getAppThemeById,
   getBoardThemeById,
@@ -18,10 +17,7 @@ import {
   type KeyboardColors,
   type NeumorphicShadowSpec,
 } from "../../themes/themeData";
-import {
-  hydrateThemeSelection,
-  useThemeSelectionStore,
-} from "../../stores/themeSelectionStore";
+import { useThemeSelectionStore } from "../../stores/themeSelectionStore";
 import { setAmbientSound, setSoundTheme, whenSoundPrefsReady } from "../../../utils/sound";
 
 export type ThemeMode = "light" | "dark" | "system";
@@ -90,15 +86,11 @@ interface ThemeContextValue {
   appThemeId: string;
   setAppThemeId: (id: string) => Promise<void>;
   /** Tema PAPAN aktif (desain halaman game: papan, clue pill, panel hint). */
-  boardThemeId: string;
-  setBoardThemeId: (id: string) => Promise<void>;
   /** Palet papan untuk mode terang/gelap yang sedang berjalan. */
   boardColors: BoardColors;
   /** Spec latar HALAMAN GAME (dari tema papan aktif). */
   boardBackground: BackgroundSpec;
   /** Tema KEYBOARD aktif (InGameKeyboard). */
-  keyboardThemeId: string;
-  setKeyboardThemeId: (id: string) => Promise<void>;
   /** Palet keyboard untuk mode terang/gelap yang sedang berjalan. */
   keyboardColors: KeyboardColors;
   /** Spec latar panel KEYBOARD (dari tema keyboard aktif). */
@@ -107,51 +99,42 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "kotakata_theme_mode";
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
   const [loaded, setLoaded] = useState(false);
 
-  // Pilihan tema (app/board/keyboard) dari AsyncStorage — di-hydrate sekali.
+  // Pilihan tema dari cloud (di-sync oleh RootNavigator saat login).
   const themeSelectionHydrated = useThemeSelectionStore((s) => s.hydrated);
   const appThemeId = useThemeSelectionStore((s) => s.appThemeId);
-  const boardThemeId = useThemeSelectionStore((s) => s.boardThemeId);
-  const keyboardThemeId = useThemeSelectionStore((s) => s.keyboardThemeId);
   const setAppThemeId = useThemeSelectionStore((s) => s.setAppThemeId);
-  const setBoardThemeId = useThemeSelectionStore((s) => s.setBoardThemeId);
-  const setKeyboardThemeId = useThemeSelectionStore((s) => s.setKeyboardThemeId);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        setThemeModeState(stored);
+    // Default: "system". Cloud sync dijalankan oleh RootNavigator saat login.
+    setLoaded(true);
+  }, []);
+
+  // Dengarkan event dari RootNavigator saat cloud sync selesai.
+  // Update theme mode dari cloud.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.theme_mode === "light" || detail?.theme_mode === "dark" || detail?.theme_mode === "system") {
+        setThemeModeState(detail.theme_mode);
       }
-      setLoaded(true);
-    });
-    void hydrateThemeSelection();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("kotakata:cloudPrefsLoaded", handler);
+      return () => window.removeEventListener("kotakata:cloudPrefsLoaded", handler);
+    }
   }, []);
 
   const setThemeMode = useCallback(async (mode: ThemeMode) => {
     setThemeModeState(mode);
-    await AsyncStorage.setItem(STORAGE_KEY, mode);
+    // Cloud sync dilakukan oleh SettingsScreen (fire-and-forget)
   }, []);
 
-  // Dengarkan event dari RootNavigator saat cloud sync mengubah theme mode.
-  // Ini memastikan UI update tanpa perlu remount.
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const mode = (e as CustomEvent).detail as string;
-      if (mode === "light" || mode === "dark" || mode === "system") {
-        setThemeModeState(mode);
-      }
-    };
-    if (typeof window !== "undefined") {
-      window.addEventListener("kotakata:themeModeChanged", handler);
-      return () => window.removeEventListener("kotakata:themeModeChanged", handler);
-    }
-  }, []);
+
 
   const resolvedMode =
     themeMode === "system"
@@ -223,12 +206,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         isDark,
         appThemeId,
         setAppThemeId,
-        boardThemeId,
-        setBoardThemeId,
         boardColors,
         boardBackground,
-        keyboardThemeId,
-        setKeyboardThemeId,
         keyboardColors,
         keyboardBackground,
       }}

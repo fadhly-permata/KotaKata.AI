@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { userRepository } from "../data/repositories/userRepository";
 import { loggerWarn } from "./logger";
 
@@ -6,7 +5,6 @@ import { loggerWarn } from "./logger";
  * Main Mode AI (BYOK) — integrasi provider AI untuk membuat soal TTS.
  *
  * - Config provider (API key + model + base URL) disimpan LOKAL di
- *   AsyncStorage ("kotakata.aiProvider") sebagai cache cepat, dan di-sync ke
  *   kolom users.ai_provider_config (Supabase) supaya akun yang sama di device
  *   lain tetap bisa Main Mode AI. Key tetap milik user (Bring Your Own Key);
  *   hanya baris profil user itu sendiri yang bisa membacanya (RLS).
@@ -48,17 +46,8 @@ export interface AiTestResult {
   message: string;
 }
 
-const STORAGE_PREFIX = "kotakata.aiProvider."; // + provider name
-const ACTIVE_KEY = "kotakata.aiProvider.active";
-// Legacy key untuk migrasi dari config global lama
-const LEGACY_KEY = "kotakata.aiProvider";
-// Uid Supabase yang config lokalnya milik. Dipakai supaya config tidak bocor
-// antar akun di device yang sama & untuk backfill config lama ke cloud.
-const OWNER_KEY = "kotakata.aiProviderOwner";
-
-function providerKey(p: AiProviderPreset): string {
-  return STORAGE_PREFIX + p;
-}
+// Tidak ada storage lokal — semua config disimpan di cloud (Supabase).
+// Sync dilakukan oleh RootNavigator saat login & oleh AiProviderScreen saat save.
 
 interface ProviderPreset {
   label: string;
@@ -199,102 +188,81 @@ export function isApiKeyRequired(p: AiProviderPreset): boolean {
   return PROVIDER_PRESETS[p].apiKeyRequired !== false;
 }
 
+// State in-memory untuk provider aktif (di-sync dari cloud oleh RootNavigator)
+let _activeProvider: AiProviderPreset = "openrouter";
+
 /** Ambil nama provider yang sedang aktif. */
-export async function getActiveProvider(): Promise<AiProviderPreset> {
-  try {
-    const raw = await AsyncStorage.getItem(ACTIVE_KEY);
-    if (raw && raw in PROVIDER_PRESETS) return raw as AiProviderPreset;
-  } catch (err) {
-    loggerWarn("Gagal membaca provider aktif dari storage", err);
-  }
-  return "openrouter";
+export function getActiveProviderSync(): AiProviderPreset {
+  return _activeProvider;
 }
 
-/** Set provider aktif. */
+/** Set provider aktif (in-memory). */
+export function setActiveProviderSync(p: AiProviderPreset): void {
+  _activeProvider = p;
+}
+
+/** Set provider aktif (in-memory, cloud sync by caller). */
 export async function setActiveProvider(p: AiProviderPreset): Promise<void> {
-  await AsyncStorage.setItem(ACTIVE_KEY, p);
+  _activeProvider = p;
 }
 
-/** Ambil config untuk provider tertentu. */
+// Cache in-memory untuk semua provider config (di-sync dari cloud oleh RootNavigator)
+const _providerConfigs: Partial<Record<AiProviderPreset, AiProviderConfig>> = {};
+
+/** Set config untuk provider tertentu (in-memory, cloud sync by caller). */
+export function setAiProviderConfigLocal(p: AiProviderPreset, cfg: AiProviderConfig | null): void {
+  if (cfg) _providerConfigs[p] = cfg;
+  else delete _providerConfigs[p];
+}
+
+/** Ambil config untuk provider tertentu (in-memory). */
 export async function getAiProviderConfigFor(p: AiProviderPreset): Promise<AiProviderConfig | null> {
-  try {
-    const raw = await AsyncStorage.getItem(providerKey(p));
-    if (!raw) return null;
-    const cfg = JSON.parse(raw) as AiProviderConfig;
-    if (!cfg?.model || !cfg?.baseUrl) return null;
-    if (isApiKeyRequired(cfg.provider) && !cfg.apiKey) return null;
-    return cfg;
-  } catch (err) {
-    loggerWarn(`Gagal membaca config provider ${p} dari storage`, err);
-    return null;
-  }
+  const cfg = _providerConfigs[p];
+  if (!cfg) return null;
+  if (!cfg?.model || !cfg?.baseUrl) return null;
+  if (isApiKeyRequired(cfg.provider) && !cfg.apiKey) return null;
+  return cfg;
 }
 
-/** Ambil semua provider yang sudah punya config tersimpan. */
+/** Ambil semua provider yang sudah punya config tersimpan (in-memory). */
 export async function getAllSavedProviders(): Promise<AiProviderPreset[]> {
-  const result: AiProviderPreset[] = [];
-  for (const p of Object.keys(PROVIDER_PRESETS) as AiProviderPreset[]) {
-    const cfg = await getAiProviderConfigFor(p);
-    if (cfg) result.push(p);
-  }
-  return result;
+  return Object.keys(_providerConfigs) as AiProviderPreset[];
 }
 
-/** Baca config provider tersimpan; null kalau belum diatur / tidak valid. */
+/** Baca config provider aktif; null kalau belum diatur / tidak valid. */
 export async function getAiProviderConfig(): Promise<AiProviderConfig | null> {
-  // Baca config untuk provider yang sedang aktif
-  const active = await getActiveProvider();
-  const cfg = await getAiProviderConfigFor(active);
-  if (cfg) return cfg;
-  // Fallback: migrasi dari legacy key (config global lama)
-  try {
-    const raw = await AsyncStorage.getItem(LEGACY_KEY);
-    if (!raw) return null;
-    const legacy = JSON.parse(raw) as AiProviderConfig;
-    if (!legacy?.model || !legacy?.baseUrl) return null;
-    if (isApiKeyRequired(legacy.provider) && !legacy.apiKey) return null;
-    // Migrate: simpan ke slot provider yang benar
-    await AsyncStorage.setItem(providerKey(legacy.provider), raw);
-    await setActiveProvider(legacy.provider);
-    await AsyncStorage.removeItem(LEGACY_KEY);
-    return legacy;
-  } catch (err) {
-    loggerWarn("Gagal membaca config AI legacy dari storage", err);
-    return null;
-  }
+  const active = _activeProvider;
+  return getAiProviderConfigFor(active);
 }
 
 export async function saveAiProviderConfig(cfg: AiProviderConfig): Promise<void> {
-  await AsyncStorage.setItem(providerKey(cfg.provider), JSON.stringify(cfg));
-  await setActiveProvider(cfg.provider);
+  _providerConfigs[cfg.provider] = cfg;
+  _activeProvider = cfg.provider;
 }
 
 export async function clearAiProviderConfig(): Promise<void> {
-  const active = await getActiveProvider();
-  await AsyncStorage.removeItem(providerKey(active));
+  delete _providerConfigs[_activeProvider];
 }
 
-/** Hapus config untuk provider tertentu. */
+/** Hapus config untuk provider tertentu (in-memory, cloud sync by caller). */
 export async function clearAiProviderConfigFor(p: AiProviderPreset): Promise<void> {
-  await AsyncStorage.removeItem(providerKey(p));
+  delete _providerConfigs[p];
 }
 
-/** Uid Supabase pemilik config lokal; null kalau belum pernah ditandai. */
+// Owner ID in-memory (di-sync dari cloud oleh RootNavigator)
+let _ownerId: string | null = null;
+
+/** Uid Supabase pemilik config lokal. */
 export async function getAiProviderConfigOwner(): Promise<string | null> {
-  try {
-    return await AsyncStorage.getItem(OWNER_KEY);
-  } catch (err) {
-    loggerWarn("Gagal membaca pemilik config AI dari storage", err);
-    return null;
-  }
+  return _ownerId;
 }
 
 export async function markAiProviderOwner(userId: string): Promise<void> {
-  await AsyncStorage.setItem(OWNER_KEY, userId);
+  _ownerId = userId;
 }
 
 export async function clearAiProviderOwner(): Promise<void> {
-  await AsyncStorage.removeItem(OWNER_KEY);
+  _ownerId = null;
 }
 
 /**
@@ -309,36 +277,59 @@ export async function clearAiProviderOwner(): Promise<void> {
  *  - cloud kosong & lokal milik akun LAIN → bersihkan lokal (anti-bocor antar
  *    akun di device bersama)
  */
+/** Sync SEMUA provider dari cloud ke in-memory (dipanggil RootNavigator saat login). */
 export async function syncAiProviderConfigWithCloud(userId: string): Promise<void> {
   try {
-    const cloudCfg = await userRepository.getAiProviderConfig(userId);
-    const [localCfg, owner] = await Promise.all([
-      getAiProviderConfig(),
-      getAiProviderConfigOwner(),
-    ]);
+    const { providers: cloudProviders, activeProvider: cloudActive } = await userRepository.getAllAiProviderConfigs(userId);
 
-    if (cloudCfg) {
-      await saveAiProviderConfig(cloudCfg);
-      await markAiProviderOwner(userId);
+    const cloudHasData = Object.keys(cloudProviders).length > 0;
+
+    if (cloudHasData) {
+      // Cloud punya config: sync SEMUA ke in-memory
+      for (const [p, cfg] of Object.entries(cloudProviders) as [string, AiProviderConfig][]) {
+        _providerConfigs[p as AiProviderPreset] = cfg;
+      }
+      _activeProvider = cloudActive as AiProviderPreset;
+      _ownerId = userId;
       return;
     }
 
-    // Tidak ada config di cloud: backfill kalau config lokal milik akun ini
-    // (owner null = config lama yang belum pernah ditandai — anggap milik user
-    // pertama yang login, lalu tandai).
-    if (localCfg && (owner === null || owner === userId)) {
-      await userRepository.saveAiProviderConfig(userId, localCfg);
-      await markAiProviderOwner(userId);
+    // Cloud kosong: backfill dari in-memory jika ada
+    const localKeys = Object.keys(_providerConfigs);
+    const localHasData = localKeys.length > 0;
+
+    if (localHasData && (_ownerId === null || _ownerId === userId)) {
+      await userRepository.saveAllAiProviderConfigs(userId, _providerConfigs as Record<string, AiProviderConfig>, _activeProvider);
+      _ownerId = userId;
       return;
     }
 
-    // Config lokal milik akun lain di device yang sama → jangan bocor.
-    if (localCfg && owner && owner !== userId) {
-      await clearAiProviderConfig();
-      await clearAiProviderOwner();
+    // Config milik akun lain → bersihkan
+    if (localHasData && _ownerId && _ownerId !== userId) {
+      for (const key of localKeys) {
+        delete _providerConfigs[key as AiProviderPreset];
+      }
+      _ownerId = null;
     }
   } catch (err) {
     loggerWarn("Gagal sinkron config provider AI dengan cloud", err);
+  }
+}
+
+/** Sync SEMUA provider dari in-memory ke cloud (fire-and-forget). */
+export async function syncAllProvidersToCloud(userId: string): Promise<void> {
+  try {
+    const providers: Record<string, AiProviderConfig> = {};
+    for (const [p, cfg] of Object.entries(_providerConfigs)) {
+      providers[p] = cfg;
+    }
+    if (Object.keys(providers).length > 0) {
+      await userRepository.saveAllAiProviderConfigs(userId, providers, _activeProvider);
+    } else {
+      await userRepository.clearAllAiProviderConfigs(userId);
+    }
+  } catch (err) {
+    loggerWarn("Gagal sync semua provider ke cloud", err);
   }
 }
 

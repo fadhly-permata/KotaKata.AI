@@ -24,7 +24,7 @@ import {
 import {
   getAiProviderConfig,
   getAllSavedProviders,
-  getActiveProvider,
+  getActiveProviderSync,
   setActiveProvider,
   providerLabel,
   providerPreset,
@@ -55,7 +55,7 @@ export default function SettingsScreen() {
         const [cfg, saved, active] = await Promise.all([
           getAiProviderConfig(),
           getAllSavedProviders(),
-          getActiveProvider(),
+          getActiveProviderSync(),
         ]);
         if (cancelled) return;
         if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });

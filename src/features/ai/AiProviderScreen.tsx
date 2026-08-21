@@ -19,7 +19,7 @@ import type { RootStackParamList } from "../../presentation/navigation/RootNavig
 import {
   getAiProviderConfig,
   getAiProviderConfigFor,
-  getActiveProvider,
+  getActiveProviderSync,
   saveAiProviderConfig,
   clearAiProviderConfigFor,
   markAiProviderOwner,
@@ -97,7 +97,7 @@ export default function AiProviderScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const active = await getActiveProvider();
+      const active = getActiveProviderSync();
       if (cancelled) return;
       setProvider(active);
       const cfg = await getAiProviderConfigFor(active);
