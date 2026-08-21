@@ -51,7 +51,10 @@
     "deploy:web": "node scripts/expo-deploy-web.mjs",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "logs": "node scripts/db/check-log-reports.mjs",
+    "logs:list": "node scripts/db/check-log-reports.mjs list",
+    "logs:analyze": "node scripts/db/check-log-reports.mjs analyze"
   },
   "private": true
 }

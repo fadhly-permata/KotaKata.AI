@@ -181,4 +181,14 @@ if (error) throw new Error(`Gagal [aksi]: ${error.message}`);
 Panggilan ke repository di screen/hook tetap harus dibungkus try-catch
 + logging di LEVEL PEMANGGIL (screen/component), bukan di repository.
 Repository melempar error → pemanggil menangkap + logging.
+
+### 9. WAJIB Backup .env* Sebelum Edit (aturan permanen dari pemilik repo)
+- SEBELUM mengedit `.env`, `.env.local`, atau file env lainnya: **backup dulu**
+  dengan `node scripts/backup-env.mjs` (akan membuat `.env.local.bak`).
+- Untuk backup semua env: `node scripts/backup-env.mjs --all` (backup
+  `.env` + `.env.local`).
+- Untuk restore dari backup: `node scripts/backup-env.mjs --restore`.
+- File `.bak` ada di `.gitignore` — tidak ter-commit ke repo.
+- Alasan: `.env*` tidak di-version-control (ada di `.gitignore`); kalau
+  key hilang tanpa backup, TIDAK ADA cara memulihkannya.
 <!-- ATURAN_PROYEK_END -->

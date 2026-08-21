@@ -366,7 +366,7 @@ function startAmbient(): void {
     active.setVolume(ambientVolume());
     active.play();
     startAmbientTick();
-    bindWebAmbientGesture();
+    if (IS_WEB) bindWebAmbientGesture();
   } catch (err) {
     loggerWarn("Backsound tema gagal diputar", err);
   }
@@ -662,7 +662,11 @@ function getNativePlayer(name: SoundName): AudioPlayer | null {
   try {
     const player = createAudioPlayer(SOUND_SOURCES[name] as any);
     player.volume = currentVolume;
-    player.playbackRate = currentRate;
+    try {
+      player.playbackRate = currentRate;
+    } catch {
+      // playbackRate readonly di beberapa device (getter-only)
+    }
     nativePlayers[name] = player;
     return player;
   } catch (err) {
@@ -684,7 +688,11 @@ export function play(name: SoundName): void {
     // seekTo(0) + play = replay dari awal untuk bunyi beruntun cepat.
     player.seekTo(0);
     // Terapkan kepribadian suara tema aktif setiap play (murah & aman).
-    if (player.playbackRate !== currentRate) player.playbackRate = currentRate;
+    try {
+      if (player.playbackRate !== currentRate) player.playbackRate = currentRate;
+    } catch {
+      // playbackRate readonly di beberapa device
+    }
     if (player.volume !== currentVolume) player.volume = currentVolume;
     player.play();
   } catch {
