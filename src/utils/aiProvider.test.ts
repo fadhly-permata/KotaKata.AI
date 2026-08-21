@@ -58,7 +58,12 @@ afterEach(() => {
 });
 
 describe("provider presets — cloud providers", () => {
-  const cloudPresets: AiProviderPreset[] = ["gemini", "mistral", "openai", "openrouter", "huggingface"];
+  const cloudPresets: AiProviderPreset[] = [
+    "gemini", "mistral", "openai", "openrouter", "huggingface",
+    "groq", "cerebras", "deepseek", "cohere", "together",
+    "fireworks", "deepinfra", "puter", "sambanova", "novita",
+    "hyperbolic", "xai",
+  ];
 
   for (const p of cloudPresets) {
     test(`${p}: punya preset lengkap + butuh API key`, () => {

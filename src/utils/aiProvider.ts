@@ -21,7 +21,13 @@ import { loggerWarn } from "./logger";
  *   ke user (mis. di dialog "Soal AI Gagal Dimuat").
  */
 
-export type AiProviderPreset = "gemini" | "mistral" | "openai" | "openrouter" | "huggingface" | "lmstudio" | "custom";
+export type AiProviderPreset =
+  | "gemini" | "mistral" | "openai" | "openrouter" | "huggingface"
+  | "groq" | "cerebras" | "deepseek"
+  | "cohere" | "together" | "fireworks" | "deepinfra"
+  | "puter" | "sambanova" | "novita" | "hyperbolic"
+  | "xai"
+  | "lmstudio" | "custom";
 
 export interface AiProviderConfig {
   provider: AiProviderPreset;
@@ -96,6 +102,78 @@ const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset & { apiKeyRequir
     baseUrl: "http://localhost:1234/v1",
     defaultModel: "",
     apiKeyRequired: false,
+  },
+  groq: {
+    label: "Groq",
+    baseUrl: "https://api.groq.com/openai/v1",
+    defaultModel: "llama-3.3-70b-versatile",
+    apiKeyRequired: true,
+  },
+  cerebras: {
+    label: "Cerebras",
+    baseUrl: "https://api.cerebras.ai/v1",
+    defaultModel: "llama-3.3-70b",
+    apiKeyRequired: true,
+  },
+  deepseek: {
+    label: "DeepSeek",
+    baseUrl: "https://api.deepseek.com/v1",
+    defaultModel: "deepseek-chat",
+    apiKeyRequired: true,
+  },
+  cohere: {
+    label: "Cohere",
+    baseUrl: "https://api.cohere.com/compatibility/v1",
+    defaultModel: "command-r-plus-08-2024",
+    apiKeyRequired: true,
+  },
+  together: {
+    label: "Together AI",
+    baseUrl: "https://api.together.xyz/v1",
+    defaultModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    apiKeyRequired: true,
+  },
+  fireworks: {
+    label: "Fireworks AI",
+    baseUrl: "https://api.fireworks.ai/inference/v1",
+    defaultModel: "accounts/fireworks/models/llama-v3p3-70b-instruct",
+    apiKeyRequired: true,
+  },
+  deepinfra: {
+    label: "DeepInfra",
+    baseUrl: "https://api.deepinfra.com/v1/openai",
+    defaultModel: "meta-llama/Llama-3.3-70B-Instruct",
+    apiKeyRequired: true,
+  },
+  puter: {
+    label: "Puter",
+    baseUrl: "https://api.puter.com/v1",
+    defaultModel: "gpt-4o-mini",
+    apiKeyRequired: true,
+  },
+  sambanova: {
+    label: "SambaNova",
+    baseUrl: "https://api.sambanova.ai/v1",
+    defaultModel: "Meta-Llama-3.3-70B-Instruct",
+    apiKeyRequired: true,
+  },
+  novita: {
+    label: "Novita AI",
+    baseUrl: "https://api.novita.ai/v3/openai",
+    defaultModel: "meta-llama/llama-3.3-70b-instruct",
+    apiKeyRequired: true,
+  },
+  hyperbolic: {
+    label: "Hyperbolic",
+    baseUrl: "https://api.hyperbolic.xyz/v1",
+    defaultModel: "meta-llama/Meta-Llama-3.3-70B-Instruct",
+    apiKeyRequired: true,
+  },
+  xai: {
+    label: "xAI (Grok)",
+    baseUrl: "https://api.x.ai/v1",
+    defaultModel: "grok-3-mini",
+    apiKeyRequired: true,
   },
   custom: {
     label: "URL Kustom",

@@ -41,8 +41,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "AiProvider">;
 
 /** Kategori provider untuk grouping di dropdown. */
 const PROVIDER_GROUPS: { label: string; items: AiProviderPreset[] }[] = [
-  { label: "\u2601\ufe0f Cloud (GRATIS)", items: ["gemini", "mistral", "openrouter", "huggingface"] },
-  { label: "\u2601\ufe0f Cloud (API Key)", items: ["openai"] },
+  { label: "\u2601\ufe0f Cloud (GRATIS)", items: ["gemini", "groq", "cerebras", "sambanova", "deepseek", "mistral", "openrouter", "huggingface", "deepinfra", "puter"] },
+  { label: "\u2601\ufe0f Cloud (API Key)", items: ["openai", "xai", "cohere", "together", "fireworks", "novita", "hyperbolic"] },
   { label: "\ud83d\udda5\ufe0f Lokal (Offline)", items: ["lmstudio"] },
   { label: "\ud83d\udd27 URL Kustom", items: ["custom"] },
 ];
@@ -52,9 +52,15 @@ const PRESETS: AiProviderPreset[] = PROVIDER_GROUPS.flatMap((g) => g.items);
 /** Badge gratis per provider (hanya untuk yang punya free tier). */
 const FREE_BADGES: Partial<Record<AiProviderPreset, string>> = {
   gemini: "\u2728 15 RPM",
+  groq: "\u2728 Ultra-fast",
+  cerebras: "\u2728 Wafer-speed",
+  sambanova: "\u2728 Free tier",
+  deepseek: "\u2728 Murah meriah",
   mistral: "\u2728 Free tier",
   openrouter: "\u2728 Bebas model",
   huggingface: "\u2728 Inference",
+  deepinfra: "\u2728 Free tier",
+  puter: "\u2728 Gratis",
 };
 
 export default function AiProviderScreen() {
