@@ -201,6 +201,29 @@ export async function clearAiProviderConfigFor(p: AiProviderPreset): Promise<voi
   await AsyncStorage.removeItem(providerKey(p));
 }
 
+/**
+ * Sinkronkan SEMUA provider lokal ke cloud (fire-and-forget).
+ * Dipanggil setelah save/remove provider di AiProviderScreen.
+ */
+export async function syncAllProvidersToCloud(userId: string): Promise<void> {
+  try {
+    const allSaved = await getAllSavedProviders();
+    const providers: Record<string, AiProviderConfig> = {};
+    for (const p of allSaved) {
+      const cfg = await getAiProviderConfigFor(p);
+      if (cfg) providers[p] = cfg;
+    }
+    const active = await getActiveProvider();
+    if (Object.keys(providers).length > 0) {
+      await userRepository.saveAllAiProviderConfigs(userId, providers, active);
+    } else {
+      await userRepository.clearAllAiProviderConfigs(userId);
+    }
+  } catch (err) {
+    loggerWarn("Gagal sync semua provider ke cloud", err);
+  }
+}
+
 /** Uid Supabase pemilik config lokal; null kalau belum pernah ditandai. */
 export async function getAiProviderConfigOwner(): Promise<string | null> {
   try {
@@ -220,43 +243,55 @@ export async function clearAiProviderOwner(): Promise<void> {
 }
 
 /**
- * Sinkronkan config provider AI dari cloud (Supabase) ke perangkat. Dipanggil
- * setiap session dimuat (login / restore) — user yang memakai akun sama di
- * device lain tetap bisa Main Mode AI.
+ * Sinkronkan SEMUA config provider AI dari cloud (Supabase) ke perangkat.
+ * Dipanggil setiap session dimuat (login / restore).
+ *
+ * Format cloud: { providers: Record<string, AiProviderConfig>, activeProvider: string }
  *
  * Aturan:
- *  - cloud punya config → tulis ke lokal, tandai pemilik = uid
- *  - cloud kosong tapi lokal milik uid ini (atau belum ditandai = data lama)
- *    → backfill config lokal ke cloud supaya user lama tidak kehilangan apa pun
- *  - cloud kosong & lokal milik akun LAIN → bersihkan lokal (anti-bocor antar
- *    akun di device bersama)
+ *  - cloud punya providers → sync SEMUA ke lokal
+ *  - cloud kosong tapi lokal milik uid ini (atau belum ditandai) → backfill
+ *  - cloud kosong & lokal milik akun LAIN → bersihkan lokal (anti-bocor)
  */
 export async function syncAiProviderConfigWithCloud(userId: string): Promise<void> {
   try {
-    const cloudCfg = await userRepository.getAiProviderConfig(userId);
-    const [localCfg, owner] = await Promise.all([
-      getAiProviderConfig(),
-      getAiProviderConfigOwner(),
-    ]);
+    const { providers: cloudProviders, activeProvider: cloudActive } = await userRepository.getAllAiProviderConfigs(userId);
+    const owner = await getAiProviderConfigOwner();
 
-    if (cloudCfg) {
-      await saveAiProviderConfig(cloudCfg);
+    const cloudHasData = Object.keys(cloudProviders).length > 0;
+
+    if (cloudHasData) {
+      // Cloud punya config: sync SEMUA provider ke lokal
+      for (const [p, cfg] of Object.entries(cloudProviders)) {
+        await AsyncStorage.setItem(providerKey(p as AiProviderPreset), JSON.stringify(cfg));
+      }
+      await setActiveProvider(cloudActive);
       await markAiProviderOwner(userId);
       return;
     }
 
-    // Tidak ada config di cloud: backfill kalau config lokal milik akun ini
-    // (owner null = config lama yang belum pernah ditandai — anggap milik user
-    // pertama yang login, lalu tandai).
-    if (localCfg && (owner === null || owner === userId)) {
-      await userRepository.saveAiProviderConfig(userId, localCfg);
+    // Cloud kosong: coba backfill dari lokal
+    const allLocal = await getAllSavedProviders();
+    const localHasData = allLocal.length > 0;
+
+    if (localHasData && (owner === null || owner === userId)) {
+      // Backfill semua provider lokal ke cloud
+      const providers: Record<string, AiProviderConfig> = {};
+      for (const p of allLocal) {
+        const cfg = await getAiProviderConfigFor(p);
+        if (cfg) providers[p] = cfg;
+      }
+      const active = await getActiveProvider();
+      await userRepository.saveAllAiProviderConfigs(userId, providers, active);
       await markAiProviderOwner(userId);
       return;
     }
 
     // Config lokal milik akun lain di device yang sama → jangan bocor.
-    if (localCfg && owner && owner !== userId) {
-      await clearAiProviderConfig();
+    if (localHasData && owner && owner !== userId) {
+      for (const p of allLocal) {
+        await AsyncStorage.removeItem(providerKey(p));
+      }
       await clearAiProviderOwner();
     }
   } catch (err) {

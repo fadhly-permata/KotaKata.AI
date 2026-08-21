@@ -1,6 +1,6 @@
 import { supabase } from "../sources/supabase";
 import type { UserDoc } from "../models/schemas";
-import type { AiProviderConfig } from "../../utils/aiProvider";
+import type { AiProviderConfig, AiProviderPreset } from "../../utils/aiProvider";
 
 const USER_COLUMNS = "user_id, display_name, email, device_id, total_xp, current_tier, coins, updated_at";
 
@@ -74,12 +74,36 @@ export const userRepository = {
     await this.upsert({ ...user, total_xp: newXp, current_tier: newTier });
   },
 
+  /** Baca tema aktif (app_theme_id) dari cloud. */
+  async getAppThemeId(userId: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("app_theme_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Gagal ambil tema dari Supabase: ${error.message}`);
+    }
+    return (data as any)?.app_theme_id as string | null;
+  },
+
+  /** Simpan tema aktif (app_theme_id) ke cloud. */
+  async saveAppThemeId(userId: string, themeId: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ app_theme_id: themeId })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal simpan tema ke Supabase: ${error.message}`);
+    }
+  },
+
   /**
-   * Baca config provider AI yang tersimpan di cloud (kolom users.ai_provider_config).
-   * Dipakai sinkronisasi lintas device: login akun sama di device lain tetap bisa
-   * Main Mode AI. RLS users membatasi akses ke baris pemiliknya sendiri.
+   * Baca SEMUA config provider AI yang tersimpan di cloud.
+   * Format cloud: { providers: { openrouter: {...}, gemini: {...} }, activeProvider: "openrouter" }
+   * Migrasi otomatis dari format lama (single config object).
    */
-  async getAiProviderConfig(userId: string): Promise<AiProviderConfig | null> {
+  async getAllAiProviderConfigs(userId: string): Promise<{ providers: Record<string, AiProviderConfig>; activeProvider: AiProviderPreset }> {
     const { data, error } = await supabase
       .from("users")
       .select("ai_provider_config")
@@ -88,21 +112,73 @@ export const userRepository = {
     if (error) {
       throw new Error(`Gagal ambil config AI dari Supabase: ${error.message}`);
     }
-    const raw = (data as any)?.ai_provider_config as AiProviderConfig | null;
-    // Bentuk tidak valid (kolom kosong / korup) dianggap belum diatur.
-    if (!raw?.apiKey || !raw?.model || !raw?.baseUrl) return null;
-    return raw;
+    const raw = (data as any)?.ai_provider_config;
+    if (!raw) return { providers: {}, activeProvider: "openrouter" };
+
+    // Format baru: { providers: {...}, activeProvider: "..." }
+    if (raw.providers && typeof raw.providers === "object") {
+      return {
+        providers: raw.providers as Record<string, AiProviderConfig>,
+        activeProvider: (raw.activeProvider as AiProviderPreset) || "openrouter",
+      };
+    }
+
+    // Migrasi dari format lama: single AiProviderConfig object
+    if (raw.apiKey && raw.model && raw.baseUrl && raw.provider) {
+      return {
+        providers: { [raw.provider]: raw as AiProviderConfig },
+        activeProvider: (raw.provider as AiProviderPreset) || "openrouter",
+      };
+    }
+
+    return { providers: {}, activeProvider: "openrouter" };
   },
 
-  /** Simpan config provider AI ke cloud; kirim null untuk menghapusnya. */
-  async saveAiProviderConfig(userId: string, cfg: AiProviderConfig | null): Promise<void> {
+  /** Baca config provider aktif saja (backward compat). */
+  async getAiProviderConfig(userId: string): Promise<AiProviderConfig | null> {
+    const result = await this.getAllAiProviderConfigs(userId);
+    const activeCfg = result.providers[result.activeProvider];
+    if (!activeCfg) return null;
+    if (!activeCfg.apiKey || !activeCfg.model || !activeCfg.baseUrl) return null;
+    return activeCfg;
+  },
+
+  /** Simpan SEMUA provider AI ke cloud (bukan hanya yang aktif). */
+  async saveAllAiProviderConfigs(
+    userId: string,
+    providers: Record<string, AiProviderConfig>,
+    activeProvider: AiProviderPreset,
+  ): Promise<void> {
     const { error } = await supabase
       .from("users")
-      .update({ ai_provider_config: cfg })
+      .update({ ai_provider_config: { providers, activeProvider } })
       .eq("user_id", userId);
     if (error) {
       throw new Error(`Gagal simpan config AI ke Supabase: ${error.message}`);
     }
+  },
+
+  /** Hapus semua provider AI dari cloud. */
+  async clearAllAiProviderConfigs(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ ai_provider_config: null })
+      .eq("user_id", userId);
+    if (error) {
+      throw new Error(`Gagal hapus config AI dari Supabase: ${error.message}`);
+    }
+  },
+
+  // Legacy: save single provider (backward compat for callers that haven't migrated)
+  async saveAiProviderConfig(userId: string, cfg: AiProviderConfig | null): Promise<void> {
+    if (!cfg) {
+      await this.clearAllAiProviderConfigs(userId);
+      return;
+    }
+    // Read existing, merge this provider
+    const existing = await this.getAllAiProviderConfigs(userId);
+    const providers = { ...existing.providers, [cfg.provider]: cfg };
+    await this.saveAllAiProviderConfigs(userId, providers, cfg.provider);
   },
 
   /**

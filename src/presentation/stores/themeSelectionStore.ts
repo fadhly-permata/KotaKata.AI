@@ -1,10 +1,6 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  DEFAULT_APP_THEME_ID,
-  DEFAULT_BOARD_THEME_ID,
-  DEFAULT_KEYBOARD_THEME_ID,
-} from "../themes/themeData";
+import { DEFAULT_APP_THEME_ID } from "../themes/themeData";
 
 /**
  * Pilihan tema user (yang mana yang aktif) — dipisah dari ThemeProvider supaya
@@ -15,53 +11,39 @@ import {
  * Pilihan di-persist ke AsyncStorage manual (bukan middleware persist zustand)
  * supaya pola hydrasinya seragam dengan ThemeProvider (themeMode) dan tidak
  * membutuhkan `createJSONStorage` lintas platform.
+ *
+ * Sejak PLAN-033, board/keyboard themes MENGIKUTI tema aplikasi — tidak ada
+ * pemilihan terpisah. Kolom board_theme_id/keyboard_theme_id dihapus dari
+ * store dan tabel users Supabase.
  */
 
 interface ThemeSelectionState {
   appThemeId: string;
-  boardThemeId: string;
-  keyboardThemeId: string;
   /** True setelah pilihan dari AsyncStorage selesai dimuat (ThemeProvider
    *  menunggu flag ini sebelum me-render konten, menghindari kedipan tema). */
   hydrated: boolean;
   setAppThemeId: (id: string) => Promise<void>;
-  setBoardThemeId: (id: string) => Promise<void>;
-  setKeyboardThemeId: (id: string) => Promise<void>;
 }
 
 const STORAGE_KEY = "kotakata_theme_selection";
 
 export const useThemeSelectionStore = create<ThemeSelectionState>((set, get) => ({
   appThemeId: DEFAULT_APP_THEME_ID,
-  boardThemeId: DEFAULT_BOARD_THEME_ID,
-  keyboardThemeId: DEFAULT_KEYBOARD_THEME_ID,
   hydrated: false,
 
   setAppThemeId: async (id: string) => {
     set({ appThemeId: id });
     await persistSelection(get());
   },
-
-  setBoardThemeId: async (id: string) => {
-    set({ boardThemeId: id });
-    await persistSelection(get());
-  },
-
-  setKeyboardThemeId: async (id: string) => {
-    set({ keyboardThemeId: id });
-    await persistSelection(get());
-  },
 }));
 
-/** Simpan ketiga pilihan sekaligus (satu key AsyncStorage). */
-async function persistSelection(state: Pick<ThemeSelectionState, "appThemeId" | "boardThemeId" | "keyboardThemeId">): Promise<void> {
+/** Simpan pilihan tema (hanya appThemeId — board/keyboard mengikuti). */
+async function persistSelection(state: Pick<ThemeSelectionState, "appThemeId">): Promise<void> {
   try {
     await AsyncStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
         appThemeId: state.appThemeId,
-        boardThemeId: state.boardThemeId,
-        keyboardThemeId: state.keyboardThemeId,
       }),
     );
   } catch {
@@ -78,11 +60,9 @@ export async function hydrateThemeSelection(): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<Pick<ThemeSelectionState, "appThemeId" | "boardThemeId" | "keyboardThemeId">>;
+      const parsed = JSON.parse(raw) as Partial<Pick<ThemeSelectionState, "appThemeId">>;
       useThemeSelectionStore.setState({
         appThemeId: typeof parsed.appThemeId === "string" ? parsed.appThemeId : DEFAULT_APP_THEME_ID,
-        boardThemeId: typeof parsed.boardThemeId === "string" ? parsed.boardThemeId : DEFAULT_BOARD_THEME_ID,
-        keyboardThemeId: typeof parsed.keyboardThemeId === "string" ? parsed.keyboardThemeId : DEFAULT_KEYBOARD_THEME_ID,
       });
     }
   } catch {

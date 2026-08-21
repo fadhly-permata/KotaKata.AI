@@ -23,6 +23,9 @@ import {
   useThemeSelectionStore,
 } from "../../stores/themeSelectionStore";
 import { setAmbientSound, setSoundTheme, whenSoundPrefsReady } from "../../../utils/sound";
+import { userRepository } from "../../../data/repositories/userRepository";
+import { useAuth } from "../../../features/auth/useAuth";
+import { loggerWarn } from "../../../utils/logger";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -89,17 +92,11 @@ interface ThemeContextValue {
   /** Tema aplikasi aktif (id). */
   appThemeId: string;
   setAppThemeId: (id: string) => Promise<void>;
-  /** Tema PAPAN aktif (desain halaman game: papan, clue pill, panel hint). */
-  boardThemeId: string;
-  setBoardThemeId: (id: string) => Promise<void>;
-  /** Palet papan untuk mode terang/gelap yang sedang berjalan. */
+  /** Palet papan untuk mode terang/gelap yang sedang berjalan (mengikuti tema app). */
   boardColors: BoardColors;
   /** Spec latar HALAMAN GAME (dari tema papan aktif). */
   boardBackground: BackgroundSpec;
-  /** Tema KEYBOARD aktif (InGameKeyboard). */
-  keyboardThemeId: string;
-  setKeyboardThemeId: (id: string) => Promise<void>;
-  /** Palet keyboard untuk mode terang/gelap yang sedang berjalan. */
+  /** Palet keyboard untuk mode terang/gelap yang sedang berjalan (mengikuti tema app). */
   keyboardColors: KeyboardColors;
   /** Spec latar panel KEYBOARD (dari tema keyboard aktif). */
   keyboardBackground: BackgroundSpec;
@@ -113,15 +110,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
   const [loaded, setLoaded] = useState(false);
+  const { user } = useAuth();
 
-  // Pilihan tema (app/board/keyboard) dari AsyncStorage — di-hydrate sekali.
+  // Pilihan tema (app) dari AsyncStorage — di-hydrate sekali.
   const themeSelectionHydrated = useThemeSelectionStore((s) => s.hydrated);
   const appThemeId = useThemeSelectionStore((s) => s.appThemeId);
-  const boardThemeId = useThemeSelectionStore((s) => s.boardThemeId);
-  const keyboardThemeId = useThemeSelectionStore((s) => s.keyboardThemeId);
   const setAppThemeId = useThemeSelectionStore((s) => s.setAppThemeId);
-  const setBoardThemeId = useThemeSelectionStore((s) => s.setBoardThemeId);
-  const setKeyboardThemeId = useThemeSelectionStore((s) => s.setKeyboardThemeId);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
@@ -172,11 +166,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [appTheme]);
-  // PLAN-033: tema papan & keyboard MENGIKUTI tema aplikasi. Kategori tema
-  // papan/keyboard dihapus sementara dari Pasar (pemilik akan mendesain ulang
-  // keduanya nanti). Id papan/keyboard dengan nama sama dengan tema aplikasi
-  // (puitis/samudra/senja/hutan) di-resolve dari id tema aplikasi yang aktif
-  // — jadi ganti tema aplikasi otomatis mewarnai papan & keyboard senada.
+  // PLAN-033: tema papan & keyboard MENGIKUTI tema aplikasi.
   const boardTheme = getBoardThemeById(appThemeId);
   const boardPalette = isDark ? boardTheme.dark : boardTheme.light;
   const boardColors = boardPalette;
@@ -196,6 +186,30 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     ...(keyboardPalette.background ?? {}),
   };
 
+  // Sinkronkan tema aktif ke cloud saat user mengubah tema (fire-and-forget).
+  // Tabel users.app_theme_id supaya akun yang sama di device lain tetap
+  // pakai tema yang sama.
+  useEffect(() => {
+    if (!user?.id || !themeSelectionHydrated) return;
+    void userRepository.saveAppThemeId(user.id, appThemeId).catch((err) => {
+      loggerWarn("Gagal sinkron tema aktif ke cloud", err);
+    });
+  }, [appThemeId, user?.id, themeSelectionHydrated]);
+
+  // Load tema dari cloud saat pertama kali login (pull strategy).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void userRepository.getAppThemeId(user.id).then((cloudThemeId) => {
+      if (cancelled || !cloudThemeId) return;
+      // Hanya apply kalau berbeda dari yang lokal (hindari loop).
+      if (cloudThemeId !== useThemeSelectionStore.getState().appThemeId) {
+        void setAppThemeId(cloudThemeId);
+      }
+    }).catch(() => { /* gagal sync tidak fatal */ });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   if (!loaded || !themeSelectionHydrated) return null;
 
   return (
@@ -208,12 +222,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         isDark,
         appThemeId,
         setAppThemeId,
-        boardThemeId,
-        setBoardThemeId,
         boardColors,
         boardBackground,
-        keyboardThemeId,
-        setKeyboardThemeId,
         keyboardColors,
         keyboardBackground,
       }}

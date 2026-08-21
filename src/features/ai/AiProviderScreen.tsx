@@ -24,6 +24,7 @@ import {
   clearAiProviderConfigFor,
   markAiProviderOwner,
   clearAiProviderOwner,
+  syncAllProvidersToCloud,
   testAiConnection,
   providerPreset,
   providerLabel,
@@ -33,7 +34,6 @@ import {
   type AiProviderPreset,
   type AiTestResult,
 } from "../../utils/aiProvider";
-import { userRepository } from "../../data/repositories/userRepository";
 import { useAuth } from "../auth/useAuth";
 import { loggerWarn } from "../../utils/logger";
 
@@ -179,16 +179,11 @@ export default function AiProviderScreen() {
     try {
       const cfg = buildConfig();
       await saveAiProviderConfig(cfg);
-      // Sinkronkan ke cloud (kolom users.ai_provider_config) supaya akun yang
-      // sama di device lain ikut punya config ini — Main Mode AI bisa dipakai
-      // lintas perangkat. Gagal sync tidak membatalkan simpan lokal.
+      // Sinkronkan SEMUA provider ke cloud supaya akun yang sama di device
+      // lain tetap punya semua config AI — lintas perangkat.
       if (user?.id) {
-        try {
-          await userRepository.saveAiProviderConfig(user.id, cfg);
-          await markAiProviderOwner(user.id);
-        } catch (err) {
-          loggerWarn("Gagal sinkron config AI ke cloud", err);
-        }
+        void syncAllProvidersToCloud(user.id);
+        void markAiProviderOwner(user.id);
       }
       setTestResult({ ok: true, message: `✓ ${providerLabel(provider)} tersimpan & aktif` });
       setSavedFlash(true);
@@ -206,12 +201,9 @@ export default function AiProviderScreen() {
     try {
       await clearAiProviderConfigFor(provider);
       await clearAiProviderOwner();
+      // Sync SEMUA provider ke cloud (termasuk yang sudah dihapus)
       if (user?.id) {
-        try {
-          await userRepository.saveAiProviderConfig(user.id, null);
-        } catch (err) {
-          loggerWarn("Gagal hapus config AI dari cloud", err);
-        }
+        void syncAllProvidersToCloud(user.id);
       }
       const preset = providerPreset(provider);
       setApiKey("");
