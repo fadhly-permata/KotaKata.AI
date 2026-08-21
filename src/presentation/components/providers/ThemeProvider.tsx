@@ -19,6 +19,7 @@ import {
 } from "../../themes/themeData";
 import { useThemeSelectionStore } from "../../stores/themeSelectionStore";
 import { setAmbientSound, setSoundTheme, whenSoundPrefsReady } from "../../../utils/sound";
+import { useAuth } from "../../../features/auth/useAuth";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -103,11 +104,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
   const [loaded, setLoaded] = useState(false);
+  const { user } = useAuth();
 
   // Pilihan tema dari cloud (di-sync oleh RootNavigator saat login).
   const themeSelectionHydrated = useThemeSelectionStore((s) => s.hydrated);
   const appThemeId = useThemeSelectionStore((s) => s.appThemeId);
-  const setAppThemeId = useThemeSelectionStore((s) => s.setAppThemeId);
+  const setAppThemeIdRaw = useThemeSelectionStore((s) => s.setAppThemeId);
+  // Wrap: automatically pass userId for cloud save
+  const setAppThemeId = useCallback(async (id: string) => {
+    await setAppThemeIdRaw(id, user?.id);
+  }, [setAppThemeIdRaw, user?.id]);
 
   useEffect(() => {
     // Default: "system". Cloud sync dijalankan oleh RootNavigator saat login.
