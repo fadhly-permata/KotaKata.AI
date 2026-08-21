@@ -8,6 +8,7 @@ import {
   Linking,
 } from "react-native";
 import { useState, useCallback, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { loggerWarn } from "../../utils/logger";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -45,25 +46,33 @@ export default function SettingsScreen() {
   const [activeProvider, setActiveProviderState] = useState<AiProviderPreset>("openrouter");
 
   // Baca status provider AI tersimpan (BYOK) untuk ditampilkan di pengaturan.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [cfg, saved, active] = await Promise.all([
-          getAiProviderConfig(),
-          getAllSavedProviders(),
-          getActiveProvider(),
-        ]);
-        if (cancelled) return;
-        if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
-        setSavedProviders(saved);
-        setActiveProviderState(active);
-      } catch (err) {
-        loggerWarn("Gagal memuat status provider AI di Pengaturan", err);
-      }
-    })();
-    return () => { cancelled = true; };
+  // useFocusEffect: reload setiap kali layar mendapat fokus (termasuk saat
+  // kembali dari halaman kelola provider AI).
+  const refreshAiProviders = useCallback(async () => {
+    try {
+      const [cfg, saved, active] = await Promise.all([
+        getAiProviderConfig(),
+        getAllSavedProviders(),
+        getActiveProvider(),
+      ]);
+      if (cfg) setAiStatus({ label: providerLabel(cfg.provider), model: cfg.model });
+      else setAiStatus(null);
+      setSavedProviders(saved);
+      setActiveProviderState(active);
+    } catch (err) {
+      loggerWarn("Gagal memuat status provider AI di Pengaturan", err);
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshAiProviders();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAiProviders();
+    }, [refreshAiProviders]),
+  );
 
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.mode === "dark");
 
