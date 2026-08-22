@@ -187,6 +187,52 @@ export default function QuestionEditorScreen() {
     }
   }, [newWord, newClue1, newClue2, newClue3, newTier]);
 
+  // ─── PLAN-081: Bantuan AI di modal Tambah Soal — buatkan/perbaiki clue ───
+  const handleAddAi = useCallback(async () => {
+    const word = newWord.trim().toLowerCase();
+    if (!word) {
+      setNotification({ type: "warning", message: "⚠️ Isi dulu kata jawaban, lalu tekan Bantuan AI." });
+      return;
+    }
+    setAiLoading(true);
+    setNotification(null);
+    try {
+      const config = await getAiProviderConfig();
+      if (!config) {
+        setNotification({
+          type: "error",
+          message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI.",
+        });
+        return;
+      }
+      const revised = await requestAiRevision(config, {
+        word,
+        // Kalau clue masih kosong, minta AI membuatkan dari nol.
+        clue_1: newClue1.trim() || "(belum ada — buatkan clue yang baik untuk kata ini)",
+        clue_2: newClue2.trim() || undefined,
+        clue_3: newClue3.trim() || undefined,
+        tier_level: parseInt(newTier, 10) || 1,
+      });
+      if (revised) {
+        setNewClue1(revised.clue_1);
+        setNewClue2(revised.clue_2 ?? "");
+        setNewClue3(revised.clue_3 ?? "");
+        if (revised.leaks && revised.leaks.length > 0) {
+          setNotification({
+            type: "warning",
+            message: `⚠️ AI mengisi clue, tapi ${revised.leaks.join(", ")} masih bocor. Silakan perbaiki manual.`,
+          });
+        } else {
+          setNotification({ type: "info", message: "🤖 Clue dibantu AI. Review & simpan jika sudah sesuai." });
+        }
+      }
+    } catch (err: any) {
+      setNotification({ type: "error", message: err.message || "Gagal meminta bantuan AI" });
+    } finally {
+      setAiLoading(false);
+    }
+  }, [newWord, newClue1, newClue2, newClue3, newTier]);
+
   // ─── Current index in filtered list (for prev/next) ───
   const currentIdx = useMemo(() => {
     if (!selectedWord) return -1;
@@ -672,12 +718,14 @@ export default function QuestionEditorScreen() {
               <TouchableOpacity
                 style={[styles.btn, styles.aiBtn, { backgroundColor: C.secondary }, buttonShadow(theme)]}
                 activeOpacity={0.8}
-                onPress={() => {
-                  play("tap");
-                  setAddVisible(false);
-                }}
+                onPress={handleAddAi}
+                disabled={aiLoading}
               >
-                <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>Batal</Text>
+                {aiLoading ? (
+                  <ActivityIndicator color={textOnPrimary(theme)} size="small" />
+                ) : (
+                  <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>🤖 Revisi Via AI</Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
