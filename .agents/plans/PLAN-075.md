@@ -1,18 +1,14 @@
-# PLAN-075: Revisi Halaman Editor Soal
+# PLAN-075: Revisi Halaman Editor Soal — Tampilkan Semua Tier
 
 ## Status: PENDING
 
-### 1. Tampilkan Semua Tier (bukan cuma Tier 1)
+> Catatan: plan ini dipecah (permintaan pemilik). Bagian "Tambah Soal (+)"
+> kini jadi **PLAN-078** dan bagian "Collapsible Filter" jadi **PLAN-079**.
+
+## Deskripsi
+Halaman QuestionEditorScreen hanya menampilkan Tier 1.
+Revisi: pastikan semua tier (1–10) tampil di daftar soal.
+
+## Langkah
 - [ ] Cek query Supabase di QuestionEditorScreen — pastikan tidak filter tier
 - [ ] Jika ada filter tier, hapus supaya semua tier (1-10) tampil
-
-### 2. Tombol Tambah Soal (+)
-- [ ] Tambah tombol "+" icon di halaman (atas/kanan)
-- [ ] Buka form/modal untuk input: word, clue_1, clue_2, clue_3, tier
-- [ ] Simpan ke tabel vocabulary di Supabase
-
-### 3. Collapsible Filter (Word + Tier)
-- [ ] Buat section collapsible/expandable untuk filter
-- [ ] Field: search by word (text input)
-- [ ] Field: filter by tier (dropdown/selector)
-- [ ] Filter diterapkan ke daftar soal
