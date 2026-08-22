@@ -67,6 +67,21 @@ export default function QuestionEditorScreen() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [page, setPage] = useState(1);
   const [jumpValue, setJumpValue] = useState("");
+
+  // ─── PLAN-078: Tambah Soal (+) ───
+  const [addVisible, setAddVisible] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newWord, setNewWord] = useState("");
+  const [newClue1, setNewClue1] = useState("");
+  const [newClue2, setNewClue2] = useState("");
+  const [newClue3, setNewClue3] = useState("");
+  const [newTier, setNewTier] = useState("1");
+
+  // ─── PLAN-079: Filter collapsible (kata + tier) ───
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterWord, setFilterWord] = useState("");
+  const [filterTier, setFilterTier] = useState("0"); // "0" = semua tier
+  const activeFilters = (filterWord.trim() ? 1 : 0) + (filterTier !== "0" ? 1 : 0);
   // ─── Fetch vocabulary ───
   const fetchWords = useCallback(async () => {
     setLoading(true);
@@ -92,17 +107,28 @@ export default function QuestionEditorScreen() {
 
   // ─── Filter & paginate ───
   const filtered = useMemo(() => {
-    if (!search.trim()) return words;
-    const q = search.toLowerCase();
-    return words.filter(
-      (w) =>
-        w.word.toLowerCase().includes(q) ||
-        w.clue_1.toLowerCase().includes(q) ||
-        (w.clue_2 ?? "").toLowerCase().includes(q) ||
-        (w.clue_3 ?? "").toLowerCase().includes(q) ||
-        String(w.tier_level).includes(q),
-    );
-  }, [words, search]);
+    let result = words;
+    // Filter khusus dari panel collapsible (PLAN-079)
+    const fw = filterWord.trim().toLowerCase();
+    if (fw) result = result.filter((w) => w.word.toLowerCase().includes(fw));
+    if (filterTier !== "0") {
+      const tier = parseInt(filterTier, 10);
+      result = result.filter((w) => w.tier_level === tier);
+    }
+    // Search umum (kata, clue, tier)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (w) =>
+          w.word.toLowerCase().includes(q) ||
+          w.clue_1.toLowerCase().includes(q) ||
+          (w.clue_2 ?? "").toLowerCase().includes(q) ||
+          (w.clue_3 ?? "").toLowerCase().includes(q) ||
+          String(w.tier_level).includes(q),
+      );
+    }
+    return result;
+  }, [words, search, filterWord, filterTier]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = useMemo(() => {
@@ -110,10 +136,56 @@ export default function QuestionEditorScreen() {
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  // Reset page on search
+  // Reset page on search / filter change
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, filterWord, filterTier]);
+
+  // ─── PLAN-078: Tambah soal baru via RPC insert_vocabulary_admin ───
+  const handleAdd = useCallback(async () => {
+    const word = newWord.trim().toLowerCase();
+    if (!word || !newClue1.trim()) {
+      setNotification({ type: "warning", message: "⚠️ Kata dan Clue 1 wajib diisi." });
+      return;
+    }
+    setAdding(true);
+    setNotification(null);
+    try {
+      const { data, error } = await supabase.rpc("insert_vocabulary_admin", {
+        p_word: word,
+        p_clue_1: newClue1.trim(),
+        p_clue_2: newClue2.trim(),
+        p_clue_3: newClue3.trim(),
+        p_tier_level: parseInt(newTier, 10) || 1,
+      });
+      if (error) throw error;
+      const result = data as { ok: boolean; error?: string; message?: string; word_id?: string };
+      if (!result?.ok) throw new Error(result?.error ?? "Gagal menambah soal");
+      const created: VocabularyDoc = {
+        word_id: result.word_id ?? `admin-${Date.now()}`,
+        word,
+        clue_1: newClue1.trim(),
+        clue_2: newClue2.trim() || undefined,
+        clue_3: newClue3.trim() || undefined,
+        tier_level: parseInt(newTier, 10) || 1,
+        created_at: new Date().toISOString(),
+      };
+      // Sisipkan ke daftar lokal (urut tier sudah terjaga karena tier sama
+      // dikelompokkan — tampilkan paling atas tier-nya saja).
+      setWords((prev) => [created, ...prev]);
+      setNotification({ type: "success", message: `✅ ${result.message ?? "Soal berhasil ditambahkan!"}` });
+      setAddVisible(false);
+      setNewWord("");
+      setNewClue1("");
+      setNewClue2("");
+      setNewClue3("");
+      setNewTier("1");
+    } catch (err: any) {
+      setNotification({ type: "error", message: `❌ Gagal: ${err.message}` });
+    } finally {
+      setAdding(false);
+    }
+  }, [newWord, newClue1, newClue2, newClue3, newTier]);
 
   // ─── Current index in filtered list (for prev/next) ───
   const currentIdx = useMemo(() => {
@@ -175,9 +247,7 @@ export default function QuestionEditorScreen() {
         clue_3: editClue3.trim() || undefined,
         tier_level: parseInt(editTier, 10) || 1,
       };
-      setWords((prev) =>
-        prev.map((w) => (w.word_id === selectedWord.word_id ? updated : w)),
-      );
+      setWords((prev) => prev.map((w) => (w.word_id === selectedWord.word_id ? updated : w)));
       setSelectedWord(updated);
     } catch (err: any) {
       setNotification({ type: "error", message: `❌ Gagal: ${err.message}` });
@@ -194,7 +264,10 @@ export default function QuestionEditorScreen() {
     try {
       const config = await getAiProviderConfig();
       if (!config) {
-        setNotification({ type: "error", message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI." });
+        setNotification({
+          type: "error",
+          message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI.",
+        });
         return;
       }
       const revised = await requestAiRevision(config, {
@@ -226,7 +299,18 @@ export default function QuestionEditorScreen() {
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
-    const colors = ["#6B7280", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#06B6D4"];
+    const colors = [
+      "#6B7280",
+      "#3B82F6",
+      "#10B981",
+      "#F59E0B",
+      "#EF4444",
+      "#8B5CF6",
+      "#EC4899",
+      "#14B8A6",
+      "#F97316",
+      "#06B6D4",
+    ];
     return colors[Math.min(tier - 1, colors.length - 1)] ?? "#6B7280";
   };
 
@@ -246,10 +330,7 @@ export default function QuestionEditorScreen() {
 
   return (
     <ScreenFade style={[styles.root, { backgroundColor: C.background }]}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* ─── Header ─── */}
         <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: solidSurfaceColor(theme) }]}>
           <TouchableOpacity
@@ -262,7 +343,18 @@ export default function QuestionEditorScreen() {
             <Text style={[styles.backText, { color: C.primary }]}>← Kembali</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.text }]}>📝 Editor Soal</Text>
-          <View style={{ width: 70 }} />
+          {/* PLAN-078: tombol Tambah Soal */}
+          <TouchableOpacity
+            onPress={() => {
+              play("tap");
+              setNotification(null);
+              setAddVisible(true);
+            }}
+            style={[styles.addBtn, { backgroundColor: C.primary }]}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.addBtnText, { color: textOnPrimary(theme) }]}>+</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ─── Search bar ─── */}
@@ -282,6 +374,85 @@ export default function QuestionEditorScreen() {
             <TouchableOpacity onPress={() => setSearch("")}>
               <Text style={{ fontSize: 16, color: C.textSecondary }}>✕</Text>
             </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ─── PLAN-079: Filter collapsible (kata + tier) ─── */}
+        <View style={[styles.filterWrap, { borderColor: C.border, backgroundColor: solidSurfaceColor(theme) }]}>
+          <TouchableOpacity
+            style={styles.filterToggle}
+            onPress={() => {
+              play("tap");
+              setFilterOpen((v) => !v);
+            }}
+          >
+            <Text style={{ fontSize: 15, marginRight: 6 }}>⚙️</Text>
+            <Text style={[styles.filterToggleText, { color: C.text }]}>Filter</Text>
+            {activeFilters > 0 && (
+              <View style={[styles.filterCountBadge, { backgroundColor: C.primary }]}>
+                <Text style={{ color: textOnPrimary(theme), fontSize: 10, fontWeight: "700" }}>{activeFilters}</Text>
+              </View>
+            )}
+            <Text style={{ color: C.textSecondary, marginLeft: "auto", fontSize: 13 }}>{filterOpen ? "▲" : "▼"}</Text>
+          </TouchableOpacity>
+          {filterOpen && (
+            <View style={styles.filterBody}>
+              <Text style={[styles.label, { color: C.text }]}>Filter Kata</Text>
+              <View onStartShouldSetResponder={() => true}>
+                <TextInput
+                  style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                  placeholder="Hanya kata yang mengandung..."
+                  placeholderTextColor={C.textSecondary}
+                  value={filterWord}
+                  onChangeText={setFilterWord}
+                  autoCapitalize="none"
+                />
+              </View>
+              <Text style={[styles.label, { color: C.text }]}>Filter Tier</Text>
+              <View style={styles.tierChips}>
+                {["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((t) => {
+                  const active = filterTier === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => {
+                        play("tap");
+                        setFilterTier(t);
+                      }}
+                      style={[
+                        styles.tierChip,
+                        {
+                          backgroundColor: active ? C.primary : C.surface,
+                          borderColor: active ? C.primary : C.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: active ? textOnPrimary(theme) : C.textSecondary,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {t === "0" ? "Semua" : `T${t}`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {activeFilters > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    play("tap");
+                    setFilterWord("");
+                    setFilterTier("0");
+                  }}
+                  style={{ marginTop: 10 }}
+                >
+                  <Text style={{ color: C.primary, fontSize: 13, fontWeight: "600" }}>✕ Reset filter</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
         </View>
 
@@ -393,12 +564,127 @@ export default function QuestionEditorScreen() {
           </>
         )}
 
+        {/* ─── PLAN-078: Add Form Modal ─── */}
+        <AppModal visible={addVisible} title="➕ Tambah Soal" onClose={() => setAddVisible(false)}>
+          <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+            {notification && notif && (
+              <View style={[styles.notifBlock, { backgroundColor: notif.bg, borderColor: notif.border }]}>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: notif.text }}>{notification.message}</Text>
+              </View>
+            )}
+
+            {/* Word */}
+            <Text style={[styles.label, { color: C.text }]}>Kata</Text>
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={newWord}
+                onChangeText={setNewWord}
+                placeholder="Kata jawaban (a-z, 3-10 huruf)"
+                placeholderTextColor={C.textSecondary}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Clue 1 */}
+            <Text style={[styles.label, { color: C.text }]}>Clue 1 (Utama)</Text>
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.inputMultiline,
+                  { color: C.text, backgroundColor: C.surface, borderColor: C.border },
+                ]}
+                value={newClue1}
+                onChangeText={setNewClue1}
+                placeholder="Definisi utama"
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Clue 2 */}
+            <Text style={[styles.label, { color: C.text }]}>Clue 2 (Tambahan, opsional)</Text>
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.inputMultiline,
+                  { color: C.text, backgroundColor: C.surface, borderColor: C.border },
+                ]}
+                value={newClue2}
+                onChangeText={setNewClue2}
+                placeholder="Petunjuk tambahan"
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Clue 3 */}
+            <Text style={[styles.label, { color: C.text }]}>Clue 3 (Sinonim/Deskripsi, opsional)</Text>
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.inputMultiline,
+                  { color: C.text, backgroundColor: C.surface, borderColor: C.border },
+                ]}
+                value={newClue3}
+                onChangeText={setNewClue3}
+                placeholder="Sinonim atau deskripsi lengkap"
+                placeholderTextColor={C.textSecondary}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Tier */}
+            <Text style={[styles.label, { color: C.text }]}>Tier (1-10)</Text>
+            <View onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={[styles.input, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                value={newTier}
+                onChangeText={setNewTier}
+                placeholder="1"
+                placeholderTextColor={C.textSecondary}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.btnRow}>
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: C.primary }, buttonShadow(theme)]}
+                activeOpacity={0.8}
+                onPress={handleAdd}
+                disabled={adding}
+              >
+                {adding ? (
+                  <ActivityIndicator color={textOnPrimary(theme)} size="small" />
+                ) : (
+                  <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>💾 Simpan Soal</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.btn, styles.aiBtn, { backgroundColor: C.secondary }, buttonShadow(theme)]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  play("tap");
+                  setAddVisible(false);
+                }}
+              >
+                <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>Batal</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </AppModal>
+
         {/* ─── Edit Form Modal ─── */}
-        <AppModal
-          visible={!!selectedWord}
-          title="✏️ Edit Soal"
-          onClose={() => setSelectedWord(null)}
-        >
+        <AppModal visible={!!selectedWord} title="✏️ Edit Soal" onClose={() => setSelectedWord(null)}>
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
             {/* ─── Prev / Next navigation ─── */}
             {currentIdx >= 0 && (
@@ -406,7 +692,10 @@ export default function QuestionEditorScreen() {
                 <TouchableOpacity
                   disabled={currentIdx <= 0}
                   onPress={() => navigateToWord(currentIdx - 1)}
-                  style={[styles.navBtn, { opacity: currentIdx <= 0 ? 0.3 : 1, backgroundColor: C.surface, borderColor: C.border }]}
+                  style={[
+                    styles.navBtn,
+                    { opacity: currentIdx <= 0 ? 0.3 : 1, backgroundColor: C.surface, borderColor: C.border },
+                  ]}
                 >
                   <Text style={{ color: C.text, fontWeight: "600" }}>◀ Prev</Text>
                 </TouchableOpacity>
@@ -416,7 +705,14 @@ export default function QuestionEditorScreen() {
                 <TouchableOpacity
                   disabled={currentIdx >= filtered.length - 1}
                   onPress={() => navigateToWord(currentIdx + 1)}
-                  style={[styles.navBtn, { opacity: currentIdx >= filtered.length - 1 ? 0.3 : 1, backgroundColor: C.surface, borderColor: C.border }]}
+                  style={[
+                    styles.navBtn,
+                    {
+                      opacity: currentIdx >= filtered.length - 1 ? 0.3 : 1,
+                      backgroundColor: C.surface,
+                      borderColor: C.border,
+                    },
+                  ]}
                 >
                   <Text style={{ color: C.text, fontWeight: "600" }}>Next ▶</Text>
                 </TouchableOpacity>
@@ -426,9 +722,7 @@ export default function QuestionEditorScreen() {
             {/* ─── Notification Block ─── */}
             {notification && notif && (
               <View style={[styles.notifBlock, { backgroundColor: notif.bg, borderColor: notif.border }]}>
-                <Text style={{ fontSize: 13, fontWeight: "600", color: notif.text }}>
-                  {notification.message}
-                </Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: notif.text }}>{notification.message}</Text>
               </View>
             )}
 
@@ -448,7 +742,11 @@ export default function QuestionEditorScreen() {
             <Text style={[styles.label, { color: C.text }]}>Clue 1 (Utama)</Text>
             <View onStartShouldSetResponder={() => true}>
               <TextInput
-                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                style={[
+                  styles.input,
+                  styles.inputMultiline,
+                  { color: C.text, backgroundColor: C.surface, borderColor: C.border },
+                ]}
                 value={editClue1}
                 onChangeText={setEditClue1}
                 placeholder="Definisi utama"
@@ -462,7 +760,11 @@ export default function QuestionEditorScreen() {
             <Text style={[styles.label, { color: C.text }]}>Clue 2 (Tambahan)</Text>
             <View onStartShouldSetResponder={() => true}>
               <TextInput
-                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                style={[
+                  styles.input,
+                  styles.inputMultiline,
+                  { color: C.text, backgroundColor: C.surface, borderColor: C.border },
+                ]}
                 value={editClue2}
                 onChangeText={setEditClue2}
                 placeholder="Petunjuk tambahan"
@@ -476,7 +778,11 @@ export default function QuestionEditorScreen() {
             <Text style={[styles.label, { color: C.text }]}>Clue 3 (Sinonim/Deskripsi)</Text>
             <View onStartShouldSetResponder={() => true}>
               <TextInput
-                style={[styles.input, styles.inputMultiline, { color: C.text, backgroundColor: C.surface, borderColor: C.border }]}
+                style={[
+                  styles.input,
+                  styles.inputMultiline,
+                  { color: C.text, backgroundColor: C.surface, borderColor: C.border },
+                ]}
                 value={editClue3}
                 onChangeText={setEditClue3}
                 placeholder="Sinonim atau deskripsi lengkap"
@@ -549,6 +855,54 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   backText: { fontSize: 15, fontWeight: "600" },
+  addBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addBtnText: { fontSize: 22, fontWeight: "800", lineHeight: 26 },
+  filterWrap: {
+    marginHorizontal: 12,
+    marginBottom: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  filterToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  filterToggleText: { fontSize: 14, fontWeight: "600" },
+  filterCountBadge: {
+    marginLeft: 6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  filterBody: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(0,0,0,0.08)",
+  },
+  tierChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  tierChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
   headerTitle: { fontSize: 17, fontWeight: "700" },
   searchWrap: {
     flexDirection: "row",
