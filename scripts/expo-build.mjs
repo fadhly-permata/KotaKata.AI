@@ -16,7 +16,7 @@
 // Profile yang tersedia (eas.json): development, preview, production.
 // ============================================================
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const PROFILES = ["development", "preview", "production"];
 const PLATFORMS = ["android", "ios", "all"];
@@ -50,6 +50,17 @@ if (args.includes("--list")) {
   process.exit(r.status ?? 1);
 }
 
+// Inspeksi env EAS tanpa menyentuh nilai secret secara manual:
+//   node scripts/expo-build.mjs --env production
+if (args.includes("--env")) {
+  const envName = args[args.indexOf("--env") + 1] ?? "production";
+  const r = spawnSync("bunx", ["eas-cli", "env:list", "--environment", envName, "--format", "long"], {
+    stdio: "inherit",
+    env: { ...process.env, EXPO_TOKEN: loadEnvToken() ?? "" },
+  });
+  process.exit(r.status ?? 1);
+}
+
 // Argumen posisional: [platform] [profile] — keduanya opsional.
 const posArgs = args.filter((a) => !a.startsWith("--"));
 const platform = posArgs[0] && PLATFORMS.includes(posArgs[0]) ? posArgs[0] : "android";
@@ -67,6 +78,13 @@ if (!token) {
       "Isi di tab Keys/API keys (nama var: EXPO_TOKEN) atau tambahkan EXPO_TOKEN=... di .env.local.",
   );
   process.exit(2);
+}
+
+// Sinkronkan env saja tanpa kirim build: node scripts/expo-build.mjs --sync-only
+if (args.includes("--sync-only")) {
+  const ok = syncPublicEnvToEas();
+  console.log(ok ? "\n✅ Sinkronisasi env EAS selesai." : "\n❌ Sinkronisasi env EAS gagal (lihat di atas).");
+  process.exit(ok ? 0 : 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +109,6 @@ function loadPublicEnvVars() {
   return vars;
 }
 
-const SYNC_ENV_FILE = ".env.eas-sync"; // sudah tercakup pola .env.* di .gitignore
 function syncPublicEnvToEas() {
   const publicVars = loadPublicEnvVars();
   const keys = Object.keys(publicVars).sort();
@@ -99,37 +116,44 @@ function syncPublicEnvToEas() {
     console.warn("⚠️  Tidak ada var EXPO_PUBLIC_* di .env.local/.env — lewati sinkronisasi env EAS.");
     return true;
   }
-  try {
-    writeFileSync(SYNC_ENV_FILE, keys.map((k) => `${k}=${publicVars[k]}`).join("\n") + "\n", "utf8");
-    console.log(`Sinkronisasi ${keys.length} var EXPO_PUBLIC_* ke env EAS (${keys.join(", ")})...`);
-    const r = spawnSync(
-      "bunx",
-      [
-        "eas-cli",
-        "env:push",
-        "--path",
-        SYNC_ENV_FILE,
-        "--force",
-        "--environment",
-        "preview",
-        "--environment",
-        "production",
-      ],
-      { stdio: "inherit", env: { ...process.env, EXPO_TOKEN: token } },
-    );
-    if (r.status !== 0) {
-      console.error("❌ Gagal sinkronisasi env EAS (eas env:push). Build tetap dilanjutkan,");
-      console.error("   tapi kalau var belum pernah di-set sebelumnya, bundle release bisa blank.");
-      return false;
-    }
-    return true;
-  } finally {
-    try {
-      rmSync(SYNC_ENV_FILE, { force: true });
-    } catch {
-      // abaikan — file sementara
+  console.log(`Sinkronisasi ${keys.length} var EXPO_PUBLIC_* ke env EAS (${keys.join(", ")})...`);
+  // eas env:set = create-or-update per var (PLAN-077): tidak seperti env:push,
+  // ini tidak pernah konflik dengan var yang sudah ada di production/preview.
+  let failed = 0;
+  for (const key of keys) {
+    // Satu panggilan PER environment — eas-cli menolak env:set yang mencakup
+    // dua environment sekaligus kalau var-nya sudah ada di salah satunya.
+    for (const envName of ["preview", "production"]) {
+      const r = spawnSync(
+        "bunx",
+        [
+          "eas-cli",
+          "env:set",
+          "--name",
+          key,
+          "--value",
+          publicVars[key],
+          "--type",
+          "string",
+          "--visibility",
+          "plaintext",
+          "--scope",
+          "project",
+          "--environment",
+          envName,
+          "--non-interactive",
+        ],
+        { stdio: "inherit", env: { ...process.env, EXPO_TOKEN: token } },
+      );
+      if (r.status !== 0) failed += 1;
     }
   }
+  if (failed > 0) {
+    console.error(`❌ ${failed} var gagal disinkronkan ke env EAS. Build tetap dilanjutkan,`);
+    console.error("   tapi nilai di bundle release bisa basi — cek dengan flag --env production.");
+    return false;
+  }
+  return true;
 }
 
 syncPublicEnvToEas();
