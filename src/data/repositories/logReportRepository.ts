@@ -56,4 +56,38 @@ export const logReportRepository = {
     }
     return reportable.length;
   },
+
+  /**
+   * PLAN-080: kirim SATU entri log error/warn ke Supabase TANPA perlu sesi
+   * login — dipakai pengiriman otomatis saat terjadi error pre-login.
+   * RPC `insert_public_log_report` (security definer) mengisi user_id dari
+   * sesi atau identitas perangkat. Selalu return boolean, tidak melempar —
+   * pelaporan tidak boleh ikut crash.
+   */
+  async sendPublic(entry: LogEntry): Promise<boolean> {
+    try {
+      if (entry.level !== "error" && entry.level !== "warn") return false;
+      const deviceId = await getOrCreateDeviceId().catch(() => undefined);
+      const { data, error } = await supabase.rpc("insert_public_log_report", {
+        p_level: entry.level,
+        p_payload: [
+          {
+            source: entry.source,
+            message: entry.message.slice(0, 2000),
+            details: entry.details?.slice(0, 4000),
+            stack: entry.stack?.slice(0, 8000),
+            createdAt: entry.createdAt,
+          },
+        ],
+        p_device_id: deviceId ?? null,
+        p_platform: Platform.OS,
+        p_app_version: APP_VERSION,
+      });
+      if (error) return false;
+      return data === true;
+    } catch {
+      // Offline / client belum siap — entri tetap tersimpan di log DB lokal.
+      return false;
+    }
+  },
 };

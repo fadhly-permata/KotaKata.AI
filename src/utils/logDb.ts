@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
 import initSqlJs from "sql.js/dist/sql-wasm-browser.js";
 import wasmUrl from "sql.js/dist/sql-wasm-browser.wasm";
 import type { Database, SqlJsStatic } from "sql.js";
@@ -119,9 +120,7 @@ function isReady(): Database | null {
 
 function trimRows() {
   if (!db) return;
-  db.run(
-    `DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT ${MAX_ROWS});`,
-  );
+  db.run(`DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT ${MAX_ROWS});`);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +159,13 @@ export interface WriteLogInput {
 
 export async function writeLog(input: WriteLogInput): Promise<void> {
   const { level, source, message, details, stack } = input;
+  // PLAN-080: error dicoba kirim otomatis ke Supabase (jalan walau belum
+  // login — RPC publik). Fire-and-forget: gagal/offline = diam saja, entri
+  // tetap tersimpan di log DB lokal & bisa dikirim manual setelah login.
+  if (level === "error") {
+    const cloudEntry: LogEntry = { id: 0, level, source, message, details, stack, createdAt: Date.now() };
+    void queueCloudReport(cloudEntry);
+  }
   try {
     await initLogDb();
     const createdAt = Date.now();
@@ -172,10 +178,14 @@ export async function writeLog(input: WriteLogInput): Promise<void> {
       await AsyncStorage.setItem(FALLBACK_KEY, JSON.stringify(fallbackRows));
       return;
     }
-    database.run(
-      "INSERT INTO logs (level, source, message, details, stack, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      [level, source, message, details ?? null, stack ?? null, createdAt],
-    );
+    database.run("INSERT INTO logs (level, source, message, details, stack, created_at) VALUES (?, ?, ?, ?, ?, ?)", [
+      level,
+      source,
+      message,
+      details ?? null,
+      stack ?? null,
+      createdAt,
+    ]);
     trimRows();
     scheduleSave();
   } catch (err) {
@@ -183,10 +193,34 @@ export async function writeLog(input: WriteLogInput): Promise<void> {
   }
 }
 
-export async function getLogs(options?: {
-  level?: LogLevel;
-  limit?: number;
-}): Promise<LogEntry[]> {
+// ---------------------------------------------------------------------------
+// PLAN-080: pengiriman otomatis error ke Supabase (pre-login friendly)
+// ---------------------------------------------------------------------------
+let lastCloudSendAt = 0;
+
+/**
+ * Kirim satu entri error ke cloud lewat logReportRepository.sendPublic.
+ * Import dilakukan LAZY (require di dalam fungsi) supaya tidak ada circular
+ * dependency saat evaluasi modul (logDb adalah modul low-level; repository
+ * → supabase → logger → logDb).
+ */
+async function queueCloudReport(entry: LogEntry): Promise<void> {
+  // Anti-spam: maksimal satu pengiriman cloud per 3 detik.
+  const now = Date.now();
+  if (now - lastCloudSendAt < 3000) return;
+  lastCloudSendAt = now;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { logReportRepository } = require("../data/repositories/logReportRepository") as {
+      logReportRepository: { sendPublic: (e: LogEntry) => Promise<boolean> };
+    };
+    await logReportRepository.sendPublic(entry);
+  } catch {
+    // Offline / client belum siap — abaikan; entri tetap ada di log lokal.
+  }
+}
+
+export async function getLogs(options?: { level?: LogLevel; limit?: number }): Promise<LogEntry[]> {
   const level = options?.level;
   const limit = Math.min(options?.limit ?? 200, MAX_ROWS);
   try {
@@ -366,6 +400,15 @@ export function setupGlobalLogging(): void {
         if (typeof previous === "function") {
           previous(error, isFatal);
         }
+        // Fatal error → jangan biarkan layar putih tanpa petunjuk (PLAN-076):
+        // tampilkan pesan errornya langsung ke user supaya bisa dilaporkan.
+        if (isFatal) {
+          try {
+            Alert.alert("Terjadi error", formatError(error).slice(0, 800));
+          } catch {
+            // abaikan — Alert tidak tersedia di fase ini
+          }
+        }
       });
     }
   } catch (err) {
@@ -380,7 +423,7 @@ export function setupGlobalLogging(): void {
           level: "error",
           source: "window",
           message: event.message || "Uncaught error",
-          stack: event.error ? formatStack(event.error) ?? formatError(event.error) : undefined,
+          stack: event.error ? (formatStack(event.error) ?? formatError(event.error)) : undefined,
         });
       });
       window.addEventListener("unhandledrejection", (event) => {
