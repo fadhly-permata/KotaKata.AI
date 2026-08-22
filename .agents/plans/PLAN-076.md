@@ -1,6 +1,6 @@
 # PLAN-076: APK Blank Putih Saat Dibuka
 
-## Status: DONE
+## Status: IN PROGRESS — ronde 2 (APK versi env-fix masih blank putih)
 
 ## Laporan Bug (dari pemilik)
 Ketika di-deploy jadi APK (build Android via EAS), saat aplikasi dibuka
@@ -33,6 +33,26 @@ layarnya cuma blank (putih) tanpa ada tampilan apa-apa.
       modul — fallback ke client dummy + loggerError, app tetap render dan
       pesan error kelihatan di Log Aplikasi (bukan layar putih)
 - [x] Verifikasi: tsc --noEmit ✅, bun test 69 pass ✅, lint tanpa error baru
-      ⚠️ verifikasi build APK baru menunggu perintah pemilik (aturan #1:
-      build native butuh persetujuan eksplisit)
-- [x] Commit & push, lalu deploy web ke expo.dev (aturan #6)
+      ❌ RONDE 1 GAGAL: APK versionCode 5 (build 06ab088c, commit 8419c6f)
+      sukses dibuild & env Supabase terbaca di log EAS, tapi app TETAP blank
+      putih di Android → ada crash lain saat evaluasi modul di Hermes
+
+## Ronde 2 — diagnosis crash runtime (belum selesai)
+- [x] Audit tersangka: paket `ai` (Vercel AI SDK) memang di-import statis dari
+      aiProvider yang ikut jalur startup (RootNavigator) — tapi pemakaian
+      `async_hooks`-nya sudah di-guard; belum pasti pelakunya
+- [x] Boot error catcher di `index.ts`: `require("./App")` dibungkus try-catch;
+      kalau modul mana pun crash saat evaluasi, errornya ditampilkan di layar
+      (bukan putih polos) supaya penyebab aslinya kelihatan
+- [x] Fatal error runtime (ErrorUtils isFatal) sekarang juga muncul sebagai
+      Alert di layar, bukan hanya tersimpan di log DB
+- [x] Lazy-load Vercel AI SDK: `ai` + `@ai-sdk/openai-compatible` di-require
+      hanya saat fitur AI dipakai (chatRequest), keluar dari jalur startup
+- [x] ESCALATION pemilik: fitur Vercel AI SDK DIHAPUS total (PLAN-074
+      cancelled) — aiProvider.ts & test-nya di-rollback ke custom fetch
+      (versi sebelum `53beaf3`), dependensi `ai` + `@ai-sdk/openai-compatible`
+      dilepas dari package.json. Pagination editor soal dari commit yang sama
+      tetap dipertahankan
+- [x] Verifikasi ronde 2: tsc ✅, test 69 pass ✅, lint 0 error
+- [ ] Build APK verifikasi (butuh persetujuan pemilik — aturan #1)
+- [ ] Install & konfirmasi tidak blank (atau baca pesan error di layar)
