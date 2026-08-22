@@ -1,6 +1,6 @@
 # PLAN-076: APK Blank Putih Saat Dibuka
 
-## Status: PENDING
+## Status: DONE
 
 ## Laporan Bug (dari pemilik)
 Ketika di-deploy jadi APK (build Android via EAS), saat aplikasi dibuka
@@ -21,10 +21,18 @@ layarnya cuma blank (putih) tanpa ada tampilan apa-apa.
    — bisa dibuktikan dengan log dari device / `adb logcat`.
 
 ## Langkah Pemeriksaan & Perbaikan (belum dikerjakan)
-- [ ] Konfirmasi penyebab: cek apakah env `EXPO_PUBLIC_*` tersedia saat build
-      EAS (`eas.json` env / EAS secrets), dan cek log device (`adb logcat`)
-      untuk error "Missing Supabase env vars"
-- [ ] Terapkan perbaikan sesuai akar masalah (mis. set env di profil EAS /
-      EAS secrets, atau fallback graceful di supabase.ts)
-- [ ] Verifikasi build APK baru tidak blank
-- [ ] Commit & push, lalu deploy web ke expo.dev (aturan #6)
+- [x] Konfirmasi penyebab: `src/data/sources/supabase.ts` melempar throw di
+      level modul kalau `EXPO_PUBLIC_SUPABASE_URL/ANON_KEY` kosong; file
+      `.env*` di-.gitignore sehingga tidak ikut ter-upload ke server build EAS
+      → modul crash sebelum React render → APK layar putih
+- [x] Perbaikan akar masalah: `scripts/expo-build.mjs` kini otomatis
+      men-sinkronisasi semua var `EXPO_PUBLIC_*` dari `.env.local`/`.env` ke
+      env EAS (`eas env:push`, environment preview + production) sebelum
+      mengirim build, jadi nilai ter-inline ke bundle release/APK
+- [x] Jaring pengaman: `supabase.ts` tidak lagi melempar error di level
+      modul — fallback ke client dummy + loggerError, app tetap render dan
+      pesan error kelihatan di Log Aplikasi (bukan layar putih)
+- [x] Verifikasi: tsc --noEmit ✅, bun test 69 pass ✅, lint tanpa error baru
+      ⚠️ verifikasi build APK baru menunggu perintah pemilik (aturan #1:
+      build native butuh persetujuan eksplisit)
+- [x] Commit & push, lalu deploy web ke expo.dev (aturan #6)

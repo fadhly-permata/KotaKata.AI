@@ -1,33 +1,42 @@
 import "react-native-url-polyfill/auto";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking, Platform } from "react-native";
 import Constants from "expo-constants";
-import { loggerWarn } from "../../utils/logger";
+import { loggerError, loggerWarn } from "../../utils/logger";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+// Jangan throw di level modul: error saat modul dimuat membuat JS bundle
+// gagal sebelum React render → APK layar putih total (PLAN-076). Kalau env
+// hilang (mis. build EAS tanpa sinkronisasi env), pakai client dummy agar
+// app tetap tampil; semua query akan gagal dengan pesan jelas di Log Aplikasi.
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string | undefined;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing Supabase env vars. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.",
+  loggerError(
+    "EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY tidak tersedia di build ini — fitur cloud (login, sync) tidak akan berfungsi",
+    new Error("Missing Supabase env vars"),
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    // Web: detect OAuth tokens in the URL after Google redirects back.
-    // Native: no URL-based callback — handled via deep-link (lihat di bawah).
-    detectSessionInUrl: Platform.OS === "web",
-    // PKCE: OAuth native mengembalikan `code` (bukan token di fragment URL),
-    // lalu ditukar dengan exchangeCodeForSession. Di Hermes tanpa WebCrypto,
-    // supabase-js otomatis fallback ke code challenge "plain".
-    flowType: "pkce",
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl ?? "https://config-missing.invalid",
+  supabaseAnonKey ?? "missing-anon-key",
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      // Web: detect OAuth tokens in the URL after Google redirects back.
+      // Native: no URL-based callback — handled via deep-link (lihat di bawah).
+      detectSessionInUrl: Platform.OS === "web",
+      // PKCE: OAuth native mengembalikan `code` (bukan token di fragment URL),
+      // lalu ditukar dengan exchangeCodeForSession. Di Hermes tanpa WebCrypto,
+      // supabase-js otomatis fallback ke code challenge "plain".
+      flowType: "pkce",
+    },
   },
-});
+);
 
 // Native OAuth callback (Google → deep link `kotakata://auth-callback?code=...`):
 // tukar kode PKCE dengan session. Listener dipasang sekali saat modul dimuat,
@@ -61,12 +70,7 @@ if (Platform.OS !== "web") {
 // + polling fallback di useAuth.signInWithGoogle, jadi tanpa popup ini pun login
 // tetap terdeteksi. Tanpa penutupan ini, popup malah memuat seluruh aplikasi
 // ("2 jendela game") dan tidak pernah menutup.
-if (
-  Platform.OS === "web" &&
-  typeof window !== "undefined" &&
-  window.opener &&
-  window.opener !== window
-) {
+if (Platform.OS === "web" && typeof window !== "undefined" && window.opener && window.opener !== window) {
   let closing = false;
   supabase.auth.onAuthStateChange((event) => {
     // SIGNED_IN hanya muncul saat OAuth callback selesai diproses (bukan session
