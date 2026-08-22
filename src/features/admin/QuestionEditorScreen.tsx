@@ -83,16 +83,29 @@ export default function QuestionEditorScreen() {
   const [filterTier, setFilterTier] = useState("0"); // "0" = semua tier
   const activeFilters = (filterWord.trim() ? 1 : 0) + (filterTier !== "0" ? 1 : 0);
   // ─── Fetch vocabulary ───
+  // PENTING: PostgREST membatasi ±1000 baris per request. Tanpa paging, yang
+  // terambil hanya 1000 baris pertama (urut tier) = semua kata TIER 1 saja,
+  // tier 2–10 tidak muncul. Jadi ambil bertahap dengan .range() sampai habis.
+  const FETCH_PAGE_SIZE = 1000;
   const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("vocabulary")
-        .select(VOCAB_COLUMNS)
-        .order("tier_level", { ascending: true })
-        .order("word", { ascending: true });
-      if (error) throw error;
-      setWords((data ?? []) as VocabularyDoc[]);
+      const all: VocabularyDoc[] = [];
+      let from = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from("vocabulary")
+          .select(VOCAB_COLUMNS)
+          .order("tier_level", { ascending: true })
+          .order("word", { ascending: true })
+          .range(from, from + FETCH_PAGE_SIZE - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as VocabularyDoc[];
+        all.push(...rows);
+        if (rows.length < FETCH_PAGE_SIZE) break;
+        from += FETCH_PAGE_SIZE;
+      }
+      setWords(all);
     } catch (err) {
       loggerWarn("Gagal mengambil daftar vocabulary", err);
       setWords([]);
