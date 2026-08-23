@@ -88,6 +88,10 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
 - Pengecualian yang boleh langsung dikerjakan tanpa menunggu perintah:
   permintaan meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di
   AGENTS.md) — revisi lain tetap dicatat dulu.
+- **JANGAN cross-check ke kode saat membuat plan.** Cukup simpan catatan
+  revisinya apa adanya — menelusuri/memverifikasi kode di fase pencatatan
+  buang waktu. Analisis kode & penyebab baru dilakukan SAAT pemilik menyuruh
+  mengerjakan (di awal pengerjaan plan, sebelum solve).
 
 ### 5b. FIXING WAJIB JAGA PLATFORM LAIN (aturan permanen dari pemilik repo)
 - Aplikasi ini berjalan di LEBIH DARI SATU platform: **Web (browser)** dan
