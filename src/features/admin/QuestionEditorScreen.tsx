@@ -124,6 +124,13 @@ export default function QuestionEditorScreen() {
   const listScrollRef = useRef<ScrollView | null>(null);
   /** Posisi-Y tiap kartu soal (dari onLayout) untuk scrollToIndex manual. */
   const cardYRef = useRef<Map<string, number>>(new Map());
+  /** ── Stop/Pause automasi bulk ──
+   *  Stop & pause baru BERLAKU setelah soal yang sedang direvisi selesai
+   *  (request AI tidak bisa dipaksa putus di tengah tanpa membuang hasil).
+   *  Flag ref dipakai loop antar iterasi; state utk tampilan tombol/banner. */
+  const bulkPauseRef = useRef(false);
+  const [bulkPaused, setBulkPaused] = useState(false);
+  const [bulkStopRequested, setBulkStopRequested] = useState(false);
   // ─── Revisi urgent: progress bar REAL per page (reset tiap page baru) ───
   // Fase terukur: ambil soal (2–10%) → kirim ke AI (10–50%) → menyimpan
   // (50–95% sesuai jumlah item tersimpan) → selesai page (100%).
@@ -612,7 +619,12 @@ export default function QuestionEditorScreen() {
   const toggleBulkAutomation = useCallback(async () => {
     if (bulkRunning) {
       autoStopRef.current = true;
-      setNotification({ type: "info", message: "⏹ Menghentikan automasi bulk…" });
+      setBulkStopRequested(true);
+      setNotification({
+        type: "info",
+        message:
+          "⏳ Menghentikan… proses sedang menyelesaikan soal yang berjalan dulu. Stop baru benar-benar terjadi setelah soal ini selesai.",
+      });
       return;
     }
     if (autoRunning) return;
@@ -627,6 +639,9 @@ export default function QuestionEditorScreen() {
 
     setBulkRunning(true);
     autoStopRef.current = false;
+    bulkPauseRef.current = false;
+    setBulkPaused(false);
+    setBulkStopRequested(false);
     setBulkPageSec(0);
     setBulkTotalSec(0);
 
@@ -666,6 +681,18 @@ export default function QuestionEditorScreen() {
         // macet/error, yang diulang cuma soal itu (retry di soal yang sama),
         // bukan seluruh halaman. Gagal berulang → stop total.
         for (let i = 0; i < list.length; i++) {
+          if (autoStopRef.current) {
+            stopReason = "dihentikan manual";
+            break;
+          }
+          // ── Pause: tunggu di sini sampai user menekan Lanjut. Berlaku di
+          // ANTARA soal — soal yang sedang berjalan tetap diselesaikan dulu.
+          while (bulkPauseRef.current && !autoStopRef.current) {
+            setBulkStatus(
+              `⏸ DIJEDA — tekan ▶️ Lanjut di header untuk melanjutkan (soal berikutnya: ${i + 1}/${list.length})`,
+            );
+            await new Promise((r) => setTimeout(r, 500));
+          }
           if (autoStopRef.current) {
             stopReason = "dihentikan manual";
             break;
@@ -801,6 +828,9 @@ export default function QuestionEditorScreen() {
       setBulkRunning(false);
       setBulkStatus("");
       setBulkFocusId(null);
+      bulkPauseRef.current = false;
+      setBulkPaused(false);
+      setBulkStopRequested(false);
       setBulkPct(0);
       setBulkPageSec(0);
       setBulkTotalSec(0);
@@ -811,6 +841,24 @@ export default function QuestionEditorScreen() {
       void fetchWords(lastProcessedPage);
     }
   }, [bulkRunning, autoRunning, page, totalPages, buildVocabQuery, fetchWords, requestPauseConfirmation, aiThink]);
+
+  // ── Pause/Lanjut automasi bulk — berlaku di antara soal; soal yang sedang
+  // berjalan selalu diselesaikan dulu supaya hasilnya tidak terbuang.
+  const toggleBulkPause = useCallback(() => {
+    if (!bulkRunning) return;
+    const next = !bulkPauseRef.current;
+    bulkPauseRef.current = next;
+    setBulkPaused(next);
+    if (next) {
+      setNotification({
+        type: "info",
+        message:
+          "⏸ Jeda diminta… soal yang sedang direvisi diselesaikan dulu, lalu proses berhenti sementara. Tekan ▶️ untuk melanjutkan.",
+      });
+    } else {
+      setNotification({ type: "info", message: "▶️ Automasi bulk dilanjutkan…" });
+    }
+  }, [bulkRunning]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
@@ -860,24 +908,53 @@ export default function QuestionEditorScreen() {
           <Text style={[styles.headerTitle, { color: C.text }]}>📝 Editor Soal</Text>
           {/* PLAN-078 + PLAN-090: tombol Tambah Soal & Automasi Bulk */}
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TouchableOpacity
-              onPress={() => {
-                play("tap");
-                void toggleBulkAutomation();
-              }}
-              style={[
-                styles.bulkBtn,
-                {
-                  // PLAN-092: saat bulk berjalan tombolnya jadi ⏹ Stop merah
-                  // yang jelas bisa diklik — bukan disabled/tersembunyi.
-                  backgroundColor: bulkRunning ? "#EF4444" : C.secondary,
-                  opacity: autoRunning ? 0.4 : 1,
-                },
-              ]}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 15 }}>{bulkRunning ? "⏹" : "🤖"}</Text>
-            </TouchableOpacity>
+            {bulkRunning && (
+              <>
+                {/* PLAN bulk UX: dua tombol saat berjalan — Stop & Pause/Lanjut.
+                    Keduanya memberi info langsung bahwa efek baru terasa setelah
+                    soal berjalan selesai. */}
+                <TouchableOpacity
+                  onPress={() => {
+                    play("tap");
+                    toggleBulkPause();
+                  }}
+                  style={[styles.bulkBtn, { backgroundColor: bulkPaused ? "#10B981" : "#F59E0B" }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 15 }}>{bulkPaused ? "▶️" : "⏸"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    play("tap");
+                    void toggleBulkAutomation();
+                  }}
+                  style={[styles.bulkBtn, { backgroundColor: bulkStopRequested ? "#7F1D1D" : "#EF4444" }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 15 }}>⏹</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {!bulkRunning && (
+              <TouchableOpacity
+                onPress={() => {
+                  play("tap");
+                  void toggleBulkAutomation();
+                }}
+                style={[
+                  styles.bulkBtn,
+                  {
+                    // PLAN-092: tombol 🤖 Automasi Bulk; saat berjalan diganti
+                    // pasangan ⏸/⏹ di atas.
+                    backgroundColor: C.secondary,
+                    opacity: autoRunning ? 0.4 : 1,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 15 }}>🤖</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => {
                 play("tap");
@@ -909,8 +986,13 @@ export default function QuestionEditorScreen() {
             </View>
             <Text style={{ color: C.textSecondary, fontSize: 12 }}>
               🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
-              {"\u00A0"}· ketuk ⏹ di header untuk berhenti
+              {"\u00A0"}· ⏹ Stop & ⏸ Jeda ada di header
             </Text>
+            {bulkStopRequested && (
+              <Text style={{ color: "#EF4444", fontSize: 11, fontWeight: "700", marginTop: 4 }}>
+                ⏳ Menghentikan… menunggu soal yang sedang berjalan selesai dulu.
+              </Text>
+            )}
             <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>
               ⏱ Page ini: {fmtDur(bulkPageSec)} · Total: {fmtDur(bulkTotalSec)}
             </Text>
