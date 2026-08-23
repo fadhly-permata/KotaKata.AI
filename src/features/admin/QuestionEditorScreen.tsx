@@ -71,6 +71,9 @@ export default function QuestionEditorScreen() {
   const [autoProcessed, setAutoProcessed] = useState(0);
   /** Flag stop — dibaca antar iterasi loop agar responsif tanpa re-render. */
   const autoStopRef = useRef(false);
+  // ─── PLAN-090: Automasi bulk seluruh soal per page (tombol header) ───
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState("");
   const [page, setPage] = useState(1);
   const [jumpValue, setJumpValue] = useState("");
 
@@ -93,19 +96,23 @@ export default function QuestionEditorScreen() {
   // Filter kata/tikor dikirim sebagai klausa query (ilike/eq), bukan difilter
   // di client. Ini menggantikan pendekatan "tarik semua ±10.000 baris" yang
   // membuat load awal sangat lambat.
+  // Query dasar vocabulary — dipakai fetchWords (UI) & automasi bulk (PLAN-090).
+  const buildVocabQuery = useCallback(() => {
+    let q = supabase
+      .from("vocabulary")
+      .select(VOCAB_COLUMNS, { count: "exact" })
+      .order("tier_level", { ascending: true })
+      .order("word", { ascending: true });
+    const fw = filterWord.trim();
+    if (fw) q = q.ilike("word", `%${fw}%`);
+    if (filterTier !== "0") q = q.eq("tier_level", parseInt(filterTier, 10));
+    return q;
+  }, [filterWord, filterTier]);
   const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("vocabulary")
-        .select(VOCAB_COLUMNS, { count: "exact" })
-        .order("tier_level", { ascending: true })
-        .order("word", { ascending: true });
-      const fw = filterWord.trim();
-      if (fw) query = query.ilike("word", `%${fw}%`);
-      if (filterTier !== "0") query = query.eq("tier_level", parseInt(filterTier, 10));
       const from = (page - 1) * PAGE_SIZE;
-      const { data, error, count } = await query.range(from, from + PAGE_SIZE - 1);
+      const { data, error, count } = await buildVocabQuery().range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       setWords((data ?? []) as VocabularyDoc[]);
       setTotalWords(count ?? 0);
@@ -116,7 +123,7 @@ export default function QuestionEditorScreen() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterWord, filterTier]);
+  }, [page, buildVocabQuery]);
 
   useEffect(() => {
     void fetchWords();
@@ -348,6 +355,7 @@ export default function QuestionEditorScreen() {
       setNotification({ type: "info", message: "⏹ Menghentikan automasi…" });
       return;
     }
+    if (bulkRunning) return; // jangan dobel jalan bersama automasi bulk
     if (!selectedWord) return;
     const config = await getAiProviderConfig();
     if (!config) {
@@ -462,7 +470,139 @@ export default function QuestionEditorScreen() {
     } finally {
       setAutoRunning(false);
     }
-  }, [autoRunning, selectedWord, words, navigateToWord]);
+  }, [autoRunning, selectedWord, words, navigateToWord, bulkRunning]);
+
+  // ─── PLAN-090: Automasi bulk — seluruh soal per page, lalu next page ───
+  const toggleBulkAutomation = useCallback(async () => {
+    if (bulkRunning) {
+      autoStopRef.current = true;
+      setNotification({ type: "info", message: "⏹ Menghentikan automasi bulk…" });
+      return;
+    }
+    if (autoRunning) return;
+    const config = await getAiProviderConfig();
+    if (!config) {
+      setNotification({
+        type: "error",
+        message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI.",
+      });
+      return;
+    }
+
+    setBulkRunning(true);
+    autoStopRef.current = false;
+
+    let processed = 0;
+    let consecutiveErrors = 0;
+    let stopReason = "";
+    const lastPage = Math.max(totalPages, page);
+
+    try {
+      for (let p = page; p <= lastPage; p++) {
+        if (autoStopRef.current) {
+          stopReason = "dihentikan manual";
+          break;
+        }
+        // Ambil isi halaman ini langsung dari server (filter aktif ikut).
+        const from = (p - 1) * PAGE_SIZE;
+        const { data, error } = await buildVocabQuery().range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        const list = (data ?? []) as VocabularyDoc[];
+        if (list.length === 0) {
+          stopReason = "halaman kosong";
+          break;
+        }
+        // Ikutkan tampilan UI ke halaman yang sedang diproses.
+        setPage(p);
+
+        for (let i = 0; i < list.length; i++) {
+          if (autoStopRef.current) {
+            stopReason = "dihentikan manual";
+            break;
+          }
+          const w = list[i];
+          setBulkStatus(`Page ${p}/${lastPage} · soal ${i + 1}/${list.length} · ${processed} tersimpan`);
+
+          // 1) Revisi via AI — budget token besar agar reasoning tidak
+          //    menghabiskan batas saat dipakai beruntun (permintaan pemilik).
+          let revised: Awaited<ReturnType<typeof requestAiRevision>>;
+          try {
+            revised = await requestAiRevision(
+              config,
+              {
+                word: w.word,
+                clue_1: w.clue_1,
+                clue_2: w.clue_2,
+                clue_3: w.clue_3,
+                tier_level: w.tier_level,
+              },
+              undefined,
+              { maxCompletionTokens: 200_000 },
+            );
+          } catch (err) {
+            loggerWarn("Automasi bulk: gagal revisi", err);
+            consecutiveErrors += 1;
+            if (consecutiveErrors >= 3) {
+              stopReason = "3 error AI beruntun";
+              break;
+            }
+            continue;
+          }
+          if (autoStopRef.current) {
+            stopReason = "dihentikan manual";
+            break;
+          }
+          consecutiveErrors = 0;
+
+          // 2) STOP kalau bocor — hasil bocor TIDAK disimpan.
+          const aiLeaks = revised?.leaks ?? [];
+          const manualLeaks = revised ? clueLeaks(w.word, [revised.clue_1, revised.clue_2, revised.clue_3]) : [];
+          if (aiLeaks.length > 0 || manualLeaks.length > 0) {
+            const allLeaks = [...new Set([...aiLeaks, ...manualLeaks])];
+            stopReason = `hasil AI bocor (${allLeaks.join(", ")}) — tidak disimpan`;
+            break;
+          }
+          if (!revised) {
+            stopReason = "AI tidak mengembalikan hasil";
+            break;
+          }
+
+          // 3) Simpan langsung via RPC
+          const { data: saveData, error: saveError } = await supabase.rpc("update_vocabulary_admin", {
+            p_word_id: w.word_id,
+            p_word: w.word,
+            p_clue_1: revised.clue_1.trim(),
+            p_clue_2: revised.clue_2?.trim() ?? "",
+            p_clue_3: revised.clue_3?.trim() ?? "",
+            p_tier_level: w.tier_level,
+          });
+          if (saveError) throw saveError;
+          const result = saveData as { ok: boolean; error?: string };
+          if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
+
+          processed += 1;
+          // Jeda antar iterasi — provider reasoning lambat (PLAN-089).
+          await new Promise((r) => setTimeout(r, 2_000));
+        }
+        if (stopReason) break;
+      }
+      if (!stopReason) stopReason = "semua halaman selesai";
+      setNotification({
+        type: processed > 0 ? "success" : "warning",
+        message: `🤖 Automasi bulk berhenti (${stopReason}). ${processed} soal direvisi & tersimpan.`,
+      });
+    } catch (err: any) {
+      loggerWarn("Automasi bulk: gagal", err);
+      setNotification({
+        type: "error",
+        message: `❌ Automasi bulk berhenti: ${err.message} (${processed} soal tersimpan).`,
+      });
+    } finally {
+      setBulkRunning(false);
+      setBulkStatus("");
+      void fetchWords(); // segarkan daftar halaman terakhir yang diproses
+    }
+  }, [bulkRunning, autoRunning, page, totalPages, buildVocabQuery, fetchWords]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
@@ -510,19 +650,42 @@ export default function QuestionEditorScreen() {
             <Text style={[styles.backText, { color: C.primary }]}>← Kembali</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.text }]}>📝 Editor Soal</Text>
-          {/* PLAN-078: tombol Tambah Soal */}
-          <TouchableOpacity
-            onPress={() => {
-              play("tap");
-              setNotification(null);
-              setAddVisible(true);
-            }}
-            style={[styles.addBtn, { backgroundColor: C.primary }]}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.addBtnText, { color: textOnPrimary(theme) }]}>+</Text>
-          </TouchableOpacity>
+          {/* PLAN-078 + PLAN-090: tombol Tambah Soal & Automasi Bulk */}
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => {
+                play("tap");
+                void toggleBulkAutomation();
+              }}
+              disabled={autoRunning}
+              style={[
+                styles.bulkBtn,
+                { backgroundColor: C.secondary, opacity: autoRunning ? 0.4 : 1 },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 15 }}>🤖</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                play("tap");
+                setNotification(null);
+                setAddVisible(true);
+              }}
+              style={[styles.addBtn, { backgroundColor: C.primary }]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.addBtnText, { color: textOnPrimary(theme) }]}>+</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* ─── PLAN-090: indikator progres automasi bulk ─── */}
+        {bulkRunning && (
+          <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
+            <Text style={{ color: C.textSecondary, fontSize: 12 }}>🤖 Automasi bulk berjalan — {bulkStatus}</Text>
+          </View>
+        )}
 
         {/* ─── PLAN-079: Filter collapsible (kata + tier) ─── */}
         <View style={[styles.filterWrap, { borderColor: C.border, backgroundColor: solidSurfaceColor(theme) }]}>
@@ -1036,6 +1199,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtnText: { fontSize: 22, fontWeight: "800", lineHeight: 26 },
+  bulkBtn: {
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  bulkBanner: {
+    marginHorizontal: 12,
+    marginBottom: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   filterWrap: {
     marginHorizontal: 12,
     marginBottom: 4,

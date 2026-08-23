@@ -350,6 +350,8 @@ async function chatRequest(
   messages: Array<{ role: string; content: string }>,
   maxTokens: number,
   signal?: AbortSignal,
+  /** Override budget max_completion_tokens untuk reasoning model (PLAN-090). */
+  completionBudget?: number,
 ): Promise<string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -364,34 +366,53 @@ async function chatRequest(
   // Deteksi berbasis NAMA MODEL (PLAN-086/087/088).
   const isReasoningStyle =
     /^(.*\/)?(gpt-5|o[134]|deepseek-r1|deepseek-v4)(\b|-|\.)/.test(cfg.model);
-  const body: Record<string, unknown> = {
-    model: cfg.model,
-    messages,
-    temperature: 0.9,
-    stream: false,
+  const buildBody = (completionBudgetLocal?: number): Record<string, unknown> => {
+    const body: Record<string, unknown> = {
+      model: cfg.model,
+      messages,
+      temperature: 0.9,
+      stream: false,
+    };
+    if (isReasoningStyle) {
+      // Reasoning model: budget besar agar reasoning_tokens tidak menghabiskan
+      // seluruh batas sebelum content terisi. Default 20.000; automasi bulk
+      // meng-override ke 200.000 (PLAN-088/090).
+      body["max_completion_tokens"] = completionBudgetLocal ?? 20_000;
+    } else {
+      body["max_tokens"] = maxTokens;
+    }
+    return body;
   };
-  if (isReasoningStyle) {
-    // Reasoning model: budget besar agar reasoning_tokens tidak menghabiskan
-    // seluruh batas sebelum content terisi. (PLAN-088)
-    body["max_completion_tokens"] = 20_000;
-  } else {
-    body["max_tokens"] = maxTokens;
-  }
-  const res = await fetch(chatUrl(cfg), {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!res.ok) {
-    let detail = "";
+  const send = (body: Record<string, unknown>) =>
+    fetch(chatUrl(cfg), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+  const readDetail = async (r: Response): Promise<string> => {
     try {
-      const j = await res.json();
-      detail = j?.error?.message ?? JSON.stringify(j).slice(0, 160);
+      const j = await r.json();
+      return j?.error?.message ?? JSON.stringify(j).slice(0, 160);
     } catch {
       // body bukan JSON — detail tetap kosong
+      return "";
     }
+  };
+
+  let res = await send(buildBody(completionBudget));
+
+  // Fallback: beberapa provider menolak budget di atas batas maksimum model.
+  // Bila ditolak (400 + pesan limit), ulangi SEKALI dengan budget default.
+  if (!res.ok && res.status === 400 && completionBudget != null) {
+    const detail = await readDetail(res);
+    if (/maximum|too large|exceed|limit|context/i.test(detail)) {
+      res = await send(buildBody(undefined));
+    }
+  }
+
+  if (!res.ok) {
+    const detail = await readDetail(res);
     throw new Error(`HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
   }
 
@@ -635,6 +656,8 @@ export async function requestAiRevision(
   cfg: AiProviderConfig,
   input: RevisionInput,
   signal?: AbortSignal,
+  /** PLAN-090: override budget token reasoning untuk automasi bulk. */
+  opts?: { maxCompletionTokens?: number },
 ): Promise<RevisionOutput> {
   const userPrompt = [
     `Revisi clue untuk kata "${input.word}" (tier ${input.tier_level}).`,
@@ -656,6 +679,7 @@ export async function requestAiRevision(
     ],
     600,
     signal,
+    opts?.maxCompletionTokens,
   );
 
   const json = extractJson(content) as Record<string, string>;

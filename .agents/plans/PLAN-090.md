@@ -1,7 +1,16 @@
 # PLAN-090 — Tombol Otomasi Revisi AI Seluruh Soal Per Page
 
 ## Status
-**PENDING**
+**DONE** (commit pengerjaan, web dev dideploy)
+
+## Ringkasan implementasi
+1. **aiProvider.ts**: `chatRequest` menerima `completionBudget` opsional — reasoning model memakai `max_completion_tokens = budget ?? 20000`; fallback otomatis ke default bila provider menolak nilai 400 + pesan limit. `requestAiRevision` menerima `opts.maxCompletionTokens`.
+2. **QuestionEditorScreen.tsx**:
+   - Tombol **🤖** di header sebelah tombol "+" → `toggleBulkAutomation`.
+   - Loop: mulai dari page aktif s.d. halaman terakhir — tiap page diambil dari server (`buildVocabQuery().range()`), tiap soal: revisi via AI (**budget 200.000**) → anti-bocor (STOP, tidak disimpan) → simpan RPC → jeda 2 dtk → next; setelah habis lanjut page berikutnya (`setPage(p)` mengikuti UI).
+   - Banner progres "🤖 Page N/M · soal i/K · X tersimpan", toggle stop via tombol yang sama, pengaman 3 error beruntun, refresh daftar saat berakhir.
+3. Modal ⚡ automasi lama dinonaktifkan saat bulk jalan (tidak bisa dobel).
+4. Verifikasi: tsc ✅ · 76 test ✅ · eslint bersih.
 
 ## Deskripsi revisi (dari pemilik)
 Tambahkan tombol otomasi soal per page (seluruh soal pada halaman editor soal).
