@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme, Platform } from "react-native";
 import {
   getAppThemeById,
   getBoardThemeById,
@@ -193,6 +193,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [appTheme]);
+  // Web: warnai latar <body> & matikan overscroll — saat scroll mentok
+  // atas/bawah, browser menampilkan latar di BALIK app yang default-nya PUTIH
+  // ("kotak putih" mengganggu). Dengan body dicat warna tema + rubber-band
+  // dimatikan, area itu tidak pernah terlihat lagi.
+  // Aturan #5b: guard FUNGSI eksplisit (document ada) — Hermes punya window
+  // tapi tidak punya document; native tidak melakukan apa pun.
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    if (typeof document === "undefined" || !document.body) return;
+    document.body.style.backgroundColor = theme.colors.background;
+    document.documentElement.style.overscrollBehavior = "none";
+  }, [theme.colors.background]);
   // PLAN-033: tema papan & keyboard MENGIKUTI tema aplikasi. Kategori tema
   // papan/keyboard dihapus sementara dari Pasar (pemilik akan mendesain ulang
   // keduanya nanti). Id papan/keyboard dengan nama sama dengan tema aplikasi

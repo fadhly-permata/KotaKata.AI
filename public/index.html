@@ -19,6 +19,11 @@
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
+        /* Latar gelap default — mencegah kilatan putih sebelum app render &
+           saat overscroll (ThemeProvider menimpanya dengan warna tema). */
+        background-color: #10141c;
+        /* Matikan rubber-band/overscroll putih saat scroll mentok. */
+        overscroll-behavior-y: none;
       }
       /* These styles make the root element full-height */
       #root {
