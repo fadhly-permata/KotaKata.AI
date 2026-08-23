@@ -29,6 +29,7 @@ import { loggerWarn } from "../../utils/logger";
 import { solidSurfaceColor, contrastText, textOnPrimary, buttonShadow } from "../../utils/skin";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import AppModal from "../../presentation/components/common/AppModal";
+import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "QuestionEditor">;
@@ -79,6 +80,10 @@ export default function QuestionEditorScreen() {
   // ─── PLAN-090: Automasi bulk seluruh soal per page (tombol header) ───
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState("");
+  // ─── Revisi urgent: progress bar REAL per page (reset tiap page baru) ───
+  // Fase terukur: ambil soal (2–10%) → kirim ke AI (10–50%) → menyimpan
+  // (50–95% sesuai jumlah item tersimpan) → selesai page (100%).
+  const [bulkPct, setBulkPct] = useState(0);
   const [page, setPage] = useState(1);
   const [jumpValue, setJumpValue] = useState("");
 
@@ -113,10 +118,14 @@ export default function QuestionEditorScreen() {
     if (filterTier !== "0") q = q.eq("tier_level", parseInt(filterTier, 10));
     return q;
   }, [filterWord, filterTier]);
-  const fetchWords = useCallback(async () => {
+  const fetchWords = useCallback(async (targetPage?: number) => {
     setLoading(true);
     try {
-      const from = (page - 1) * PAGE_SIZE;
+      // PLAN-091 revisi: boleh minta halaman eksplisit — dipakai automasi bulk
+      // untuk refresh daftar di HALAMAN TERAKHIR yang diproses (bukan halaman
+      // tempat tombol ditekan — penyebab bug "kelihatan tidak ada yang direvisi").
+      const activePage = targetPage ?? page;
+      const from = (activePage - 1) * PAGE_SIZE;
       const { data, error, count } = await buildVocabQuery().range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       setWords((data ?? []) as VocabularyDoc[]);
@@ -138,6 +147,42 @@ export default function QuestionEditorScreen() {
   useEffect(() => {
     setPage(1);
   }, [filterWord, filterTier]);
+
+  // ─── PLAN-094: popup konfirmasi stop 5 detik antar page bulk ───
+  const [pauseVisible, setPauseVisible] = useState(false);
+  const [pauseSeconds, setPauseSeconds] = useState(5);
+  const pauseResolverRef = useRef<((stop: boolean) => void) | null>(null);
+
+  /** Tampilkan popup 5 detik; resolve `true` = user minta stop, `false` = lanjut. */
+  const requestPauseConfirmation = useCallback(
+    () =>
+      new Promise<boolean>((resolve) => {
+        setPauseSeconds(5);
+        setPauseVisible(true);
+        pauseResolverRef.current = (stop) => {
+          pauseResolverRef.current = null;
+          setPauseVisible(false);
+          resolve(stop);
+        };
+      }),
+    [],
+  );
+
+  // Hitung mundur saat popup tampil.
+  useEffect(() => {
+    if (!pauseVisible) return;
+    const iv = setInterval(() => {
+      setPauseSeconds((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [pauseVisible]);
+
+  // Waktu habis tanpa aksi → lanjutkan automasi (bukan stop).
+  useEffect(() => {
+    if (pauseVisible && pauseSeconds === 0) {
+      pauseResolverRef.current?.(false);
+    }
+  }, [pauseSeconds, pauseVisible]);
 
   const totalPages = Math.max(1, Math.ceil(totalWords / PAGE_SIZE));
   // Server sudah mengirim tepat halaman aktif — tidak perlu slicing lagi.
@@ -505,6 +550,10 @@ export default function QuestionEditorScreen() {
     let processed = 0;
     let consecutiveErrors = 0;
     let stopReason = "";
+    /** Revisi urgent: halaman terakhir yang benar-benar diproses — dipakai
+     *  refresh daftar di finally supaya UI tidak menampilkan halaman lama
+     *  yang belum direvisi (akar bug "kelihatan tidak ada yang direvisi"). */
+    let lastProcessedPage = page;
     /** PLAN-093: soal yang tetap bocor setelah retry habis — dilaporkan, tidak disimpan. */
     const finalLeaks: string[] = [];
     const lastPage = Math.max(totalPages, page);
@@ -516,6 +565,11 @@ export default function QuestionEditorScreen() {
           break;
         }
         // Ambil isi halaman ini langsung dari server (filter aktif ikut).
+        // ── Fase 1: ambil soal page ini (progress bar reset tiap page baru).
+        lastProcessedPage = p;
+        setPage(p);
+        setBulkPct(2);
+        setBulkStatus(`Page ${p}/${lastPage} · mengambil ${PAGE_SIZE} soal dari page ini…`);
         const from = (p - 1) * PAGE_SIZE;
         const { data, error } = await buildVocabQuery().range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
@@ -524,8 +578,8 @@ export default function QuestionEditorScreen() {
           stopReason = "halaman kosong";
           break;
         }
-        // Ikutkan tampilan UI ke halaman yang sedang diproses.
-        setPage(p);
+        setBulkPct(10);
+        setBulkStatus(`Page ${p}/${lastPage} · ${list.length} soal terambil · kirim ke AI…`);
 
         // PLAN-091: seluruh soal halaman dikirim dalam SATU request batch.
         type PendingItem = { id: string; w: VocabularyDoc; previousLeaks?: string[] };
@@ -545,6 +599,8 @@ export default function QuestionEditorScreen() {
 
           // 1) Revisi BATCH via AI — budget token besar agar reasoning model
           //    tidak kehabisan ruang memproses puluhan soal sekaligus.
+          // ── Fase 2: request ke AI provider sedang berjalan.
+          setBulkPct(15);
           let revisedMap: Map<string, RevisionOutput>;
           try {
             revisedMap = await requestAiRevisionBatch(
@@ -579,6 +635,13 @@ export default function QuestionEditorScreen() {
             break;
           }
           consecutiveErrors = 0;
+          // ── Fase 3: respon AI diterima → mulai menyimpan.
+          setBulkPct(50);
+          setBulkStatus(
+            leakRetry === 0
+              ? `Page ${p}/${lastPage} · respon AI diterima · menyimpan…`
+              : `Page ${p}/${lastPage} · retry bocor ${leakRetry}/${BULK_MAX_RETRY_LEAK} · menyimpan…`,
+          );
 
           // 2) Pisahkan: valid (langsung simpan) vs bocor (dikumpulkan utk retry).
           const toSave: Array<{ it: PendingItem; r: RevisionOutput }> = [];
@@ -599,7 +662,9 @@ export default function QuestionEditorScreen() {
             }
           }
 
-          // 3) Simpan semua hasil valid via RPC.
+          // 3) Simpan semua hasil valid via RPC — progress naik REAL per item.
+          const totalToSave = toSave.length;
+          let savedInBatch = 0;
           for (const { it, r } of toSave) {
             if (autoStopRef.current) {
               stopReason = "dihentikan manual";
@@ -617,6 +682,25 @@ export default function QuestionEditorScreen() {
             const result = saveData as { ok: boolean; error?: string };
             if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
             processed += 1;
+            savedInBatch += 1;
+            setBulkPct(50 + Math.round((savedInBatch / totalToSave) * 45));
+            setBulkStatus(
+              `Page ${p}/${lastPage} · menyimpan ${savedInBatch}/${totalToSave} · total ${processed} tersimpan`,
+            );
+            // Update daftar yang TAMPIL secara live — user langsung melihat
+            // clue barunya tanpa harus refresh (bug revisi urgent).
+            setWords((prev) =>
+              prev.map((x) =>
+                x.word_id === it.w.word_id
+                  ? {
+                      ...x,
+                      clue_1: r.clue_1.trim(),
+                      clue_2: r.clue_2?.trim() ?? "",
+                      clue_3: r.clue_3?.trim() ?? "",
+                    }
+                  : x,
+              ),
+            );
           }
           if (stopReason) break;
 
@@ -639,6 +723,18 @@ export default function QuestionEditorScreen() {
           await new Promise((r) => setTimeout(r, 2_000));
         }
         if (stopReason) break;
+
+        // PLAN-094: sebelum pindah page berikutnya — konfirmasi stop 5 detik.
+        // Tidak ditekan apa pun dalam 5 detik → lanjut otomatis.
+        if (p < lastPage && !autoStopRef.current) {
+          setBulkPct(100);
+          setBulkStatus(`Page ${p}/${lastPage} selesai · ${processed} tersimpan · konfirmasi lanjut…`);
+          const wantsStop = await requestPauseConfirmation();
+          if (wantsStop || autoStopRef.current) {
+            stopReason = "dihentikan manual";
+            break;
+          }
+        }
       }
       if (!stopReason) stopReason = "semua halaman selesai";
       let msg = `🤖 Automasi bulk berhenti (${stopReason}). ${processed} soal direvisi & tersimpan.`;
@@ -658,9 +754,13 @@ export default function QuestionEditorScreen() {
     } finally {
       setBulkRunning(false);
       setBulkStatus("");
-      void fetchWords(); // segarkan daftar halaman terakhir yang diproses
+      setBulkPct(0);
+      // Revisi urgent: refresh daftar di HALAMAN TERAKHIR yang diproses —
+      // bukan halaman tempat tombol ditekan (stale closure penyebab bug
+      // "kelihatan tidak ada yang direvisi / page tidak pindah").
+      void fetchWords(lastProcessedPage);
     }
-  }, [bulkRunning, autoRunning, page, totalPages, buildVocabQuery, fetchWords]);
+  }, [bulkRunning, autoRunning, page, totalPages, buildVocabQuery, fetchWords, requestPauseConfirmation]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
@@ -745,8 +845,20 @@ export default function QuestionEditorScreen() {
         {/* ─── PLAN-090: indikator progres automasi bulk ─── */}
         {bulkRunning && (
           <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
+            {/* Revisi urgent: progress bar REAL per page — reset tiap page baru.
+                Fase terukur: ambil soal → request AI → menyimpan i/N. */}
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: C.border, overflow: "hidden", marginBottom: 6 }}>
+              <View
+                style={{
+                  height: 6,
+                  width: `${Math.max(2, Math.min(100, bulkPct))}%`,
+                  backgroundColor: C.primary,
+                  borderRadius: 3,
+                }}
+              />
+            </View>
             <Text style={{ color: C.textSecondary, fontSize: 12 }}>
-              🤖 Automasi bulk berjalan — {bulkStatus}
+              🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
               {"\u00A0"}· ketuk ⏹ di header untuk berhenti
             </Text>
           </View>
@@ -1237,6 +1349,28 @@ export default function QuestionEditorScreen() {
             </TouchableOpacity>
           </ScrollView>
         </AppModal>
+
+        {/* ─── PLAN-094: konfirmasi stop 5 detik antar page bulk ─── */}
+        <ConfirmDialog
+          visible={pauseVisible}
+          emoji="🤖"
+          title="Lanjut ke page berikutnya?"
+          message={`Page selesai. Automasi lanjut otomatis dalam ${pauseSeconds} detik.`}
+          confirmText="Stop Sekarang"
+          confirmIcon="⏹"
+          cancelText={`Lanjut (${pauseSeconds}s)`}
+          cancelIcon="▶️"
+          variant="danger"
+          onConfirm={() => {
+            play("tap");
+            autoStopRef.current = true;
+            pauseResolverRef.current?.(true);
+          }}
+          onCancel={() => {
+            play("tap");
+            pauseResolverRef.current?.(false);
+          }}
+        />
       </KeyboardAvoidingView>
     </ScreenFade>
   );
