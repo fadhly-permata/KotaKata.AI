@@ -1449,6 +1449,7 @@ export default function QuestionEditorScreen() {
               style={[
                 styles.btn,
                 styles.aiBtn,
+                { marginTop: 16, marginBottom: 8 },
                 { backgroundColor: autoRunning ? "#EF4444" : C.secondary },
                 buttonShadow(theme),
               ]}
