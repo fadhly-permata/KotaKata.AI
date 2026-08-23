@@ -1,3 +1,8 @@
+---
+name: execute-phase
+description: Eksekusi fase pengembangan berikutnya secara otomatis dari .agents/checkpoint.json — deteksi fase pertama berstatus "not_started", kerjakan semua tugasnya, lalu update checkpoint.json (status fase selesai, current_phase naik, timestamp) dan commit. Gunakan skill ini setiap kali user meminta "lanjut phase", "execute phase", "kerjakan fase berikutnya", atau "lanjutkan checkpoint".
+---
+
 # KotaKata.AI — Execute Next Phase (Auto-Detect)
 
 ## How to use this skill

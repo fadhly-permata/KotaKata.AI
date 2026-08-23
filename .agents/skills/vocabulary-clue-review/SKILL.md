@@ -1,3 +1,8 @@
+---
+name: vocabulary-clue-review
+description: Review & perbaiki kualitas clue di file vocabulary tier (src/data/vocabulary/tier*.ts) — baca seluruh file, perbaiki clue yang bocor/duplikat/salah definisi/tanda baca sesuai checklist KBBI tanpa mengubah kata jawaban, lalu verifikasi dengan tsc --noEmit. Gunakan skill ini setiap kali user meminta "review clue", "perbaiki clue", "audit vocabulary", atau menyebut review soal tier tertentu.
+---
+
 # KotaKata.AI — Review & Perbaikan Clue Vocabulary
 
 Command reusable untuk memeriksa dan memperbaiki kualitas clue di file vocabulary tier
