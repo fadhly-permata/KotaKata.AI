@@ -129,7 +129,7 @@ describe("chatRequest — ekstraksi konten model reasoning (PLAN-086)", () => {
     expect(lastBody?.max_tokens).toBeUndefined();
   });
 
-  test("model non-reasoning di bai tetap memakai max_tokens standar (PLAN-087)", async () => {
+  test("deepseek-v4-flash di bai memakai max_completion_tokens (reasoning model, PLAN-088)", async () => {
     let lastBody: any = null;
     (globalThis as any).fetch = async (_url: any, init: any) => {
       lastBody = JSON.parse(init.body ?? "{}");
@@ -139,6 +139,21 @@ describe("chatRequest — ekstraksi konten model reasoning (PLAN-086)", () => {
       };
     };
     await testAiConnection({ ...cfg, provider: "bai", model: "deepseek-v4-flash" });
+    // deepseek-v4-flash adalah reasoning model — harus pakai max_completion_tokens.
+    expect(lastBody?.max_completion_tokens).toBeGreaterThan(0);
+    expect(lastBody?.max_tokens).toBeUndefined();
+  });
+
+  test("model non-reasoning (mis. llama) tetap memakai max_tokens standar", async () => {
+    let lastBody: any = null;
+    (globalThis as any).fetch = async (_url: any, init: any) => {
+      lastBody = JSON.parse(init.body ?? "{}");
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+      };
+    };
+    await testAiConnection({ ...cfg, provider: "bai", model: "meta-llama/Llama-3.3-70B-Instruct" });
     expect(lastBody?.max_tokens).toBeGreaterThan(0);
     expect(lastBody?.max_completion_tokens).toBeUndefined();
   });

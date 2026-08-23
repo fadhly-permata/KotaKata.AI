@@ -357,14 +357,13 @@ async function chatRequest(
   if (cfg.apiKey) {
     headers["Authorization"] = `Bearer ${cfg.apiKey}`;
   }
-  // Model generasi baru OpenAI (o-series, gpt-5.x) tidak lagi menerima
-  // `max_tokens`; parameternya menjadi `max_completion_tokens`. Selain itu
-  // token reasoning ikut dihitung ke dalam batas, jadi batas kecil membuat
-  // `content` kosong (finish_reason "length") walau model berhasil menjawab.
-  // Deteksi berbasis NAMA MODEL (PLAN-087) — bukan berdasarkan preset, karena
-  // satu provider bisa melayani banyak keluarga model (mis. B.AI menyediakan
-  // gpt-5.x SEKALIGUS deepseek-v4-flash yang tetap memakai `max_tokens`).
-  const isReasoningStyle = /^(.*\/)?(gpt-5|o[134])(\b|-|\.)/.test(cfg.model);
+  // Model reasoning (gpt-5.x, o-series, deepseek-r1/v4) menghabiskan token
+  // untuk reasoning_content SEBELUM mengisi content. Token reasoning + content
+  // dihitung bersama dalam satu batas — batas kecil membuat content kosong
+  // (finish_reason "length") walau model berhasil menjawab.
+  // Deteksi berbasis NAMA MODEL (PLAN-086/087/088).
+  const isReasoningStyle =
+    /^(.*\/)?(gpt-5|o[134]|deepseek-r1|deepseek-v4)(\b|-|\.)/.test(cfg.model);
   const body: Record<string, unknown> = {
     model: cfg.model,
     messages,
