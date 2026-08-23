@@ -8,15 +8,15 @@ PENDING
 tapi suara latar masih ada."
 
 ## Catatan
-- Platform terasa: **APK native** (Hermes). Belum dikonfirmasi apakah web
-  juga terdampak.
-- Suara latar (background music) = normal; yang hilang hanya **sound effect**
-  (tap, benar/salah, kemenangan, dsb).
-- Perlu dicek saat pengerjaan: perubahan apa pada `src/utils/sound.ts`
-  (commit fix Hermes `ef3d7a6` menyentuh file ini) yang bisa mematikan jalur
-  SFX saja tanpa memengaruhi ambient/backsound — mis. guard API web-only yang
-  keliru memblok inisialisasi SFX, atau efek samping penggantian guard
-  `typeof window`.
+- Platform terasa: **APK native** (Hermes). **REVISI pemilik (23 Aug): di WEB
+  sound berjalan normal semua — efek DAN latar.** Jadi bug ini murni
+  platform-native; jalur audio web terbukti sehat.
+- Gejala di APK: suara latar (ambient/backsound) = normal; yang hilang hanya
+  **sound effect** (tap, benar/salah, kemenangan, dsb).
+- Implikasi untuk pengerjaan: fokus pada jalur SFX yang berbeda perilakunya
+  antara web & native (mis. engine SFX vs engine backsound berbeda, atau guard
+  yang diganti di commit `ef3d7a6` menyentuh file sound.ts). Perbaikan wajib
+  mempertahankan perilaku web yang sudah benar.
 
 ## Langkah pengerjaan
 - [ ] Audit `src/utils/sound.ts`: bandingkan dengan versi sebelum commit
