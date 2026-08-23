@@ -26,7 +26,21 @@ interface SharedCard {
   creator_name: string | null;
   created_at: string;
   wordCount: number;
+  /** Teks kata untuk preview (diresolve dari vocabulary via word_id). */
   preview: string[];
+}
+
+/** Ambil teks kata untuk preview kartu dari array word_id (chunked). */
+async function resolveWords(wordIds: string[]): Promise<string[]> {
+  if (wordIds.length === 0) return [];
+  try {
+    const docs = await vocabularyRepository.getByIds(wordIds);
+    const byId = new Map(docs.map((d) => [d.word_id, d.word]));
+    return wordIds.map((id) => byId.get(id) ?? "?");
+  } catch (err) {
+    loggerWarn("Gagal memuat preview kata papan bagikan", err);
+    return [];
+  }
 }
 
 function formatTanggal(iso: string): string {
@@ -65,13 +79,15 @@ export default function SharedBoardsScreen() {
         offset,
       );
       setTotal(totalCount);
+      // Preview teks kata dibaca dari vocabulary via word_id — tanpa duplikasi.
+      const previews = await Promise.all(rows.map((r) => resolveWords(r.word_ids)));
       setItems((prev) => {
-        const next = rows.map((r) => ({
+        const next = rows.map((r, i) => ({
           code: r.code,
           creator_name: r.creator_name,
           created_at: r.created_at,
-          wordCount: r.words.length,
-          preview: r.words.slice(0, 5).map((w) => w.word),
+          wordCount: r.word_ids.length,
+          preview: previews[i].slice(0, 5),
         }));
         return offset === 0 ? next : [...prev, ...next];
       });
@@ -101,28 +117,15 @@ export default function SharedBoardsScreen() {
       setStartError(null);
       try {
         const set = await sharedWordSetRepository.getByCode(code);
-        if (!set || set.words.length < 6) {
+        if (!set || set.word_ids.length < 6) {
           throw new Error("Set soal tidak ditemukan atau katanya kurang dari 6.");
         }
-        let dbDocs: Awaited<ReturnType<typeof vocabularyRepository.getByWords>> = [];
-        try {
-          dbDocs = await vocabularyRepository.getByWords(set.words.map((w) => w.word));
-        } catch (err) {
-          loggerWarn("Gagal resolve kata dari DB — pakai clue pembuat", err);
-        }
-        const dbByWord = new Map(dbDocs.map((d) => [d.word.toLowerCase(), d]));
-        const resolved = set.words.map((w) => {
-          const db = dbByWord.get(w.word.toLowerCase());
-          // Versi DB menang (teraudit); fallback ke clue dari pembuat.
-          if (db?.clue_1 && !db.clue_1.toLowerCase().includes(db.word.toLowerCase())) {
-            return { word: db.word, clue_1: db.clue_1, clue_2: db.clue_2 };
-          }
-          return {
-            word: w.word,
-            clue_1: w.clue_1 ?? `(kata: ${w.word.length} huruf)`,
-            clue_2: w.clue_2,
-          };
-        });
+        // Kata & clue SELALU dari vocabulary (versi teraudit). Baris yang sudah
+        // dihapus dari vocabulary dilewati.
+        const docs = await vocabularyRepository.getByIds(set.word_ids);
+        const resolved = docs
+          .filter((d) => !!d.clue_1 && !d.clue_1.toLowerCase().includes(d.word.toLowerCase()))
+          .map((d) => ({ word: d.word, clue_1: d.clue_1, clue_2: d.clue_2 }));
         useGameStore.getState().reset();
         useGameStore.getState().setAiWords(resolved);
         loggerInfo(`Memainkan papan bagikan ${code} (${resolved.length} kata)`);

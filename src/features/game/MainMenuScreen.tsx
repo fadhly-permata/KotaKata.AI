@@ -527,17 +527,27 @@ export default function MainMenuScreen() {
           `Hanya ${okWords.length} clue valid (yang bocor dibuang). Coba kata lain atau provider berbeda.`,
         );
       }
-      // PLAN-103 bagian 2: simpan set kata dengan KODE BAGIKAN — hanya map
-      // kode → kata; papan tiap pemain digenerate acak sendiri. Kata yang sudah
-      // ada di vocabulary TIDAK disimpan ulang (saveAiWords dedup) dan saat
-      // dimainkan otomatis memakai versi DB yang sudah diaudit.
+      // Pastikan SEMUA kata terdaftar di vocabulary DULU (dedup), lalu ambil
+      // word_id-nya — tabel shared_word_sets hanya menyimpan array id, tanpa
+      // duplikasi kata/clue (kata & clue selalu dibaca dari vocabulary).
+      const savedCount = await vocabularyRepository.saveAiWords(
+        okWords.map((w) => ({ ...w, tier_level: tier })),
+      );
+      if (savedCount > 0) loggerInfo(`${savedCount} kata custom tersimpan ke database`);
       let shareCode: string | null = null;
       if (user?.id) {
         try {
-          shareCode = await sharedWordSetRepository.create(
-            okWords.map((w) => ({ word: w.word, clue_1: w.clue_1, clue_2: w.clue_2 })),
-            user.id,
-          );
+          const docs = await vocabularyRepository.getByWords(okWords.map((w) => w.word));
+          const ids = okWords
+            .map((w) => docs.find((d) => d.word.toLowerCase() === w.word.toLowerCase())?.word_id)
+            .filter((id): id is string => !!id);
+          if (ids.length >= 6) {
+            shareCode = await sharedWordSetRepository.create(ids, user.id);
+          } else {
+            loggerWarn(
+              `Hanya ${ids.length} kata punya word_id — set bagikan dilewati (non-kritis)`,
+            );
+          }
         } catch (shareErr) {
           loggerWarn("Gagal membuat kode bagikan (non-kritis)", shareErr);
         }
@@ -545,12 +555,6 @@ export default function MainMenuScreen() {
       reset();
       useGameStore.getState().setAiWords(okWords);
       navigation.navigate("Game");
-      vocabularyRepository
-        .saveAiWords(okWords.map((w) => ({ ...w, tier_level: tier })))
-        .then((n) => {
-          if (n > 0) loggerInfo(`${n} kata custom tersimpan ke database`);
-        })
-        .catch(() => {}); // non-kritis
       setCustomWordsInput("");
       if (shareCode) {
         Alert.alert(

@@ -2,22 +2,15 @@ import { supabase } from "../sources/supabase";
 
 /**
  * Share Kode Kata (PLAN-103 bagian 2).
- * Tabel hanya memetakan kode → daftar kata; papan digenerate acak oleh tiap
- * pemain. Kata yang sudah ada di vocabulary otomatis memakai versi DB (audit)
- * saat dimainkan — lihat resolveSharedWords di pemanggil.
+ * Tabel hanya memetakan kode → array word_id dari vocabulary. Tidak ada
+ * duplikasi kata/clue — saat dimainkan, kata & clue selalu dibaca dari
+ * vocabulary (versi teraudit pemilik). Papan digenerate acak oleh tiap pemain.
  */
-
-export interface SharedWordEntry {
-  word: string;
-  clue_1?: string;
-  clue_2?: string;
-  clue_3?: string;
-}
 
 export interface SharedWordSet {
   code: string;
   creator_id: string;
-  words: SharedWordEntry[];
+  word_ids: string[];
   created_at: string;
 }
 
@@ -36,17 +29,20 @@ export function normalizeShareCode(input: string): string {
 
 export const sharedWordSetRepository = {
   /**
-   * Simpan set kata baru dengan kode unik. Coba maksimal 5x bila bentrok
-   * kode (sangat kecil kemungkinannya).
+   * Simpan set baru berisi word_id vocabulary dengan kode unik. Coba maksimal
+   * 5x bila bentrok kode (sangat kecil kemungkinannya).
    */
-  async create(words: SharedWordEntry[], creatorId: string): Promise<string> {
+  async create(wordIds: string[], creatorId: string): Promise<string> {
+    if (wordIds.length < 6) {
+      throw new Error("Minimal 6 word_id untuk membuat set bagikan.");
+    }
     let lastError: unknown = null;
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = generateCode();
       const { error } = await supabase.from("shared_word_sets").insert({
         code,
         creator_id: creatorId,
-        words,
+        word_ids: wordIds,
       });
       if (!error) return code;
       lastError = error;
@@ -57,7 +53,7 @@ export const sharedWordSetRepository = {
 
   /**
    * Daftar set terbaru untuk halaman komunitas "Papan Bagikan" — semua pemain
-   * bisa melihat & memainkan set siapa pun. Termasuk nama pembuat (join users).
+   * bisa melihat & memainkan set siapa pun. Termasuk nama pembuat (embed users).
    */
   async list(
     limit = 25,
@@ -65,7 +61,7 @@ export const sharedWordSetRepository = {
   ): Promise<{ items: Array<SharedWordSet & { creator_name: string | null }>; total: number }> {
     const { data, count, error } = await supabase
       .from("shared_word_sets")
-      .select("code, creator_id, words, created_at, users(display_name)", { count: "exact" })
+      .select("code, creator_id, word_ids, created_at, users(display_name)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
     if (error) {
@@ -79,7 +75,7 @@ export const sharedWordSetRepository = {
         return {
           code: String(row.code),
           creator_id: String(row.creator_id),
-          words: (row.words as SharedWordEntry[]) ?? [],
+          word_ids: (row.word_ids as string[]) ?? [],
           created_at: String(row.created_at ?? ""),
           creator_name: creatorName ?? null,
         };
@@ -90,21 +86,19 @@ export const sharedWordSetRepository = {
 
   /**
    * Ambil set berdasarkan kode — null bila tidak ditemukan.
-   * Kode tersimpan berformat XXXX-XXXX; terima input user dengan atau tanpa
-   * dash/spasi (bug: dulu dicari pakai versi tanpa dash sehingga tak ketemu).
+   * Kode tersimpan berformat XXXX-XXXX; input user dicocokkan ke KEDUA format
+   * (dengan & tanpa dash) tanpa asumsi bentuk input.
    */
   async getByCode(codeInput: string): Promise<SharedWordSet | null> {
     const stripped = normalizeShareCode(codeInput);
     if (stripped.length < 6) return null;
-    // Coba KEDUA format: kode tersimpan berformat XXXX-XXXX, tapi jangan
-    // asumsikan apa pun dari input user — cek stripped & berdash sekaligus.
     const candidates = new Set<string>([stripped]);
     if (stripped.length === 8) {
       candidates.add(`${stripped.slice(0, 4)}-${stripped.slice(4)}`);
     }
     const { data, error } = await supabase
       .from("shared_word_sets")
-      .select("code, creator_id, words, created_at")
+      .select("code, creator_id, word_ids, created_at")
       .in("code", [...candidates])
       .maybeSingle();
     if (error) {
@@ -115,7 +109,7 @@ export const sharedWordSetRepository = {
     return {
       code: String(row.code),
       creator_id: String(row.creator_id),
-      words: (row.words as SharedWordEntry[]) ?? [],
+      word_ids: (row.word_ids as string[]) ?? [],
       created_at: String(row.created_at ?? ""),
     };
   },
