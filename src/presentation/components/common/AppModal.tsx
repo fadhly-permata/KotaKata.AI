@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  ScrollView,
   useWindowDimensions,
 } from "react-native";
 import { useTheme } from "../providers/ThemeProvider";
@@ -121,7 +122,12 @@ export default function AppModal({
                 )}
               </View>
             ) : null}
-            <View style={styles.body}>{children}</View>
+            {/* PLAN-109 #6: isi modal dibungkus ScrollView — konten yang lebih
+                tinggi dari kartu (mis. form Edit Soal di layar pendek) SCROLL
+                di dalam kartu, bukan terpotong/tumpang tindih keluar tepi. */}
+            <View style={styles.body}>
+              <ScrollView showsVerticalScrollIndicator={false}>{children}</ScrollView>
+            </View>
           </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
