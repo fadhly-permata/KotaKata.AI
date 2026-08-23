@@ -27,6 +27,7 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
 import { loggerWarn } from "../../utils/logger";
+import { aiPhaseLabel, type AiPhase } from "../../utils/aiStatus";
 import { solidSurfaceColor, contrastText, textOnPrimary, buttonShadow } from "../../utils/skin";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import AppModal from "../../presentation/components/common/AppModal";
@@ -71,23 +72,28 @@ export default function QuestionEditorScreen() {
   const [editTier, setEditTier] = useState("1");
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  // ─── Revisi urgent: tampilkan proses "thinking" model reasoning secara live ───
-  // Request model reasoning bisa 80–160 detik; tanpa streaming aplikasi terasa stuck.
-  const [aiThinkingText, setAiThinkingText] = useState("");
-  const thinkThrottleRef = useRef(0);
+  // ─── Revisi urgent: status AI berfase yang bermakna (bukan teks reasoning mentah
+  // yang kacau) — fase thinking/writing + durasi berjalan supaya tidak terasa stuck.
+  const [aiPhase, setAiPhase] = useState<AiPhase>("");
+  const [aiElapsed, setAiElapsed] = useState(0);
   const makeOnThinking = useCallback((): AiStreamCallback => {
     return (chunk) => {
-      if (!chunk.thinking) {
-        // Jawaban akhir mulai mengalir — bersihkan teks thinking.
-        setAiThinkingText("");
-        return;
-      }
-      const now = Date.now();
-      if (now - thinkThrottleRef.current < 250) return;
-      thinkThrottleRef.current = now;
-      setAiThinkingText(chunk.text.slice(-160));
+      const next: AiPhase = chunk.thinking ? "thinking" : "writing";
+      setAiPhase((prev) => {
+        if (prev !== next && next === "thinking") setAiElapsed(0);
+        return next;
+      });
     };
   }, []);
+  // Timer detik berjalan selama AI aktif.
+  useEffect(() => {
+    if (!aiPhase) {
+      setAiElapsed(0);
+      return;
+    }
+    const iv = setInterval(() => setAiElapsed((s) => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [aiPhase]);
   const [notification, setNotification] = useState<Notification | null>(null);
 
   // ─── PLAN-084: Automasi revisi via AI ───
@@ -791,7 +797,7 @@ export default function QuestionEditorScreen() {
       setBulkRunning(false);
       setBulkStatus("");
       setBulkPct(0);
-      setAiThinkingText("");
+      setAiPhase("");
       // Revisi urgent: refresh daftar di HALAMAN TERAKHIR yang diproses —
       // bukan halaman tempat tombol ditekan (stale closure penyebab bug
       // "kelihatan tidak ada yang direvisi / page tidak pindah").
@@ -898,18 +904,18 @@ export default function QuestionEditorScreen() {
               🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
               {"\u00A0"}· ketuk ⏹ di header untuk berhenti
             </Text>
-            {aiThinkingText.length > 0 && (
+            {aiPhase !== "" && (
               <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 4 }}>
-                💭 {aiThinkingText}
+                {aiPhaseLabel(aiPhase, aiElapsed)} ({aiElapsed} dtk)
               </Text>
             )}
           </View>
         )}
-        {/* Revisi urgent: strip thinking untuk jalur non-bulk (modal ⚡ / revisi manual) */}
-        {!bulkRunning && aiThinkingText.length > 0 && (
+        {/* Revisi urgent: strip status untuk jalur non-bulk (modal ⚡ / revisi manual) */}
+        {!bulkRunning && aiPhase !== "" && (
           <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
-            <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic" }}>
-                💭 AI sedang berpikir… {aiThinkingText}
+            <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 12 }}>
+              {aiPhaseLabel(aiPhase, aiElapsed)} ({aiElapsed} dtk)
             </Text>
           </View>
         )}
