@@ -96,8 +96,10 @@ export const sharedWordSetRepository = {
   async getByCode(codeInput: string): Promise<SharedWordSet | null> {
     const stripped = normalizeShareCode(codeInput);
     if (stripped.length < 6) return null;
+    // Coba KEDUA format: kode tersimpan berformat XXXX-XXXX, tapi jangan
+    // asumsikan apa pun dari input user — cek stripped & berdash sekaligus.
     const candidates = new Set<string>([stripped]);
-    if (!codeInput.includes("-") && stripped.length === 8) {
+    if (stripped.length === 8) {
       candidates.add(`${stripped.slice(0, 4)}-${stripped.slice(4)}`);
     }
     const { data, error } = await supabase
