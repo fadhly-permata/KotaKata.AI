@@ -76,6 +76,8 @@ export default function QuestionEditorScreen() {
   // mengalir sesuai keadaan model, bukan potongan acak yang terlihat absurd.
   const aiThink = useAiThinking();
   const makeOnThinking = useCallback(() => aiThink.onDelta, [aiThink.onDelta]);
+  /** Format durasi singkat: "42 dtk" / "3m 15dtk". */
+  const fmtDur = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}dtk` : `${s} dtk`);
   const [notification, setNotification] = useState<Notification | null>(null);
 
   // ─── PLAN-084: Automasi revisi via AI ───
@@ -90,6 +92,17 @@ export default function QuestionEditorScreen() {
   // Fase terukur: ambil soal (2–10%) → kirim ke AI (10–50%) → menyimpan
   // (50–95% sesuai jumlah item tersimpan) → selesai page (100%).
   const [bulkPct, setBulkPct] = useState(0);
+  // ── Revisi: dua timer — waktu page aktif (reset tiap pindah page) & total run.
+  const [bulkPageSec, setBulkPageSec] = useState(0);
+  const [bulkTotalSec, setBulkTotalSec] = useState(0);
+  useEffect(() => {
+    if (!bulkRunning) return;
+    const iv = setInterval(() => {
+      setBulkTotalSec((s) => s + 1);
+      setBulkPageSec((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [bulkRunning]);
   const [page, setPage] = useState(1);
   const [jumpValue, setJumpValue] = useState("");
 
@@ -567,6 +580,8 @@ export default function QuestionEditorScreen() {
 
     setBulkRunning(true);
     autoStopRef.current = false;
+    setBulkPageSec(0);
+    setBulkTotalSec(0);
 
     let processed = 0;
     let consecutiveErrors = 0;
@@ -586,9 +601,10 @@ export default function QuestionEditorScreen() {
           break;
         }
         // Ambil isi halaman ini langsung dari server (filter aktif ikut).
-        // ── Fase 1: ambil soal page ini (progress bar reset tiap page baru).
+        // ── Fase 1: ambil soal page ini (progress bar & timer page direset).
         lastProcessedPage = p;
         setPage(p);
+        setBulkPageSec(0);
         setBulkPct(2);
         setBulkStatus(`Page ${p}/${lastPage} · mengambil ${PAGE_SIZE} soal dari page ini…`);
         const from = (p - 1) * PAGE_SIZE;
@@ -779,6 +795,8 @@ export default function QuestionEditorScreen() {
       setBulkRunning(false);
       setBulkStatus("");
       setBulkPct(0);
+      setBulkPageSec(0);
+      setBulkTotalSec(0);
       aiThink.reset();
       // Revisi urgent: refresh daftar di HALAMAN TERAKHIR yang diproses —
       // bukan halaman tempat tombol ditekan (stale closure penyebab bug
@@ -886,9 +904,12 @@ export default function QuestionEditorScreen() {
               🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
               {"\u00A0"}· ketuk ⏹ di header untuk berhenti
             </Text>
+            <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>
+              ⏱ Page ini: {fmtDur(bulkPageSec)} · Total: {fmtDur(bulkTotalSec)}
+            </Text>
             {aiThink.phase !== "" && (
-              <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>
-                {aiPhaseLabel(aiThink.phase, aiThink.elapsed)} ({aiThink.elapsed} dtk)
+              <Text style={{ color: C.textSecondary, fontSize: 11 }}>
+                {aiPhaseLabel(aiThink.phase, aiThink.elapsed)}
               </Text>
             )}
             {aiThink.tail(220).length > 0 && (
