@@ -345,6 +345,144 @@ function chatUrl(cfg: AiProviderConfig): string {
   return `${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`;
 }
 
+/** Callback streaming: dipanggil per potongan reasoning (`thinking=true`) atau jawaban akhir. */
+export type AiStreamCallback = (chunk: { text: string; thinking: boolean }) => void;
+
+/**
+ * chatRequest versi STREAMING (revisi urgent): kirim `stream:true`, lalu parse
+ * SSE line-by-line. Setiap delta reasoning_content / content diteruskan ke
+ * `onDelta` supaya UI bisa menampilkan proses berpikir model secara live
+ * (request model reasoning bisa 80+ detik — tanpa ini aplikasi terasa stuck).
+ *
+ * Fallback aman:
+ * - Kalau runtime tidak mendukung ReadableStream (Hermes/native fetch lama),
+ *   ulangi request NON-streaming via chatRequest() biasa.
+ * - Error HTTP mengikuti logika chatRequest (fallback budget 400-limit).
+ */
+async function chatRequestStream(
+  cfg: AiProviderConfig,
+  messages: Array<{ role: string; content: string }>,
+  maxTokens: number,
+  signal?: AbortSignal,
+  completionBudget?: number,
+  onDelta?: AiStreamCallback,
+): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+  const isReasoningStyle =
+    /^(.*\/)?(gpt-5|o[134]|deepseek-r1|deepseek-v4)(\b|-|\.)/.test(cfg.model);
+  const buildBody = (): Record<string, unknown> => {
+    const body: Record<string, unknown> = {
+      model: cfg.model,
+      messages,
+      temperature: 0.9,
+      stream: true,
+    };
+    if (isReasoningStyle) {
+      body["max_completion_tokens"] = completionBudget ?? 20_000;
+    } else {
+      body["max_tokens"] = maxTokens;
+    }
+    return body;
+  };
+
+  const send = async (): Promise<Response> => {
+    // Revisi urgent: "TypeError: Failed to fetch" muncul di log ketika koneksi
+    // terputus saat menunggu model reasoning lama merespons — coba ulang SEKALI
+    // setelah jeda singkat sebelum menyerah (error transient network).
+    try {
+      return await fetch(chatUrl(cfg), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(buildBody()),
+        signal,
+      });
+    } catch (err: any) {
+      if (err?.name === "AbortError") throw err;
+      await new Promise((r) => setTimeout(r, 3_000));
+      return await fetch(chatUrl(cfg), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(buildBody()),
+        signal,
+      });
+    }
+  };
+  const readDetail = async (r: Response): Promise<string> => {
+    try {
+      const j = await r.json();
+      return j?.error?.message ?? JSON.stringify(j).slice(0, 160);
+    } catch {
+      return "";
+    }
+  };
+
+  let res = await send();
+  // Fallback: provider menolak budget terlalu besar → ulangi dengan default.
+  if (!res.ok && res.status === 400 && completionBudget != null) {
+    const detail = await readDetail(res);
+    if (/maximum|too large|exceed|limit|context/i.test(detail)) {
+      completionBudget = undefined;
+      res = await send();
+    }
+  }
+  if (!res.ok) {
+    const detail = await readDetail(res);
+    throw new Error(`HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
+
+  // Runtime tanpa ReadableStream (mis. fetch RN lama) → fallback non-streaming.
+  const anyRes = res as unknown as { body?: unknown };
+  if (!anyRes.body || typeof (anyRes.body as ReadableStream).getReader !== "function") {
+    return chatRequest(cfg, messages, maxTokens, signal, completionBudget);
+  }
+
+  const reader = (anyRes.body as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let finishReason: string | null = null;
+  let done = false;
+  while (!done) {
+    const { value, done: streamDone } = await reader.read();
+    if (streamDone) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (payload === "[DONE]") {
+        done = true;
+        break;
+      }
+      try {
+        const j = JSON.parse(payload);
+        const choice = j?.choices?.[0];
+        if (choice?.finish_reason) finishReason = choice.finish_reason;
+        const delta = choice?.delta ?? {};
+        const reasoning = typeof delta.reasoning_content === "string" ? delta.reasoning_content : "";
+        const text = typeof delta.content === "string" ? delta.content : "";
+        if (reasoning && onDelta) onDelta({ text: reasoning, thinking: true });
+        if (text) {
+          content += text;
+          if (onDelta) onDelta({ text, thinking: false });
+        }
+      } catch {
+        // Baris SSE tidak valid JSON — lewati.
+      }
+    }
+  }
+
+  if (!content.trim()) {
+    throw new Error(
+      `Respons kosong dari provider${finishReason ? ` (finish_reason: ${finishReason})` : ""} — model hanya mengirim reasoning.`,
+    );
+  }
+  return content;
+}
+
 async function chatRequest(
   cfg: AiProviderConfig,
   messages: Array<{ role: string; content: string }>,
@@ -568,6 +706,8 @@ export async function requestAiWords(
   playerTier: number,
   excludeWords: string[] = [],
   signal?: AbortSignal,
+  /** Revisi urgent: streaming thinking — tampilkan proses model di UI. */
+  opts?: { maxCompletionTokens?: number; onThinking?: AiStreamCallback },
 ): Promise<AiWord[]> {
   const exclude = excludeWords
     .map((w) => w.trim().toLowerCase())
@@ -580,7 +720,7 @@ export async function requestAiWords(
     userPrompt += ` JANGAN gunakan kata-kata berikut (sudah pernah ditemukan pemain): ${exclude.join(", ")}.`;
   }
 
-  const content = await chatRequest(
+  const content = await chatRequestStream(
     cfg,
     [
       { role: "system", content: SYSTEM_PROMPT },
@@ -588,6 +728,8 @@ export async function requestAiWords(
     ],
     1500,
     signal,
+    opts?.maxCompletionTokens,
+    opts?.onThinking,
   );
 
   const json = extractJson(content);
@@ -657,7 +799,7 @@ export async function requestAiRevision(
   input: RevisionInput,
   signal?: AbortSignal,
   /** PLAN-090: override budget token reasoning untuk automasi bulk. */
-  opts?: { maxCompletionTokens?: number },
+  opts?: { maxCompletionTokens?: number; onThinking?: AiStreamCallback },
 ): Promise<RevisionOutput> {
   const userPrompt = [
     `Revisi clue untuk kata "${input.word}" (tier ${input.tier_level}).`,
@@ -671,7 +813,7 @@ export async function requestAiRevision(
     .filter(Boolean)
     .join("\n");
 
-  const content = await chatRequest(
+  const content = await chatRequestStream(
     cfg,
     [
       { role: "system", content: REVISION_SYSTEM_PROMPT },
@@ -680,6 +822,7 @@ export async function requestAiRevision(
     600,
     signal,
     opts?.maxCompletionTokens,
+    opts?.onThinking,
   );
 
   const json = extractJson(content) as Record<string, string>;
@@ -731,7 +874,7 @@ export async function requestAiRevisionBatch(
   cfg: AiProviderConfig,
   items: BatchRevisionItem[],
   signal?: AbortSignal,
-  opts?: { maxCompletionTokens?: number },
+  opts?: { maxCompletionTokens?: number; onThinking?: AiStreamCallback },
 ): Promise<Map<string, RevisionOutput>> {
   if (items.length === 0) return new Map();
 
@@ -757,7 +900,7 @@ export async function requestAiRevisionBatch(
 
   // Budget token proporsional jumlah soal — reasoning model butuh ruang besar
   // saat memproses puluhan soal sekaligus (PLAN-090/091).
-  const content = await chatRequest(
+  const content = await chatRequestStream(
     cfg,
     [
       { role: "system", content: BATCH_REVISION_SYSTEM_PROMPT },
@@ -766,6 +909,7 @@ export async function requestAiRevisionBatch(
     Math.max(600, items.length * 600),
     signal,
     opts?.maxCompletionTokens,
+    opts?.onThinking,
   );
 
   const json = extractJson(content) as { results?: unknown };

@@ -42,7 +42,7 @@ import FloatingOrbs, {
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { useAmbientLoops } from "../../utils/ambientLoop";
-import { getAiProviderConfig, getAiProviderConfigFor, getAllSavedProviders, setActiveProvider, requestAiWords, providerLabel, type AiProviderConfig, type AiProviderPreset } from "../../utils/aiProvider";
+import { getAiProviderConfig, getAiProviderConfigFor, getAllSavedProviders, setActiveProvider, requestAiWords, providerLabel, type AiProviderConfig, type AiProviderPreset, type AiStreamCallback } from "../../utils/aiProvider";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import { buttonShadow, chipStyle, chipTextColor, contrastText, solidSurfaceColor, textOnPrimary } from "../../utils/skin";
 
@@ -214,6 +214,21 @@ export default function MainMenuScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSetupVisible, setAiSetupVisible] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  // ─── Revisi urgent: tampilkan proses thinking model reasoning secara live ───
+  const [aiThinkingText, setAiThinkingText] = useState("");
+  const thinkThrottleRef = useRef(0);
+  const makeOnThinking = useCallback((): AiStreamCallback => {
+    return (chunk) => {
+      if (!chunk.thinking) {
+        setAiThinkingText("");
+        return;
+      }
+      const now = Date.now();
+      if (now - thinkThrottleRef.current < 250) return;
+      thinkThrottleRef.current = now;
+      setAiThinkingText(chunk.text.slice(-160));
+    };
+  }, []);
   const [aiProviderSelector, setAiProviderSelector] = useState<AiProviderPreset[]>([]);
   const aiAbortRef = useRef<AbortController | null>(null);
 
@@ -418,7 +433,9 @@ export default function MainMenuScreen() {
           loggerInfo("Gagal ambil kata yang sudah ditemukan untuk Mode AI — lanjut tanpa exclude", err);
         }
       }
-      const words = await requestAiWords(cfg, playerTier, excludeWords, controller.signal);
+      const words = await requestAiWords(cfg, playerTier, excludeWords, controller.signal, {
+        onThinking: makeOnThinking(),
+      });
       reset();
       useGameStore.getState().setAiMode(true);
       useGameStore.getState().setAiWords(words);
@@ -433,8 +450,9 @@ export default function MainMenuScreen() {
     } finally {
       clearTimeout(timer);
       setAiLoading(false);
+      setAiThinkingText("");
     }
-  }, [navigation, reset, user?.id]);
+  }, [navigation, reset, user?.id, makeOnThinking]);
 
   const handlePlayAi = useCallback(async () => {
     play("tap");
@@ -901,6 +919,12 @@ export default function MainMenuScreen() {
             <Text style={[styles.aiLoadingHint, { color: C.textSecondary }]}>
               🇮🇩 Soal dibuat dalam Bahasa Indonesia.
             </Text>
+            {/* Revisi urgent: tampilkan proses thinking model reasoning secara live */}
+            {aiThinkingText.length > 0 && (
+              <Text numberOfLines={3} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 8 }}>
+                💭 {aiThinkingText}
+              </Text>
+            )}
             <TouchableOpacity
               style={[
                 styles.aiCancelBtn,

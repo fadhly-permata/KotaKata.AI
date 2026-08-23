@@ -21,6 +21,7 @@ import {
   getAiProviderConfig,
   requestAiRevision,
   requestAiRevisionBatch,
+  type AiStreamCallback,
   type RevisionOutput,
 } from "../../utils/aiProvider";
 import { useAuth } from "../auth/useAuth";
@@ -70,6 +71,23 @@ export default function QuestionEditorScreen() {
   const [editTier, setEditTier] = useState("1");
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  // ─── Revisi urgent: tampilkan proses "thinking" model reasoning secara live ───
+  // Request model reasoning bisa 80–160 detik; tanpa streaming aplikasi terasa stuck.
+  const [aiThinkingText, setAiThinkingText] = useState("");
+  const thinkThrottleRef = useRef(0);
+  const makeOnThinking = useCallback((): AiStreamCallback => {
+    return (chunk) => {
+      if (!chunk.thinking) {
+        // Jawaban akhir mulai mengalir — bersihkan teks thinking.
+        setAiThinkingText("");
+        return;
+      }
+      const now = Date.now();
+      if (now - thinkThrottleRef.current < 250) return;
+      thinkThrottleRef.current = now;
+      setAiThinkingText(chunk.text.slice(-160));
+    };
+  }, []);
   const [notification, setNotification] = useState<Notification | null>(null);
 
   // ─── PLAN-084: Automasi revisi via AI ───
@@ -252,14 +270,19 @@ export default function QuestionEditorScreen() {
         });
         return;
       }
-      const revised = await requestAiRevision(config, {
-        word,
-        // Kalau clue masih kosong, minta AI membuatkan dari nol.
-        clue_1: newClue1.trim() || "(belum ada — buatkan clue yang baik untuk kata ini)",
-        clue_2: newClue2.trim() || undefined,
-        clue_3: newClue3.trim() || undefined,
-        tier_level: parseInt(newTier, 10) || 1,
-      });
+      const revised = await requestAiRevision(
+        config,
+        {
+          word,
+          // Kalau clue masih kosong, minta AI membuatkan dari nol.
+          clue_1: newClue1.trim() || "(belum ada — buatkan clue yang baik untuk kata ini)",
+          clue_2: newClue2.trim() || undefined,
+          clue_3: newClue3.trim() || undefined,
+          tier_level: parseInt(newTier, 10) || 1,
+        },
+        undefined,
+        { onThinking: makeOnThinking() },
+      );
       if (revised) {
         setNewClue1(revised.clue_1);
         setNewClue2(revised.clue_2 ?? "");
@@ -363,13 +386,18 @@ export default function QuestionEditorScreen() {
         });
         return;
       }
-      const revised = await requestAiRevision(config, {
-        word: editWord.trim(),
-        clue_1: editClue1.trim(),
-        clue_2: editClue2.trim() || undefined,
-        clue_3: editClue3.trim() || undefined,
-        tier_level: parseInt(editTier, 10) || 1,
-      });
+      const revised = await requestAiRevision(
+        config,
+        {
+          word: editWord.trim(),
+          clue_1: editClue1.trim(),
+          clue_2: editClue2.trim() || undefined,
+          clue_3: editClue3.trim() || undefined,
+          tier_level: parseInt(editTier, 10) || 1,
+        },
+        undefined,
+        { onThinking: makeOnThinking() },
+      );
       if (revised) {
         setEditClue1(revised.clue_1);
         if (revised.clue_2) setEditClue2(revised.clue_2);
@@ -441,13 +469,18 @@ export default function QuestionEditorScreen() {
         // 1) Revisi via AI
         let revised: Awaited<ReturnType<typeof requestAiRevision>>;
         try {
-          revised = await requestAiRevision(config, {
-            word: w.word,
-            clue_1: w.clue_1,
-            clue_2: w.clue_2,
-            clue_3: w.clue_3,
-            tier_level: w.tier_level,
-          });
+          revised = await requestAiRevision(
+            config,
+            {
+              word: w.word,
+              clue_1: w.clue_1,
+              clue_2: w.clue_2,
+              clue_3: w.clue_3,
+              tier_level: w.tier_level,
+            },
+            undefined,
+            { onThinking: makeOnThinking() },
+          );
         } catch (err) {
           loggerWarn("Automasi AI: gagal revisi", err);
           consecutiveErrors += 1;
@@ -617,7 +650,10 @@ export default function QuestionEditorScreen() {
                 previousLeaks: it.previousLeaks,
               })),
               undefined,
-              { maxCompletionTokens: BULK_MAX_TOKENS },
+              {
+                maxCompletionTokens: BULK_MAX_TOKENS,
+                onThinking: makeOnThinking(),
+              },
             );
           } catch (err) {
             loggerWarn("Automasi bulk: gagal batch revisi", err);
@@ -755,6 +791,7 @@ export default function QuestionEditorScreen() {
       setBulkRunning(false);
       setBulkStatus("");
       setBulkPct(0);
+      setAiThinkingText("");
       // Revisi urgent: refresh daftar di HALAMAN TERAKHIR yang diproses —
       // bukan halaman tempat tombol ditekan (stale closure penyebab bug
       // "kelihatan tidak ada yang direvisi / page tidak pindah").
@@ -860,6 +897,19 @@ export default function QuestionEditorScreen() {
             <Text style={{ color: C.textSecondary, fontSize: 12 }}>
               🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
               {"\u00A0"}· ketuk ⏹ di header untuk berhenti
+            </Text>
+            {aiThinkingText.length > 0 && (
+              <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 4 }}>
+                💭 {aiThinkingText}
+              </Text>
+            )}
+          </View>
+        )}
+        {/* Revisi urgent: strip thinking untuk jalur non-bulk (modal ⚡ / revisi manual) */}
+        {!bulkRunning && aiThinkingText.length > 0 && (
+          <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
+            <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic" }}>
+                💭 AI sedang berpikir… {aiThinkingText}
             </Text>
           </View>
         )}
