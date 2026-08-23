@@ -67,7 +67,7 @@ const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset & { apiKeyRequir
     // (lihat contoh curl di PLAN-085).
     label: "B.AI",
     baseUrl: "https://api.b.ai/v1",
-    defaultModel: "gpt-5.2",
+    defaultModel: "deepseek-v4-flash",
     apiKeyRequired: true,
   },
   gemini: {
@@ -357,12 +357,14 @@ async function chatRequest(
   if (cfg.apiKey) {
     headers["Authorization"] = `Bearer ${cfg.apiKey}`;
   }
-  // Model generasi baru OpenAI (o-series, gpt-5.x — termasuk B.AI gpt-5.2)
-  // tidak lagi menerima `max_tokens`; parameternya menjadi
-  // `max_completion_tokens`. Selain itu token reasoning ikut dihitung ke
-  // dalam batas, jadi batas kecil membuat `content` kosong (finish_reason
-  // "length") walau model berhasil menjawab. (PLAN-086)
-  const isReasoningStyle = cfg.provider === "bai" || /^gpt-5|^o[134]/.test(cfg.model);
+  // Model generasi baru OpenAI (o-series, gpt-5.x) tidak lagi menerima
+  // `max_tokens`; parameternya menjadi `max_completion_tokens`. Selain itu
+  // token reasoning ikut dihitung ke dalam batas, jadi batas kecil membuat
+  // `content` kosong (finish_reason "length") walau model berhasil menjawab.
+  // Deteksi berbasis NAMA MODEL (PLAN-087) — bukan berdasarkan preset, karena
+  // satu provider bisa melayani banyak keluarga model (mis. B.AI menyediakan
+  // gpt-5.x SEKALIGUS deepseek-v4-flash yang tetap memakai `max_tokens`).
+  const isReasoningStyle = /^(.*\/)?(gpt-5|o[134])(\b|-|\.)/.test(cfg.model);
   const body: Record<string, unknown> = {
     model: cfg.model,
     messages,

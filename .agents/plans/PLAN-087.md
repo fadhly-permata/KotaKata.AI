@@ -1,7 +1,18 @@
 # PLAN-087 — B.AI: dukungan model deepseek-v4-flash (default model + parameter per-model)
 
 ## Status
-PENDING
+DONE — parameter token berbasis nama model + default model deepseek-v4-flash
+
+## Hasil pengerjaan
+- Deteksi parameter kini **berbasis nama model** (regex
+  `gpt-5*`/`o1|o3|o4`, termasuk prefiks vendor `vendor/model`) — bukan lagi
+  berdasarkan preset provider. Akibatnya `deepseek-v4-flash` di B.AI dikirim
+  dengan parameter standar OpenAI (`max_tokens`), sementara `gpt-5.x`/
+  o-series tetap memakai `max_completion_tokens` + batas diperbesar.
+- Default model preset B.AI diganti menjadi **deepseek-v4-flash**
+  (mengikuti pemakaian pemilik).
+- Test unit baru: model non-reasoning di preset bai tetap pakai `max_tokens`
+  (75 test pass).
 
 ## Deskripsi (laporan pemilik)
 "gua pake model deepseek-v4-flash" (konteks: lanjutan PLAN-086, response
@@ -23,9 +34,9 @@ kosong pada provider B.AI)
      parser `extractContent` sudah multi-format, cukup verifikasi.
 
 ## Langkah pengerjaan
-- [ ] Ubah deteksi parameter token menjadi berbasis nama model
+- [x] Ubah deteksi parameter token menjadi berbasis nama model
       (`max_completion_tokens` hanya untuk gpt-5*/o-series; deepseek-v4-flash
       & lainnya pakai `max_tokens`).
-- [ ] Evaluasi default model preset B.AI (pertimbangkan deepseek-v4-flash).
-- [ ] Test unit untuk kasus model non-reasoning di preset bai.
-- [ ] Verifikasi: tsc + test + lint, deploy web.
+- [x] Evaluasi default model preset B.AI (pertimbangkan deepseek-v4-flash).
+- [x] Test unit untuk kasus model non-reasoning di preset bai.
+- [x] Verifikasi: tsc + test + lint, deploy web.

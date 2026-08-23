@@ -90,10 +90,11 @@ describe("provider presets — cloud providers", () => {
     expect(preset.baseUrl).toBe("");
   });
 
-  test("bai: preset OpenAI-compatible gpt-5.2 (PLAN-085)", () => {
+  test("bai: preset OpenAI-compatible (PLAN-085/087)", () => {
     const preset = providerPreset("bai");
     expect(preset.baseUrl).toBe("https://api.b.ai/v1");
-    expect(preset.defaultModel).toBe("gpt-5.2");
+    // Default model mengikuti pemakaian pemilik (PLAN-087).
+    expect(preset.defaultModel).toBe("deepseek-v4-flash");
   });
 });
 
@@ -126,6 +127,20 @@ describe("chatRequest — ekstraksi konten model reasoning (PLAN-086)", () => {
     await testAiConnection({ ...cfg, provider: "bai", model: "gpt-5.2" });
     expect(lastBody?.max_completion_tokens).toBeGreaterThan(0);
     expect(lastBody?.max_tokens).toBeUndefined();
+  });
+
+  test("model non-reasoning di bai tetap memakai max_tokens standar (PLAN-087)", async () => {
+    let lastBody: any = null;
+    (globalThis as any).fetch = async (_url: any, init: any) => {
+      lastBody = JSON.parse(init.body ?? "{}");
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+      };
+    };
+    await testAiConnection({ ...cfg, provider: "bai", model: "deepseek-v4-flash" });
+    expect(lastBody?.max_tokens).toBeGreaterThan(0);
+    expect(lastBody?.max_completion_tokens).toBeUndefined();
   });
 
   test("pesan error menyebut finish_reason length saat konten terpotong", async () => {
