@@ -216,7 +216,7 @@ describe("requestAiWords — exclude kata (PLAN-050)", () => {
     expect(lastUserPrompt()).toContain("kucing");
   });
 
-  test("exclude lebih dari 300 kata dipotong (maksimal 300 di prompt)", async () => {
+  test("exclude lebih dari 500 kata dipotong (maksimal 500 di prompt, PLAN-095)", async () => {
     const { lastUserPrompt } = mockChat([
       { word: "meja", clue: "tempat makan diletakkan", clue2: "benda kayu berkaki empat" },
       { word: "kursi", clue: "tempat duduk", clue2: "punya sandaran" },
@@ -227,10 +227,10 @@ describe("requestAiWords — exclude kata (PLAN-050)", () => {
     const banyak = Array.from({ length: 400 }, (_, i) => `kata${i}`);
     await requestAiWords(cfg, 1, banyak);
     const prompt = lastUserPrompt();
-    // Potongan exclude = 300 kata → cek kata ke-400 tidak ikut terkirim.
-    expect(prompt).not.toContain("kata399");
+    // Potongan exclude = 500 kata → cek kata ke-600 tidak ikut terkirim.
+    expect(prompt).not.toContain("kata599");
     const chunk = prompt.split("kata berikut (sudah pernah ditemukan pemain): ")[1] ?? "";
-    expect(chunk.split(", ").length).toBeLessThanOrEqual(300);
+    expect(chunk.split(", ").length).toBeLessThanOrEqual(500);
   });
 });
 

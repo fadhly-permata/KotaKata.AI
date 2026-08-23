@@ -363,14 +363,12 @@ export default function MainMenuScreen() {
     const timer = setTimeout(() => controller.abort(), 35000);
     try {
       const playerTier = calcTier(useGameStore.getState().totalXp);
+      // PLAN-095 (arahan pemilik): exclude untuk Mode AI = TEKS kata dari
+      // discoveries, maksimal 500 kata terbaru — cukup katanya, tanpa clue.
       let excludeWords: string[] = [];
       if (user?.id) {
         try {
-          const discoveredIds = await wordDiscoveryRepository.getDiscoveredWordIds(user.id, 300);
-          if (discoveredIds.length > 0) {
-            const docs = await vocabularyRepository.getByIds(discoveredIds);
-            excludeWords = docs.map((d) => d.word).filter((w): w is string => !!w);
-          }
+          excludeWords = await wordDiscoveryRepository.getDiscoveredWordTexts(user.id, 500);
         } catch (err) {
           loggerInfo("Gagal ambil kata yang sudah ditemukan untuk Mode AI — lanjut tanpa exclude", err);
         }

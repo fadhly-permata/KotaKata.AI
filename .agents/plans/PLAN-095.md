@@ -1,6 +1,6 @@
 # PLAN-095 — Soal Sering Berulang di Game (Reguler & Mode AI): Exclude Discoveries Dipertanyakan
 
-**Status:** PENDING
+**Status:** DONE ✅ (23 Aug 2026 — sesuai arahan eksplisit pemilik)
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)
@@ -23,7 +23,23 @@
    kalau discoveries tetap, exclude harusnya justru membuat soal BARU tiap reset;
    gejala berulang menandakan exclude tidak jalan / tidak dipakai.
 3. Perbaiki: pastikan pemilihan soal (reguler & AI) meng-exclude kata yang sudah
-   pernah ditemukan user; fallback bila pool habis (pakai least-recently-found).
+   pernah ditemukan user.
+
+## Arahan final pemilik (23 Aug 2026)
+> - mode ai: ambil semua kata (cukup kata, gak usah clue) dari table discoveries
+>   dalam bentuk array string, dan jadikan exclude word untuk ai. Maksimal 500 kata.
+> - mode non ai: waktu generate soal harusnya pake query "not in" jadi gak bakalan
+>   ketemu sama soal sebelumnya. Ini hanya berlaku untuk XP dibawah 800.000.
+>   Untuk diatas itu boleh ketemu dengan soal apapun dari tier manapun.
+
+## Hasil pengerjaan
+1. **Mode AI**: method baru `getDiscoveredWordTexts(userId, limit=500)` — ambil TEKS
+   kata terbaru dari word_discoveries (500), langsung jadi `excludeWords` prompt AI;
+   cap prompt MAX_EXCLUDE_WORDS ikut dinaikkan 300 → 500.
+2. **Mode non-AI**: eksklusi server-side `.not(in)` TETAP berlaku hanya untuk
+   XP < 800.000 (satu tier). XP ≥ 800.000 (allTiers): TANPA eksklusi — pool semua
+   tier, boleh soal apa pun.
+3. Test unit exclude di-update ke cap 500.
 4. Verifikasi lintas platform (aturan #5b) + tsc/test → commit & push → deploy web dev.
 
 ## Catatan

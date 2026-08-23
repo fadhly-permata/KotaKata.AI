@@ -235,6 +235,19 @@ export const wordDiscoveryRepository = {
     return (data ?? []).map((d) => d.word_id as string);
   },
 
+  /**
+   * Ambil TEKS kata (bukan word_id) yang sudah ditemukan user — dipakai Mode AI
+   * sebagai `excludeWords` untuk prompt AI (PLAN-095, arahan pemilik: cukup
+   * katanya saja, maksimal 500 kata terbaru). Dua langkah: ambil id terbaru,
+   * lalu resolve teks katanya dari vocabulary.
+   */
+  async getDiscoveredWordTexts(userId: string, limit = 500): Promise<string[]> {
+    const ids = await this.getDiscoveredWordIds(userId, limit);
+    if (ids.length === 0) return [];
+    const docs = await vocabularyRepository.getByIdsFromCloud(ids);
+    return docs.map((d) => d.word).filter((w): w is string => !!w);
+  },
+
   async countByUser(userId: string, search?: string): Promise<number> {
     const searchIds = await resolveSearchWordIds(search);
     if (searchIds !== null && searchIds.length === 0) return 0;

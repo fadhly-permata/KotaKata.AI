@@ -505,7 +505,7 @@ const USER_PROMPT = "Buatkan 16 kata untuk satu papan TTS. Berikan JSON sesuai a
  * Riwayat pemain bisa ribuan kata; cukup kirim sebagian terbaru supaya tidak
  * memboroskan token provider sementara tetap mencegah pengulangan praktis.
  */
-const MAX_EXCLUDE_WORDS = 300;
+const MAX_EXCLUDE_WORDS = 500;
 
 /**
  * Panduan tingkat kesulitan per tier untuk soal AI (1 = paling mudah).

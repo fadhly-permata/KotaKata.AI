@@ -565,9 +565,10 @@ export default function GameScreen() {
         }
 
         // 2) Tidak ada progres tersimpan — generate papan baru sesuai tier.
-        //    SEMUA kata yang pernah ditemukan user ini (lintas tier, dari
-        //    word_discoveries) dikecualikan server-side — tidak akan pernah
-        //    muncul lagi di papan mana pun.
+        //    XP < 800.000: SEMUA kata yang pernah ditemukan user ini dikecualikan
+        //    server-side (`not.in`) — tidak muncul lagi. XP ≥ 800.000 (allTiers,
+        //    PLAN-095 arahan pemilik): tanpa eksklusi — boleh soal apa pun,
+        //    dari tier mana pun.
         const discoveredWordIds = user
           ? await wordDiscoveryRepository.getDiscoveredWordIds(user.id)
           : [];

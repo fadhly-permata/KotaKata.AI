@@ -1,6 +1,6 @@
 # PLAN-094 — Bulk Automasi: Popup Konfirmasi 5 Detik Sebelum Next Page
 
-**Status:** PENDING
+**Status:** DONE ✅ (23 Aug 2026)
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)
@@ -25,3 +25,8 @@
 
 ## Catatan
 - Hanya jalur bulk (PLAN-090+) yang kena — jalur ⚡ per-soal & revisi manual tidak diubah.
+
+## Hasil pengerjaan (DONE 23 Aug 2026)
+- Popup `ConfirmDialog` di akhir tiap page (kecuali page terakhir): hitung mundur
+  5 detik, tombol **⏹ Stop Sekarang** / **▶️ Lanjut (Ns)**.
+- Timeout tanpa aksi → lanjut otomatis ke page berikutnya; Stop → ringkasan akhir.
