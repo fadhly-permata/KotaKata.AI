@@ -33,7 +33,7 @@ import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRe
 import { userRepository } from "../../data/repositories/userRepository";
 import type { VocabularyDoc, UserDoc } from "../../data/models/schemas";
 import { loggerInfo, loggerWarn } from "../../utils/logger";
-import { aiPhaseLabel, type AiPhase } from "../../utils/aiStatus";
+import { aiPhaseLabel, useAiThinking } from "../../utils/aiStatus";
 import AppModal from "../../presentation/components/common/AppModal";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
@@ -215,26 +215,10 @@ export default function MainMenuScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSetupVisible, setAiSetupVisible] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  // ─── Revisi urgent: status AI berfase yang bermakna (bukan teks reasoning mentah)
-  const [aiPhase, setAiPhase] = useState<AiPhase>("");
-  const [aiElapsed, setAiElapsed] = useState(0);
-  const makeOnThinking = useCallback((): AiStreamCallback => {
-    return (chunk) => {
-      const next: AiPhase = chunk.thinking ? "thinking" : "writing";
-      setAiPhase((prev) => {
-        if (prev !== next && next === "thinking") setAiElapsed(0);
-        return next;
-      });
-    };
-  }, []);
-  useEffect(() => {
-    if (!aiPhase) {
-      setAiElapsed(0);
-      return;
-    }
-    const iv = setInterval(() => setAiElapsed((s) => s + 1), 1000);
-    return () => clearInterval(iv);
-  }, [aiPhase]);
+  // ─── Revisi urgent: streaming thinking ala aplikasi chat AI — kalimat utuh
+  // mengalir mengikuti keadaan model, bukan potongan acak.
+  const aiThink = useAiThinking();
+  const makeOnThinking = useCallback(() => aiThink.onDelta, [aiThink.onDelta]);
   const [aiProviderSelector, setAiProviderSelector] = useState<AiProviderPreset[]>([]);
   const aiAbortRef = useRef<AbortController | null>(null);
 
@@ -487,7 +471,7 @@ export default function MainMenuScreen() {
     } finally {
       clearTimeout(timer);
       setAiLoading(false);
-      setAiPhase("");
+      aiThink.reset();
     }
   }, [navigation, reset, user?.id, makeOnThinking]);
 
@@ -956,10 +940,15 @@ export default function MainMenuScreen() {
             <Text style={[styles.aiLoadingHint, { color: C.textSecondary }]}>
               🇮🇩 Soal dibuat dalam Bahasa Indonesia.
             </Text>
-            {/* Revisi urgent: status berfase yang mudah dipahami + durasi */}
-            {aiPhase !== "" && (
+            {/* Revisi urgent: streaming thinking ala chat AI — kalimat utuh + durasi */}
+            {aiThink.phase !== "" && (
               <Text style={{ color: C.textSecondary, fontSize: 12, marginTop: 8 }}>
-                {aiPhaseLabel(aiPhase, aiElapsed)} ({aiElapsed} dtk)
+                {aiPhaseLabel(aiThink.phase, aiThink.elapsed)} ({aiThink.elapsed} dtk)
+              </Text>
+            )}
+            {aiThink.tail(280).length > 0 && (
+              <Text numberOfLines={5} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 4 }}>
+                {aiThink.tail(280)}
               </Text>
             )}
             <TouchableOpacity

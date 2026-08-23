@@ -27,7 +27,7 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
 import { loggerWarn } from "../../utils/logger";
-import { aiPhaseLabel, type AiPhase } from "../../utils/aiStatus";
+import { aiPhaseLabel, useAiThinking } from "../../utils/aiStatus";
 import { solidSurfaceColor, contrastText, textOnPrimary, buttonShadow } from "../../utils/skin";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import AppModal from "../../presentation/components/common/AppModal";
@@ -72,28 +72,10 @@ export default function QuestionEditorScreen() {
   const [editTier, setEditTier] = useState("1");
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  // ─── Revisi urgent: status AI berfase yang bermakna (bukan teks reasoning mentah
-  // yang kacau) — fase thinking/writing + durasi berjalan supaya tidak terasa stuck.
-  const [aiPhase, setAiPhase] = useState<AiPhase>("");
-  const [aiElapsed, setAiElapsed] = useState(0);
-  const makeOnThinking = useCallback((): AiStreamCallback => {
-    return (chunk) => {
-      const next: AiPhase = chunk.thinking ? "thinking" : "writing";
-      setAiPhase((prev) => {
-        if (prev !== next && next === "thinking") setAiElapsed(0);
-        return next;
-      });
-    };
-  }, []);
-  // Timer detik berjalan selama AI aktif.
-  useEffect(() => {
-    if (!aiPhase) {
-      setAiElapsed(0);
-      return;
-    }
-    const iv = setInterval(() => setAiElapsed((s) => s + 1), 1000);
-    return () => clearInterval(iv);
-  }, [aiPhase]);
+  // ─── Revisi urgent: streaming thinking ala aplikasi chat AI — kalimat utuh
+  // mengalir sesuai keadaan model, bukan potongan acak yang terlihat absurd.
+  const aiThink = useAiThinking();
+  const makeOnThinking = useCallback(() => aiThink.onDelta, [aiThink.onDelta]);
   const [notification, setNotification] = useState<Notification | null>(null);
 
   // ─── PLAN-084: Automasi revisi via AI ───
@@ -797,7 +779,7 @@ export default function QuestionEditorScreen() {
       setBulkRunning(false);
       setBulkStatus("");
       setBulkPct(0);
-      setAiPhase("");
+      aiThink.reset();
       // Revisi urgent: refresh daftar di HALAMAN TERAKHIR yang diproses —
       // bukan halaman tempat tombol ditekan (stale closure penyebab bug
       // "kelihatan tidak ada yang direvisi / page tidak pindah").
@@ -904,19 +886,29 @@ export default function QuestionEditorScreen() {
               🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
               {"\u00A0"}· ketuk ⏹ di header untuk berhenti
             </Text>
-            {aiPhase !== "" && (
-              <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 4 }}>
-                {aiPhaseLabel(aiPhase, aiElapsed)} ({aiElapsed} dtk)
+            {aiThink.phase !== "" && (
+              <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>
+                {aiPhaseLabel(aiThink.phase, aiThink.elapsed)} ({aiThink.elapsed} dtk)
+              </Text>
+            )}
+            {aiThink.tail(220).length > 0 && (
+              <Text numberOfLines={3} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 2 }}>
+                {aiThink.tail(220)}
               </Text>
             )}
           </View>
         )}
-        {/* Revisi urgent: strip status untuk jalur non-bulk (modal ⚡ / revisi manual) */}
-        {!bulkRunning && aiPhase !== "" && (
+        {/* Revisi urgent: strip streaming untuk jalur non-bulk (modal ⚡ / revisi manual) */}
+        {!bulkRunning && aiThink.phase !== "" && (
           <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
-            <Text numberOfLines={2} style={{ color: C.textSecondary, fontSize: 12 }}>
-              {aiPhaseLabel(aiPhase, aiElapsed)} ({aiElapsed} dtk)
+            <Text style={{ color: C.textSecondary, fontSize: 12 }}>
+              {aiPhaseLabel(aiThink.phase, aiThink.elapsed)} ({aiThink.elapsed} dtk)
             </Text>
+            {aiThink.tail(220).length > 0 && (
+              <Text numberOfLines={3} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 2 }}>
+                {aiThink.tail(220)}
+              </Text>
+            )}
           </View>
         )}
 
