@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { initHapticPref } from "../../utils/haptic";
 import { Platform } from "react-native";
 import {
   NavigationContainer,
@@ -86,6 +87,9 @@ export default function RootNavigator() {
   // database lokal / scheduler sync.
   useEffect(() => {
     let disposed = false;
+
+    // PLAN-102: baca preferensi getar dari storage saat app start (default nyala).
+    void initHapticPref();
 
     // Session anonim yang tersisa dari build lama (PLAN-030: game hanya untuk
     // login Google) langsung dikeluarkan saat app dibuka.

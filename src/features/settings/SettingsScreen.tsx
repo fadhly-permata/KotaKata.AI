@@ -21,6 +21,7 @@ import {
   setAmbientEnabled,
   play,
 } from "../../utils/sound";
+import { hapticLight, isHapticEnabled, setHapticEnabled } from "../../utils/haptic";
 import {
   getAiProviderConfig,
   getAllSavedProviders,
@@ -43,6 +44,8 @@ export default function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
   const [ambientEnabled, setAmbientEnabledState] = useState(isAmbientEnabled());
+  // PLAN-102: preferensi getar (haptic) — native saja, web tidak berefek.
+  const [hapticEnabled, setHapticEnabledState] = useState(isHapticEnabled());
   const [aiStatus, setAiStatus] = useState<{ label: string; model: string } | null>(null);
   const [savedProviders, setSavedProviders] = useState<AiProviderPreset[]>([]);
   const [activeProvider, setActiveProviderState] = useState<AiProviderPreset>("openrouter");
@@ -88,6 +91,13 @@ export default function SettingsScreen() {
       void userRepository.saveSoundEnabled(user.id, value).catch(() => {});
     }
   }, [user?.id]);
+
+  // PLAN-102: toggle getar (haptic) — disimpan lokal (AsyncStorage).
+  const toggleHaptic = useCallback((value: boolean) => {
+    setHapticEnabledState(value);
+    void setHapticEnabled(value);
+    if (value) hapticLight(); // konfirmasi getar langsung terasa saat dinyalakan
+  }, []);
 
   // Backsound tema: toggle terpisah dari efek suara. Mati → backsound berhenti;
   // nyala → backsound tema aktif diputar lagi (kalau efek suara juga nyala).
@@ -136,6 +146,21 @@ export default function SettingsScreen() {
             <Switch
               value={ambientEnabled}
               onValueChange={toggleAmbient}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabelWrap}>
+              <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Getar (Haptic)</Text>
+              <Text style={[styles.settingHint, { color: theme.colors.textSecondary }]}>
+                Getar halus saat jawaban benar/salah & papan selesai (perangkat mobile)
+              </Text>
+            </View>
+            <Switch
+              value={hapticEnabled}
+              onValueChange={toggleHaptic}
               trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#fff"
             />
