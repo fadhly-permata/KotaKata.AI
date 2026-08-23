@@ -62,7 +62,7 @@ describe("provider presets — cloud providers", () => {
     "gemini", "mistral", "openai", "openrouter", "huggingface",
     "groq", "cerebras", "deepseek", "cohere", "together",
     "fireworks", "deepinfra", "puter", "sambanova", "novita",
-    "hyperbolic", "xai",
+    "hyperbolic", "xai", "bai",
   ];
 
   for (const p of cloudPresets) {

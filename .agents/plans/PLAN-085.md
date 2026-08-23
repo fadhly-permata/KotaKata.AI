@@ -1,7 +1,16 @@
 # PLAN-085 — Dukungan Provider AI Baru: api.b.ai (OpenAI-compatible)
 
 ## Status
-PENDING
+DONE — preset provider B.AI ditambahkan
+
+## Hasil pengerjaan
+- Preset baru **B.AI** (`bai`) di `aiProvider.ts`: base URL
+  `https://api.b.ai/v1` (endpoint `/chat/completions`, auth Bearer), default
+  model `gpt-5.2`, API key wajib — 100% OpenAI-compatible dengan jalur custom
+  fetch yang sudah ada.
+- Muncul di dropdown Pengaturan → Provider AI, grup "☁️ Cloud (API Key)";
+  otomatis bisa dipakai Mode AI, Revisi clue manual, dan ⚡ Automasi Revisi AI.
+- Test preset loop otomatis menambah kasus untuk provider baru (70 test pass).
 
 ## Deskripsi (laporan pemilik)
 "Buatkan dukungan provider ai ini:
@@ -32,9 +41,9 @@ curl -X POST \"https://api.b.ai/v1/chat/completions\" \
   mengikuti daftar preset bila datanya satu sumber.
 
 ## Langkah pengerjaan
-- [ ] Tambahkan preset provider api.b.ai di daftar preset aiProvider.ts
+- [x] Tambahkan preset provider api.b.ai di daftar preset aiProvider.ts
       (base URL https://api.b.ai/v1, endpoint /chat/completions, Bearer auth,
       default model gpt-5.2).
-- [ ] Pastikan muncul di halaman Pengaturan → Provider AI dan bisa dipakai
+- [x] Pastikan muncul di halaman Pengaturan → Provider AI dan bisa dipakai
       Mode AI + Revisi clue (termasuk tombol Automasi PLAN-084).
-- [ ] Verifikasi: tsc + test + lint, deploy web.
+- [x] Verifikasi: tsc + test + lint, deploy web.

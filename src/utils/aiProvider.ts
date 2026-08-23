@@ -24,7 +24,7 @@ export type AiProviderPreset =
   | "groq" | "cerebras" | "deepseek"
   | "cohere" | "together" | "fireworks" | "deepinfra"
   | "puter" | "sambanova" | "novita" | "hyperbolic"
-  | "xai"
+  | "xai" | "bai"
   | "lmstudio" | "custom";
 
 export interface AiProviderConfig {
@@ -60,6 +60,14 @@ const PROVIDER_PRESETS: Record<AiProviderPreset, ProviderPreset & { apiKeyRequir
     label: "OpenAI (GPT)",
     baseUrl: "https://api.openai.com/v1",
     defaultModel: "gpt-4o-mini",
+    apiKeyRequired: true,
+  },
+  bai: {
+    // OpenAI-compatible: POST {baseUrl}/chat/completions, Bearer auth
+    // (lihat contoh curl di PLAN-085).
+    label: "B.AI",
+    baseUrl: "https://api.b.ai/v1",
+    defaultModel: "gpt-5.2",
     apiKeyRequired: true,
   },
   gemini: {

@@ -42,7 +42,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "AiProvider">;
 /** Kategori provider untuk grouping di dropdown. */
 const PROVIDER_GROUPS: { label: string; items: AiProviderPreset[] }[] = [
   { label: "\u2601\ufe0f Cloud (GRATIS)", items: ["gemini", "groq", "cerebras", "sambanova", "deepseek", "mistral", "openrouter", "huggingface", "deepinfra", "puter"] },
-  { label: "\u2601\ufe0f Cloud (API Key)", items: ["openai", "xai", "cohere", "together", "fireworks", "novita", "hyperbolic"] },
+  { label: "\u2601\ufe0f Cloud (API Key)", items: ["openai", "bai", "xai", "cohere", "together", "fireworks", "novita", "hyperbolic"] },
   { label: "\ud83d\udda5\ufe0f Lokal (Offline)", items: ["lmstudio"] },
   { label: "\ud83d\udd27 URL Kustom", items: ["custom"] },
 ];
