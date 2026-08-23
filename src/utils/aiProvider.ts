@@ -371,7 +371,9 @@ async function chatRequest(
     stream: false,
   };
   if (isReasoningStyle) {
-    body["max_completion_tokens"] = maxTokens * 8;
+    // Reasoning model: budget besar agar reasoning_tokens tidak menghabiskan
+    // seluruh batas sebelum content terisi. (PLAN-088)
+    body["max_completion_tokens"] = 20_000;
   } else {
     body["max_tokens"] = maxTokens;
   }
