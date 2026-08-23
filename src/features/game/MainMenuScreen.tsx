@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
+  Alert,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { buildDailyBoard, dailyKey, dailyTier } from "../../utils/dailyChallenge";
+import { sharedWordSetRepository } from "../../data/repositories/sharedWordSetRepository";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import type { Board } from "../../domain/entities/board";
 import { selectWordPool, getDiscoveredWordIds } from "../../domain/usecases/wordPoolFilter";
@@ -522,6 +524,21 @@ export default function MainMenuScreen() {
           `Hanya ${okWords.length} clue valid (yang bocor dibuang). Coba kata lain atau provider berbeda.`,
         );
       }
+      // PLAN-103 bagian 2: simpan set kata dengan KODE BAGIKAN — hanya map
+      // kode → kata; papan tiap pemain digenerate acak sendiri. Kata yang sudah
+      // ada di vocabulary TIDAK disimpan ulang (saveAiWords dedup) dan saat
+      // dimainkan otomatis memakai versi DB yang sudah diaudit.
+      let shareCode: string | null = null;
+      if (user?.id) {
+        try {
+          shareCode = await sharedWordSetRepository.create(
+            okWords.map((w) => ({ word: w.word, clue_1: w.clue_1, clue_2: w.clue_2 })),
+            user.id,
+          );
+        } catch (shareErr) {
+          loggerWarn("Gagal membuat kode bagikan (non-kritis)", shareErr);
+        }
+      }
       reset();
       useGameStore.getState().setAiWords(okWords);
       navigation.navigate("Game");
@@ -533,6 +550,12 @@ export default function MainMenuScreen() {
         .catch(() => {}); // non-kritis
       setCustomVisible(false);
       setCustomWordsInput("");
+      if (shareCode) {
+        Alert.alert(
+          "📤 Soal Siap & Kode Bagikan",
+          `Kode: ${shareCode}\n\nSoal ini juga tampil di halaman "Papan Bagikan" — pemain lain bisa langsung memainkannya.`,
+        );
+      }
     } catch (err: any) {
       loggerWarn("Buat soal sendiri gagal", err);
       setAiError(err?.message ?? "Gagal membuat soal dari AI.");
@@ -1003,6 +1026,28 @@ export default function MainMenuScreen() {
             <Text style={[styles.pasarLabel, { color: C.text }]}>Pasar</Text>
             <Text style={[styles.pasarHint, { color: C.textSecondary }]} numberOfLines={1}>
               Tema keren untuk papanku
+            </Text>
+          </View>
+          <Text style={[styles.pasarChevron, { color: C.secondary }]}>›</Text>
+        </TouchableOpacity>
+        {/* ═══ Papan Bagikan — komunitas soal buatan pemain ═══ */}
+        <TouchableOpacity
+          style={[
+            styles.pasarBtn,
+            { backgroundColor: C.surface, borderColor: C.border },
+            ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+          ]}
+          activeOpacity={0.85}
+          onPress={() => {
+            play("tap");
+            navigation.navigate("SharedBoards");
+          }}
+        >
+          <Text style={styles.pasarEmoji}>🤝</Text>
+          <View style={styles.pasarCol}>
+            <Text style={[styles.pasarLabel, { color: C.text }]}>Papan Bagikan</Text>
+            <Text style={[styles.pasarHint, { color: C.textSecondary }]} numberOfLines={1}>
+              Mainkan soal buatan pemain lain
             </Text>
           </View>
           <Text style={[styles.pasarChevron, { color: C.secondary }]}>›</Text>

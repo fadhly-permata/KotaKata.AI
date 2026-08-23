@@ -30,6 +30,7 @@ import AiProviderScreen from "../../features/ai/AiProviderScreen";
 import MarkdownScreen from "../../features/legal/MarkdownScreen";
 import StoreScreen from "../../features/store/StoreScreen";
 import QuestionEditorScreen from "../../features/admin/QuestionEditorScreen";
+import SharedBoardsScreen from "../../features/game/SharedBoardsScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -45,6 +46,7 @@ export type RootStackParamList = {
   AiProvider: undefined;
   Store: undefined;
   QuestionEditor: undefined;
+  SharedBoards: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -68,6 +70,7 @@ const ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
   Markdown: "Dokumen",
   Store: "Pasar",
   QuestionEditor: "Editor Soal",
+  SharedBoards: "Papan Bagikan",
 };
 
 /** Set judul tab browser sesuai rute aktif (web). No-op di native. */
@@ -318,6 +321,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="QuestionEditor"
           component={QuestionEditorScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SharedBoards"
+          component={SharedBoardsScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

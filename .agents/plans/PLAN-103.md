@@ -20,5 +20,11 @@
    thinking tampil live), clue bocor otomatis dibuang — minimal 6 kata valid.
 3. Papan digenerate & dimainkan seperti biasa (hitung XP normal), kata disimpan
    ke bank kosakata (dedup) seperti Mode AI.
-4. **Share kode = BELUM** — butuh tabel shared_boards + alur masuk via kode;
-   akan didesain terpisah bersama pemilik sebelum dikerjakan.
+4. ~~**Share kode = BELUM**~~ → **SELESAI 23 Aug 2026 (bagian 2, arah revisi pemilik)**:
+   bukan modal kode, tapi **halaman komunitas "Papan Bagikan"** (`SharedBoardsScreen`,
+   rute baru + tombol di Main Menu). Tabel `shared_word_sets` HANYA memetakan
+   **kode → daftar kata**; papan tiap pemain digenerate acak sendiri. Saat
+   dimainkan, kata yang sudah ada di vocabulary memakai versi DB (teraudit);
+   kata baru tetap disimpan ke vocabulary via saveAiWords. Daftar semua set
+   tampil publik (paging 25 + nama pembuat via embed users), siapa pun bisa
+   main soal buatan siapa pun.
