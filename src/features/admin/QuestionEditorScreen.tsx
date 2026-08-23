@@ -665,10 +665,10 @@ export default function QuestionEditorScreen() {
             break;
           }
           const w = list[i];
+          // Info jelas: soal mana yang SEDANG direvisi + berapa yang selesai.
           setBulkStatus(
-            `Page ${p}/${lastPage} · revisi "${w.word}" (${i + 1}/${list.length}) · ${processed} tersimpan`,
+            `Page ${p}/${lastPage} · revisi "${w.word}" — soal ${i + 1}/${list.length} (${processed} tersimpan)`,
           );
-          setBulkPct(5 + Math.round(((i + 0.5) / list.length) * 90));
 
           let revised: Awaited<ReturnType<typeof requestAiRevision>> | undefined;
           for (let attempt = 1; attempt <= BULK_WORD_RETRIES; attempt++) {
@@ -717,6 +717,8 @@ export default function QuestionEditorScreen() {
           const allLeaks = [...new Set([...aiLeaks, ...manualLeaks])];
           if (allLeaks.length > 0) {
             finalLeaks.push(`${w.word} (${allLeaks.join(", ")})`);
+            // Soal ini dianggap selesai diproses → progress bar maju satu langkah.
+            setBulkPct(5 + Math.round(((i + 1) / list.length) * 90));
             continue;
           }
 
@@ -734,6 +736,8 @@ export default function QuestionEditorScreen() {
           const result = saveData as { ok: boolean; error?: string };
           if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
           processed += 1;
+          // Progress bar maju REAL per soal yang selesai dikerjakan.
+          setBulkPct(5 + Math.round(((i + 1) / list.length) * 90));
 
           // Update daftar yang TAMPIL secara live — clue baru langsung kelihatan.
           setWords((prev) =>
