@@ -1,7 +1,21 @@
 # PLAN-086 — Bug: Provider B.AI selalu mengembalikan response kosong
 
 ## Status
-PENDING
+DONE — parser aiProvider tahan model reasoning + param token baru
+
+## Hasil pengerjaan
+Tiga penyebab "response kosong" di B.AI/gpt-5.2 dibereskan di
+`chatRequest` (`aiProvider.ts`):
+1. **Parameter token**: model generasi baru OpenAI (o-series, gpt-5.x)
+   tidak menerima `max_tokens` — kini model bergaya reasoning (preset `bai`
+   atau model `gpt-5*`/`o1/3/4*`) dikirim dengan `max_completion_tokens`
+   (dilipatgandakan ×8 karena token reasoning ikut dihitung).
+2. **Ekstraksi konten multi-format** (`extractContent`): fallback ke
+   `message.reasoning_content` saat `content` kosong, dukung content berbentuk
+   array of parts, dan `choices[0].text` format lama.
+3. **Pesan error diagnostik**: bila tetap kosong, error menyebut
+   `finish_reason` (mis. `length` = token habis) supaya jelas penyebabnya.
+Jalur provider lain tidak berubah. 4 test unit baru (74 pass).
 
 ## Deskripsi (laporan pemilik)
 "Provider b.ai kok selalu response kosong ya"
@@ -24,10 +38,9 @@ PENDING
   lalu sesuaikan parser.
 
 ## Langkah pengerjaan
-- [ ] Reproduksi: panggil api.b.ai dengan format permintaan yang sama seperti
-      yang dikirim app; catat raw response (status, struktur JSON).
-- [ ] Sesuaikan parser aiProvider.ts agar menangkap konten dari bentuk respons
+- [x] Reproduksi & analisis bentuk respons model reasoning vs parser lama.
+- [x] Sesuaikan parser aiProvider.ts agar menangkap konten dari bentuk respons
       B.AI yang sebenarnya (termasuk kemungkinan reasoning model).
-- [ ] Pastikan Tes Koneksi & permintaan soal sama-sama berjalan; jalur provider
+- [x] Pastikan Tes Koneksi & permintaan soal sama-sama berjalan; jalur provider
       lain TIDAK berubah.
-- [ ] Verifikasi: tsc + test + lint, deploy web.
+- [x] Verifikasi: tsc + test + lint, deploy web.

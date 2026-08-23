@@ -357,15 +357,27 @@ async function chatRequest(
   if (cfg.apiKey) {
     headers["Authorization"] = `Bearer ${cfg.apiKey}`;
   }
+  // Model generasi baru OpenAI (o-series, gpt-5.x — termasuk B.AI gpt-5.2)
+  // tidak lagi menerima `max_tokens`; parameternya menjadi
+  // `max_completion_tokens`. Selain itu token reasoning ikut dihitung ke
+  // dalam batas, jadi batas kecil membuat `content` kosong (finish_reason
+  // "length") walau model berhasil menjawab. (PLAN-086)
+  const isReasoningStyle = cfg.provider === "bai" || /^gpt-5|^o[134]/.test(cfg.model);
+  const body: Record<string, unknown> = {
+    model: cfg.model,
+    messages,
+    temperature: 0.9,
+    stream: false,
+  };
+  if (isReasoningStyle) {
+    body["max_completion_tokens"] = maxTokens * 8;
+  } else {
+    body["max_tokens"] = maxTokens;
+  }
   const res = await fetch(chatUrl(cfg), {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model: cfg.model,
-      messages,
-      temperature: 0.9,
-      max_tokens: maxTokens,
-    }),
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -381,11 +393,44 @@ async function chatRequest(
   }
 
   const j = await res.json();
-  const content = j?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) {
-    throw new Error("Respons kosong dari provider.");
+  const content = extractContent(j);
+  if (!content.trim()) {
+    // Detail diagnostik tanpa membocorkan isi — bantu identifikasi model
+    // reasoning / batas token (PLAN-086).
+    const finish = j?.choices?.[0]?.finish_reason;
+    const hasReasoning = typeof j?.choices?.[0]?.message?.reasoning_content === "string";
+    throw new Error(
+      `Respons kosong dari provider${finish ? ` (finish_reason: ${finish})` : ""}${
+        hasReasoning ? " — model hanya mengirim reasoning tanpa jawaban akhir" : ""
+      }.`,
+    );
   }
   return content;
+}
+
+/**
+ * Ekstrak teks jawaban dari bentuk respons chat-completions yang bervariasi
+ * antar provider (PLAN-086):
+ * - `choices[0].message.content` — standar (string ATAU array of parts).
+ * - `choices[0].message.reasoning_content` — beberapa model reasoning
+ *   menaruh jawaban di sini saat `content` kosong.
+ * - `choices[0].text` — format completions lama.
+ */
+function extractContent(j: any): string {
+  const msg = j?.choices?.[0]?.message;
+  const fromParts = (parts: unknown): string =>
+    Array.isArray(parts)
+      ? parts
+          .map((p: any) => (typeof p === "string" ? p : typeof p?.text === "string" ? p.text : ""))
+          .join("")
+      : "";
+  const content = typeof msg?.content === "string" ? msg.content : fromParts(msg?.content);
+  if (content.trim()) return content;
+  if (typeof msg?.reasoning_content === "string" && msg.reasoning_content.trim()) {
+    return msg.reasoning_content;
+  }
+  if (typeof j?.choices?.[0]?.text === "string") return j.choices[0].text;
+  return "";
 }
 
 /** Uji koneksi: kirim prompt minimal dan pastikan model merespons. */

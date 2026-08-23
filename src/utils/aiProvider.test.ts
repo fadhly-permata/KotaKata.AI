@@ -23,6 +23,7 @@ const {
   providerLabel,
   isLocalProvider,
   isApiKeyRequired,
+  testAiConnection,
 } = await import("./aiProvider");
 import type { AiProviderConfig, AiProviderPreset } from "./aiProvider";
 
@@ -87,6 +88,54 @@ describe("provider presets — cloud providers", () => {
     expect(isLocalProvider("custom")).toBe(false);
     expect(isApiKeyRequired("custom")).toBe(false);
     expect(preset.baseUrl).toBe("");
+  });
+
+  test("bai: preset OpenAI-compatible gpt-5.2 (PLAN-085)", () => {
+    const preset = providerPreset("bai");
+    expect(preset.baseUrl).toBe("https://api.b.ai/v1");
+    expect(preset.defaultModel).toBe("gpt-5.2");
+  });
+});
+
+describe("chatRequest — ekstraksi konten model reasoning (PLAN-086)", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    (globalThis as any).fetch = originalFetch;
+  });
+
+  test("fallback reasoning_content saat content kosong", async () => {
+    (globalThis as any).fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "", reasoning_content: "ok" }, finish_reason: "stop" }],
+      }),
+    });
+    const result = await testAiConnection({ ...cfg, provider: "bai", model: "gpt-5.2" });
+    expect(result.ok).toBe(true);
+  });
+
+  test("bai memakai max_completion_tokens, bukan max_tokens", async () => {
+    let lastBody: any = null;
+    (globalThis as any).fetch = async (_url: any, init: any) => {
+      lastBody = JSON.parse(init.body ?? "{}");
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+      };
+    };
+    await testAiConnection({ ...cfg, provider: "bai", model: "gpt-5.2" });
+    expect(lastBody?.max_completion_tokens).toBeGreaterThan(0);
+    expect(lastBody?.max_tokens).toBeUndefined();
+  });
+
+  test("pesan error menyebut finish_reason length saat konten terpotong", async () => {
+    (globalThis as any).fetch = async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: "" }, finish_reason: "length" }] }),
+    });
+    const result = await testAiConnection(cfg);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("finish_reason: length");
   });
 });
 
