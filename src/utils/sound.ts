@@ -386,11 +386,14 @@ function retryAmbientOnGesture(): void {
 }
 
 function bindWebAmbientGesture(): void {
-  if (ambientGestureBound || typeof window === "undefined") return;
+  // Guard ketat: di Hermes/RN native `window` ADA tapi addEventListener
+  // TIDAK terdefinisi — cek fungsinya secara eksplisit, bukan cuma objeknya.
+  const w = typeof window !== "undefined" ? (window as unknown as Partial<typeof window>) : undefined;
+  if (ambientGestureBound || typeof w?.addEventListener !== "function") return;
   ambientGestureBound = true;
   const events = ["pointerdown", "keydown", "touchstart"] as const;
   for (const ev of events) {
-    window.addEventListener(ev, retryAmbientOnGesture, { passive: true });
+    w.addEventListener!(ev, retryAmbientOnGesture as EventListener, { passive: true } as AddEventListenerOptions);
   }
 }
 

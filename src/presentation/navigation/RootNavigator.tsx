@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -181,8 +182,10 @@ export default function RootNavigator() {
           // Harus terjadi SEBELUM UI render supaya tidak ada flash nilai default.
           try {
             const prefs = await userRepository.getUserPreferences(uid);
-            // Theme mode: apply via custom event (ThemeProvider listens)
-            if (typeof window !== "undefined") {
+            // Theme mode: apply via custom event (ThemeProvider listens).
+            // HANYA web — CustomEvent/window.dispatchEvent tidak ada di Hermes
+            // native (dulu bikin throw tiap login & skip sisa sinkronisasi).
+            if (Platform.OS === "web") {
               window.dispatchEvent(new CustomEvent("kotakata:cloudPrefsLoaded", { detail: prefs }));
             }
             // App theme: apply ke themeSelectionStore

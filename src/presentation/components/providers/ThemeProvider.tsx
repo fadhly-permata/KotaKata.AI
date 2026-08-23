@@ -122,17 +122,34 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Dengarkan event dari RootNavigator saat cloud sync selesai.
   // Update theme mode dari cloud.
+  // CATATAN: addEventListener hanya ada di WEB. Di Hermes/RN native, objek
+  // `window` ADA tetapi `window.addEventListener` TIDAK terdefinisi — guard
+  // lama (`typeof window !== "undefined"`) lolos lalu crash dengan
+  // "TypeError: undefined is not a function" saat mount (penyebab layar
+  // error/putih di APK). Cek fungsi listener-nya secara eksplisit.
   useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.theme_mode === "light" || detail?.theme_mode === "dark" || detail?.theme_mode === "system") {
-        setThemeModeState(detail.theme_mode);
-      }
-    };
-    if (typeof window !== "undefined") {
-      window.addEventListener("kotakata:cloudPrefsLoaded", handler);
-      return () => window.removeEventListener("kotakata:cloudPrefsLoaded", handler);
+    const w =
+      typeof window !== "undefined"
+        ? (window as unknown as {
+            addEventListener?: (type: string, listener: (e: Event) => void) => void;
+            removeEventListener?: (type: string, listener: (e: Event) => void) => void;
+          })
+        : undefined;
+    const addListener = w?.addEventListener;
+    const removeListener = w?.removeEventListener;
+    if (typeof addListener === "function" && typeof removeListener === "function") {
+      const handler = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (detail?.theme_mode === "light" || detail?.theme_mode === "dark" || detail?.theme_mode === "system") {
+          setThemeModeState(detail.theme_mode);
+        }
+      };
+      addListener("kotakata:cloudPrefsLoaded", handler);
+      return () => removeListener("kotakata:cloudPrefsLoaded", handler);
     }
+    // Native: tidak ada event bus window — sinkron tema dari cloud tetap
+    // berjalan lewat store zustand (themeSelectionStore), jadi aman tanpa ini.
+    return;
   }, []);
 
   const setThemeMode = useCallback(async (mode: ThemeMode) => {
