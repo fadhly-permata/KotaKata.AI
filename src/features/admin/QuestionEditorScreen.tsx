@@ -644,6 +644,9 @@ export default function QuestionEditorScreen() {
         lastProcessedPage = p;
         setPage(p);
         setBulkPageSec(0);
+        // Reset strip thinking — teks & timer run page sebelumnya tidak boleh
+        // dibawa ke page baru.
+        aiThink.reset();
         setBulkPct(2);
         setBulkStatus(`Page ${p}/${lastPage} · mengambil ${PAGE_SIZE} soal dari page ini…`);
         const from = (p - 1) * PAGE_SIZE;
@@ -715,6 +718,9 @@ export default function QuestionEditorScreen() {
           }
           consecutiveErrors = 0;
           // ── Fase 3: respon AI diterima → mulai menyimpan.
+          // Waktu revisi page ini selesai → bersihkan strip thinking sekarang
+          // (jangan biarkan "AI masih berpikir" tampil saat menyimpan).
+          aiThink.reset();
           setBulkPct(50);
           setBulkStatus(
             leakRetry === 0
