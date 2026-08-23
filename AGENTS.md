@@ -89,6 +89,27 @@ Aturan-aturan ini mengikat untuk semua sesi kerja di repository ini:
   permintaan meta/aturan repo itu sendiri (mis. menambah/mengubah aturan di
   AGENTS.md) — revisi lain tetap dicatat dulu.
 
+### 5b. FIXING WAJIB JAGA PLATFORM LAIN (aturan permanen dari pemilik repo)
+- Aplikasi ini berjalan di LEBIH DARI SATU platform: **Web (browser)** dan
+  **Native (Android/iOS via Hermes/React Native)**. Fix di satu platform
+  TIDAK BOLEH merusak platform lain.
+- SEBELUM menulis perbaikan, identifikasi dulu dampaknya ke semua platform:
+  - API web-only (`window.addEventListener`, `CustomEvent`, `document`,
+    `localStorage`, `matchMedia`, dll.) HARUS di-guard dengan pengecekan
+    FUNGSI-nya secara eksplisit (mis. `typeof window?.addEventListener === "function"`) —
+    BUKAN cukup `typeof window !== "undefined"`, karena di Hermes objek
+    `window` ADA tetapi fungsi browser-nya TIDAK ada (pernah menyebabkan
+    layar blank/error di APK, lihat PLAN-076).
+  - Sebaliknya, API native-only juga harus punya jalur fallback web.
+- SETELAH fix, verifikasi lintas platform sebelum mengklaim selesai:
+  typecheck + test + (bila menyentuh UI/startup) pastikan jalur startup aman
+  untuk KEDUA platform. Kalau perlu, cari pemakaian serupa lainnya di seluruh
+  repo dan perbaiki sekalian (`grep` pattern yang sama).
+- Pelajaran dari kasus nyata: memperbaiki bug di satu platform lalu diam-diam
+  merusak platform lain adalah REGRESI. Regresi lebih buruk daripada bug
+  awalnya — jadi setiap fix wajib disertai pertimbangan eksplisit:
+  "apakah perubahan ini aman di web DAN di native APK?"
+
 ### 6a. KATA VULGAR ITU HARAM (aturan permanen dari pemilik repo)
 - KotaKata.AI adalah permainan aman anak. **Setiap kata/soal yang vulgar,
   kasar, makian, alat kelamin, tindakan seksual, pelecehan, hinaan,
