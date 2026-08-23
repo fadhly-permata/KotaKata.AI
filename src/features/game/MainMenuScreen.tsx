@@ -495,6 +495,9 @@ export default function MainMenuScreen() {
       setAiSetupVisible(true);
       return;
     }
+    // Tutup modal input SEKARANG — dialog "menyusun soal" dari AI akan muncul
+    // sendiri; kalau modal ini masih terbuka keduanya tumpang tindih.
+    setCustomVisible(false);
     setCustomLoading(true);
     setAiLoading(true);
     try {
@@ -548,7 +551,6 @@ export default function MainMenuScreen() {
           if (n > 0) loggerInfo(`${n} kata custom tersimpan ke database`);
         })
         .catch(() => {}); // non-kritis
-      setCustomVisible(false);
       setCustomWordsInput("");
       if (shareCode) {
         Alert.alert(

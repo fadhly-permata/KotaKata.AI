@@ -563,11 +563,20 @@ export default function GameScreen() {
             tier_level: playerTier,
           }));
           let generated: Board | null = null;
-          // Papan AI menerima minimal AI_MIN_WORDS kata (lebih kecil dari papan
-          // normal) — provider AI bisa saja mengembalikan sedikit kata valid.
-          for (let size = MIN_GRID_SIZE; size <= MAX_GRID_SIZE && !generated; size++) {
+          // Papan AI/buatan pemain harus menampilkan SEMUA kata dulu bila
+          // memungkinkan — sebelumnya loop berhenti di percobaan pertama yang
+          // lolos batas minimum, sehingga jumlah soal di papan < jumlah kata
+          // yang dibuat (bug laporan pemilik). Cari papan yang memuat semua;
+          // kalau tak ada yang muat, pakai yang menempatkan kata terbanyak.
+          for (let size = MIN_GRID_SIZE; size <= MAX_GRID_SIZE; size++) {
             const attempt = generateBoard(candidates, size, playerTier);
-            if (attempt.words.length >= AI_MIN_WORDS) generated = attempt;
+            if (attempt.words.length === candidates.length) {
+              generated = attempt;
+              break;
+            }
+            if (!generated || attempt.words.length > generated.words.length) {
+              generated = attempt;
+            }
           }
           if (!generated) generated = generateBoard(candidates, MAX_GRID_SIZE, playerTier);
           // Kata AI dipakai SEKALI — sesudahnya kembali ke mode normal supaya
