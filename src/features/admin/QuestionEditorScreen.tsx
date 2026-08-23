@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -65,6 +65,12 @@ export default function QuestionEditorScreen() {
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
+
+  // ─── PLAN-084: Automasi revisi via AI ───
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoProcessed, setAutoProcessed] = useState(0);
+  /** Flag stop — dibaca antar iterasi loop agar responsif tanpa re-render. */
+  const autoStopRef = useRef(false);
   const [page, setPage] = useState(1);
   const [jumpValue, setJumpValue] = useState("");
 
@@ -326,6 +332,135 @@ export default function QuestionEditorScreen() {
       setAiLoading(false);
     }
   }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier]);
+
+  // ─── PLAN-084: Automasi revisi via AI (revisi → cek bocor → simpan → next) ───
+  /** Cek anti-bocor manual: kata jawaban tidak boleh muncul di clue. */
+  const clueLeaks = (word: string, clues: (string | undefined)[]): string[] => {
+    const w = word.trim().toLowerCase();
+    if (!w) return [];
+    return clues.filter((c) => c && c.toLowerCase().includes(w)) as string[];
+  };
+
+  const toggleAutoRevision = useCallback(async () => {
+    if (autoRunning) {
+      // Tekan lagi = hentikan setelah iterasi berjalan selesai.
+      autoStopRef.current = true;
+      setNotification({ type: "info", message: "⏹ Menghentikan automasi…" });
+      return;
+    }
+    if (!selectedWord) return;
+    const config = await getAiProviderConfig();
+    if (!config) {
+      setNotification({
+        type: "error",
+        message: "Provider AI belum dikonfigurasi. Silakan atur di Pengaturan → Provider AI.",
+      });
+      return;
+    }
+
+    const list = words; // snapshot halaman aktif
+    const startIdx = list.findIndex((w) => w.word_id === selectedWord.word_id);
+    if (startIdx < 0) return;
+
+    setAutoRunning(true);
+    setAutoProcessed(0);
+    autoStopRef.current = false;
+
+    let processed = 0;
+    let consecutiveErrors = 0;
+    let stopReason = "";
+
+    try {
+      for (let i = startIdx; i < list.length; i++) {
+        if (autoStopRef.current) {
+          stopReason = "dihentikan manual";
+          break;
+        }
+        const w = list[i];
+        // Tampilkan soal aktif di form supaya user melihat progres.
+        navigateToWord(i);
+
+        // 1) Revisi via AI
+        let revised: Awaited<ReturnType<typeof requestAiRevision>>;
+        try {
+          revised = await requestAiRevision(config, {
+            word: w.word,
+            clue_1: w.clue_1,
+            clue_2: w.clue_2,
+            clue_3: w.clue_3,
+            tier_level: w.tier_level,
+          });
+        } catch (err) {
+          loggerWarn("Automasi AI: gagal revisi", err);
+          consecutiveErrors += 1;
+          if (consecutiveErrors >= 3) {
+            stopReason = "3 error AI beruntun";
+            break;
+          }
+          continue;
+        }
+        if (autoStopRef.current) {
+          stopReason = "dihentikan manual";
+          break;
+        }
+        consecutiveErrors = 0;
+
+        // 2) STOP kalau bocor — hasil bocor TIDAK disimpan.
+        const aiLeaks = revised?.leaks ?? [];
+        const manualLeaks = revised ? clueLeaks(w.word, [revised.clue_1, revised.clue_2, revised.clue_3]) : [];
+        if (aiLeaks.length > 0 || manualLeaks.length > 0) {
+          const allLeaks = [...new Set([...aiLeaks, ...manualLeaks])];
+          setEditClue1(revised?.clue_1 ?? w.clue_1);
+          if (revised?.clue_2) setEditClue2(revised.clue_2);
+          if (revised?.clue_3) setEditClue3(revised.clue_3);
+          stopReason = `hasil AI bocor (${allLeaks.join(", ")}) — tidak disimpan`;
+          break;
+        }
+        if (!revised) {
+          stopReason = "AI tidak mengembalikan hasil";
+          break;
+        }
+
+        // 3) Simpan langsung via RPC
+        const { data, error } = await supabase.rpc("update_vocabulary_admin", {
+          p_word_id: w.word_id,
+          p_word: w.word,
+          p_clue_1: revised.clue_1.trim(),
+          p_clue_2: revised.clue_2?.trim() ?? "",
+          p_clue_3: revised.clue_3?.trim() ?? "",
+          p_tier_level: w.tier_level,
+        });
+        if (error) throw error;
+        const result = data as { ok: boolean; error?: string };
+        if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
+
+        // Sinkronkan state lokal (tanpa re-fetch)
+        const updated: VocabularyDoc = {
+          ...w,
+          clue_1: revised.clue_1.trim(),
+          clue_2: revised.clue_2?.trim() || undefined,
+          clue_3: revised.clue_3?.trim() || undefined,
+        };
+        setWords((prev) => prev.map((x) => (x.word_id === w.word_id ? updated : x)));
+        processed += 1;
+        setAutoProcessed(processed);
+        // 4) Next → iterasi berikutnya (loop)
+      }
+      if (!stopReason) stopReason = "halaman selesai";
+      setNotification({
+        type: processed > 0 ? "success" : "warning",
+        message: `⚡ Automasi berhenti (${stopReason}). ${processed} soal direvisi & tersimpan.`,
+      });
+    } catch (err: any) {
+      loggerWarn("Automasi AI: gagal", err);
+      setNotification({
+        type: "error",
+        message: `❌ Automasi berhenti: ${err.message} (${processed} soal tersimpan).`,
+      });
+    } finally {
+      setAutoRunning(false);
+    }
+  }, [autoRunning, selectedWord, words, navigateToWord]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
@@ -696,7 +831,15 @@ export default function QuestionEditorScreen() {
         </AppModal>
 
         {/* ─── Edit Form Modal ─── */}
-        <AppModal visible={!!selectedWord} title="✏️ Edit Soal" onClose={() => setSelectedWord(null)}>
+        <AppModal
+          visible={!!selectedWord}
+          title="✏️ Edit Soal"
+          onClose={() => {
+            // Tutup modal = hentikan automasi yang sedang berjalan (PLAN-084).
+            if (autoRunning) autoStopRef.current = true;
+            setSelectedWord(null);
+          }}
+        >
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
             {/* ─── Prev / Next navigation ─── */}
             {currentIdx >= 0 && (
@@ -837,7 +980,7 @@ export default function QuestionEditorScreen() {
                 style={[styles.btn, styles.aiBtn, { backgroundColor: C.secondary }, buttonShadow(theme)]}
                 activeOpacity={0.8}
                 onPress={handleAiRevision}
-                disabled={aiLoading}
+                disabled={aiLoading || autoRunning}
               >
                 {aiLoading ? (
                   <ActivityIndicator color={textOnPrimary(theme)} size="small" />
@@ -846,6 +989,22 @@ export default function QuestionEditorScreen() {
                 )}
               </TouchableOpacity>
             </View>
+
+            {/* ─── PLAN-084: Automasi revisi via AI ─── */}
+            <TouchableOpacity
+              style={[
+                styles.btn,
+                styles.aiBtn,
+                { backgroundColor: autoRunning ? "#EF4444" : C.secondary },
+                buttonShadow(theme),
+              ]}
+              activeOpacity={0.8}
+              onPress={() => void toggleAutoRevision()}
+            >
+              <Text style={[styles.btnText, { color: textOnPrimary(theme) }]}>
+                {autoRunning ? `⏹ Hentikan Automasi (${autoProcessed} tersimpan)` : "⚡ Automasi Revisi AI"}
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
         </AppModal>
       </KeyboardAvoidingView>

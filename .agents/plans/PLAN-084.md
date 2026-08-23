@@ -1,7 +1,19 @@
 # PLAN-084 — Editor Soal: Tombol Automasi Revisi Soal Via AI (loop revisi → simpan → next)
 
 ## Status
-PENDING
+DONE — tombol automasi revisi AI di modal Edit Soal
+
+## Hasil pengerjaan
+- Tombol **⚡ Automasi Revisi AI** di bawah tombol Simpan/Revisi manual —
+  toggle: saat berjalan berubah jadi **⏹ Hentikan Automasi (N tersimpan)**.
+- Loop per soal (mulai dari soal aktif sampai akhir halaman): revisi via AI →
+  validasi anti-bocor ganda (flag `leaks` dari AI + pengecekan mandiri kata
+  muncul di clue) → **hasil bocor TIDAK disimpan, automasi berhenti** → simpan
+  via RPC `update_vocabulary_admin` → next → ulangi.
+- Kondisi berhenti: bocor, akhir halaman, tombol ditekan lagi, modal ditutup,
+  atau 3 error AI beruntun. Ringkasan selalu muncul di notifikasi.
+- Form menampilkan soal yang sedang diproses; tombol manual dinonaktifkan
+  selama automasi berjalan.
 
 ## Deskripsi (laporan pemilik)
 "Buatkan tombol automasi pada form editor soal untuk revisi soal via AI.
@@ -24,12 +36,12 @@ Ketika tombol tersebut diklik maka akan otomatis melakukan revisi via AI
   mencapai akhir halaman (stop dengan ringkasan).
 
 ## Langkah pengerjaan
-- [ ] Tambah state automasi (running, counter diproses, flag stop).
-- [ ] Loop async: requestAiRevision untuk soal aktif → validasi anti-bocor
+- [x] Tambah state automasi (running, counter diproses, flag stop).
+- [x] Loop async: requestAiRevision untuk soal aktif → validasi anti-bocor
       (kata tidak boleh muncul di clue_1/2/3, case-insensitive) → simpan via
       RPC update yang ada → navigateToWord(next).
-- [ ] Kondisi STOP: hasil bocor, sukses semua di halaman habis, tombol
+- [x] Kondisi STOP: hasil bocor, sukses semua di halaman habis, tombol
       ditekan lagi (stop), atau error AI beruntun.
-- [ ] UI: tombol toggle + badge jumlah soal yang sudah direvisi otomatis +
+- [x] UI: tombol toggle + badge jumlah soal yang sudah direvisi otomatis +
       notifikasi ringkasan saat berhenti.
-- [ ] Verifikasi: tsc + test + lint, deploy web.
+- [x] Verifikasi: tsc + test + lint, deploy web.
