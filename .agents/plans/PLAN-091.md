@@ -1,6 +1,6 @@
 # PLAN-091 — Automasi Bulk: Batch Semua Soal per Page dalam 1 Request AI
 
-**Status:** PENDING
+**Status:** DONE ✅ (23 Aug 2026)
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)
@@ -31,3 +31,10 @@
 ## Catatan
 - Parser batch harus toleran terhadap urutan hasil & item gagal parse individual.
 - Kalau respons batch terpotong (finish_reason length), naikkan budget / retry.
+
+## Hasil pengerjaan
+- `requestAiRevisionBatch()` di `aiProvider.ts`: satu request berisi semua soal page,
+  respons `{ results: [{ id, clue_1..3 }] }`, validasi bocor per item.
+- Budget token batch proporsional (`max(600, n×600)`), override 200.000 dari caller.
+- Loop bulk refactor: per page → 1 request → valid → simpan; item tanpa hasil/bocor masuk daftar retry.
+- Test unit baru ×3 (parsing per-id, info kata bocor di prompt, skip item invalid).

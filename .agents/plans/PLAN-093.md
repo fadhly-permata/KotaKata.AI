@@ -1,6 +1,6 @@
 # PLAN-093 — Bulk Revisi: Clue Bocor Dikumpulkan & Direvisi Ulang Sendiri (Bukan Semuanya)
 
-**Status:** PENDING
+**Status:** DONE ✅ (23 Aug 2026)
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)
@@ -34,6 +34,15 @@
 4. Ulangi validasi; kalau masih ada bocor lagi → retry sekali lagi (maks 2x retry),
    setelah itu baru lanjut halaman & catat sisa bocor ke ringkasan akhir (tidak disimpan).
 5. Verifikasi tsc/test/lint → commit & push → deploy web dev.
+
+## Hasil pengerjaan
+- Loop bulk TIDAK pindah halaman selama masih ada item bocor — retry khusus bocor
+  dilakukan di halaman yang sama (maks 2× retry).
+- Request retry menyertakan info eksplisit per item: kata mana yang bocor & di clue
+  mana muncul sebelumnya (`previousLeaks` → prompt "⚠️ PERHATIAN: ... kata \"X\"")
+  supaya AI tahu persis apa yang harus dihindari.
+- Item valid langsung disimpan tanpa menunggu retry; sisa bocor setelah retry habis
+  dicatat di ringkasan akhir (tidak disimpan, automasi lanjut halaman berikutnya).
 
 ## Catatan
 - Bergantung urutan dengan PLAN-091 (batch per page) — idealnya dikerjakan setelahnya

@@ -702,3 +702,100 @@ export async function requestAiRevision(
     leaks: leaks.length > 0 ? leaks : undefined,
   };
 }
+
+// ─── PLAN-091: Revisi BATCH — banyak soal dalam SATU request AI ───
+
+/** Item untuk revisi batch. `id` bebas unik (mis. index halaman). */
+export interface BatchRevisionItem {
+  id: string;
+  input: RevisionInput;
+  /**
+   * PLAN-093: info bocoran dari percobaan sebelumnya — diberitahu ke AI agar
+   * tahu persis kata apa yang bocor & di clue mana, supaya tidak mengulanginya.
+   */
+  previousLeaks?: string[];
+}
+
+const BATCH_REVISION_SYSTEM_PROMPT = `${REVISION_SYSTEM_PROMPT}
+Kali ini kamu merevisi BANYAK soal sekaligus dalam satu jawaban.
+Jawab HANYA JSON valid tanpa teks lain, format:
+{"results":[{"id":"<id soal>","clue_1":"...","clue_2":"...","clue_3":"..."}]}
+WAJIB menyertakan hasil untuk SETIAP id yang diberikan, tidak boleh ada yang terlewat.`;
+
+/**
+ * Minta AI merevisi clue untuk BANYAK soal sekaligus dalam satu request
+ * (PLAN-091). Mengembalikan Map id → hasil valid. Item yang tidak dikembalikan
+ * AI atau tidak valid TIDAK ada di map — pemanggil yang menanganinya.
+ */
+export async function requestAiRevisionBatch(
+  cfg: AiProviderConfig,
+  items: BatchRevisionItem[],
+  signal?: AbortSignal,
+  opts?: { maxCompletionTokens?: number },
+): Promise<Map<string, RevisionOutput>> {
+  if (items.length === 0) return new Map();
+
+  const lines: string[] = [
+    `Revisi clue untuk ${items.length} soal berikut. Kerjakan SEMUANYA.`,
+    "",
+  ];
+  for (const it of items) {
+    lines.push(`[${it.id}] kata "${it.input.word}" (tier ${it.input.tier_level})`);
+    lines.push(`    Clue 1: ${it.input.clue_1}`);
+    if (it.input.clue_2) lines.push(`    Clue 2: ${it.input.clue_2}`);
+    if (it.input.clue_3) lines.push(`    Clue 3: ${it.input.clue_3}`);
+    if (it.previousLeaks && it.previousLeaks.length > 0) {
+      // PLAN-093: beri tahu AI persis apa yang bocor sebelumnya.
+      lines.push(
+        `    ⚠️ PERHATIAN: pada jawabanmu sebelumnya, ${it.previousLeaks.join(
+          ", ",
+        )} masih memuat kata "${it.input.word}". JANGAN ulangi — kata itu dan akar katanya DILARANG muncul di clue mana pun.`,
+      );
+    }
+  }
+  lines.push("", "Perbaiki semua clue agar tidak bocor, jelas, dan menarik.");
+
+  // Budget token proporsional jumlah soal — reasoning model butuh ruang besar
+  // saat memproses puluhan soal sekaligus (PLAN-090/091).
+  const content = await chatRequest(
+    cfg,
+    [
+      { role: "system", content: BATCH_REVISION_SYSTEM_PROMPT },
+      { role: "user", content: lines.join("\n") },
+    ],
+    Math.max(600, items.length * 600),
+    signal,
+    opts?.maxCompletionTokens,
+  );
+
+  const json = extractJson(content) as { results?: unknown };
+  const arr = Array.isArray(json?.results) ? json.results : null;
+  if (!arr) {
+    throw new Error('Respons AI batch tidak valid: field "results" tidak ditemukan.');
+  }
+
+  const out = new Map<string, RevisionOutput>();
+  for (const raw of arr) {
+    const item = raw as Record<string, unknown>;
+    const id = String(item?.id ?? "").trim();
+    const clue1 = String(item?.clue_1 ?? "").trim();
+    if (!id || !clue1 || clue1.length < 4) continue;
+    const clue2 = String(item?.clue_2 ?? "").trim() || undefined;
+    const clue3 = String(item?.clue_3 ?? "").trim() || undefined;
+    const source = items.find((i) => i.id === id);
+    if (!source) continue;
+    // Deteksi bocoran per item (konsisten dengan requestAiRevision).
+    const wordLower = source.input.word.toLowerCase();
+    const leaks: string[] = [];
+    if (clue1.toLowerCase().includes(wordLower)) leaks.push("Clue 1");
+    if (clue2 && clue2.toLowerCase().includes(wordLower)) leaks.push("Clue 2");
+    if (clue3 && clue3.toLowerCase().includes(wordLower)) leaks.push("Clue 3");
+    out.set(id, {
+      clue_1: clue1,
+      clue_2: clue2,
+      clue_3: clue3,
+      leaks: leaks.length > 0 ? leaks : undefined,
+    });
+  }
+  return out;
+}

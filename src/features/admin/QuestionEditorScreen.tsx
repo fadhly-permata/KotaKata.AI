@@ -17,7 +17,12 @@ import { useTheme } from "../../presentation/components/providers/ThemeProvider"
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import type { VocabularyDoc } from "../../data/models/schemas";
 import { supabase } from "../../data/sources/supabase";
-import { getAiProviderConfig, requestAiRevision } from "../../utils/aiProvider";
+import {
+  getAiProviderConfig,
+  requestAiRevision,
+  requestAiRevisionBatch,
+  type RevisionOutput,
+} from "../../utils/aiProvider";
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
 import { loggerWarn } from "../../utils/logger";
@@ -472,7 +477,12 @@ export default function QuestionEditorScreen() {
     }
   }, [autoRunning, selectedWord, words, navigateToWord, bulkRunning]);
 
-  // ─── PLAN-090: Automasi bulk — seluruh soal per page, lalu next page ───
+  // ─── PLAN-090/091/092/093: Automasi bulk — SATU request AI per page,
+  // valid item langsung disimpan, item bocor diretry khusus DI HALAMAN YANG
+  // SAMA dengan info kata bocor, lalu next page. Tombol header jadi ⏹ Stop
+  // saat berjalan.
+  const BULK_MAX_TOKENS = 200_000;
+  const BULK_MAX_RETRY_LEAK = 2;
   const toggleBulkAutomation = useCallback(async () => {
     if (bulkRunning) {
       autoStopRef.current = true;
@@ -495,6 +505,8 @@ export default function QuestionEditorScreen() {
     let processed = 0;
     let consecutiveErrors = 0;
     let stopReason = "";
+    /** PLAN-093: soal yang tetap bocor setelah retry habis — dilaporkan, tidak disimpan. */
+    const finalLeaks: string[] = [];
     const lastPage = Math.max(totalPages, page);
 
     try {
@@ -515,37 +527,51 @@ export default function QuestionEditorScreen() {
         // Ikutkan tampilan UI ke halaman yang sedang diproses.
         setPage(p);
 
-        for (let i = 0; i < list.length; i++) {
+        // PLAN-091: seluruh soal halaman dikirim dalam SATU request batch.
+        type PendingItem = { id: string; w: VocabularyDoc; previousLeaks?: string[] };
+        let pending: PendingItem[] = list.map((w, i) => ({ id: String(i + 1), w }));
+        let leakRetry = 0;
+
+        while (pending.length > 0 && !stopReason) {
           if (autoStopRef.current) {
             stopReason = "dihentikan manual";
             break;
           }
-          const w = list[i];
-          setBulkStatus(`Page ${p}/${lastPage} · soal ${i + 1}/${list.length} · ${processed} tersimpan`);
+          setBulkStatus(
+            leakRetry === 0
+              ? `Page ${p}/${lastPage} · revisi batch ${pending.length} soal · ${processed} tersimpan`
+              : `Page ${p}/${lastPage} · retry bocor ${leakRetry}/${BULK_MAX_RETRY_LEAK} (${pending.length} soal) · ${processed} tersimpan`,
+          );
 
-          // 1) Revisi via AI — budget token besar agar reasoning tidak
-          //    menghabiskan batas saat dipakai beruntun (permintaan pemilik).
-          let revised: Awaited<ReturnType<typeof requestAiRevision>>;
+          // 1) Revisi BATCH via AI — budget token besar agar reasoning model
+          //    tidak kehabisan ruang memproses puluhan soal sekaligus.
+          let revisedMap: Map<string, RevisionOutput>;
           try {
-            revised = await requestAiRevision(
+            revisedMap = await requestAiRevisionBatch(
               config,
-              {
-                word: w.word,
-                clue_1: w.clue_1,
-                clue_2: w.clue_2,
-                clue_3: w.clue_3,
-                tier_level: w.tier_level,
-              },
+              pending.map((it) => ({
+                id: it.id,
+                input: {
+                  word: it.w.word,
+                  clue_1: it.w.clue_1,
+                  clue_2: it.w.clue_2,
+                  clue_3: it.w.clue_3,
+                  tier_level: it.w.tier_level,
+                },
+                previousLeaks: it.previousLeaks,
+              })),
               undefined,
-              { maxCompletionTokens: 200_000 },
+              { maxCompletionTokens: BULK_MAX_TOKENS },
             );
           } catch (err) {
-            loggerWarn("Automasi bulk: gagal revisi", err);
+            loggerWarn("Automasi bulk: gagal batch revisi", err);
             consecutiveErrors += 1;
             if (consecutiveErrors >= 3) {
               stopReason = "3 error AI beruntun";
               break;
             }
+            // Error tunggal → ulangi batch yang sama tanpa menghitung retry bocor.
+            await new Promise((r) => setTimeout(r, 3_000));
             continue;
           }
           if (autoStopRef.current) {
@@ -554,42 +580,74 @@ export default function QuestionEditorScreen() {
           }
           consecutiveErrors = 0;
 
-          // 2) STOP kalau bocor — hasil bocor TIDAK disimpan.
-          const aiLeaks = revised?.leaks ?? [];
-          const manualLeaks = revised ? clueLeaks(w.word, [revised.clue_1, revised.clue_2, revised.clue_3]) : [];
-          if (aiLeaks.length > 0 || manualLeaks.length > 0) {
+          // 2) Pisahkan: valid (langsung simpan) vs bocor (dikumpulkan utk retry).
+          const toSave: Array<{ it: PendingItem; r: RevisionOutput }> = [];
+          const stillLeaked: PendingItem[] = [];
+          for (const it of pending) {
+            const r = revisedMap.get(it.id);
+            if (!r) {
+              stillLeaked.push({ ...it, previousLeaks: ["AI tidak memberi hasil"] });
+              continue;
+            }
+            const aiLeaks = r.leaks ?? [];
+            const manualLeaks = clueLeaks(it.w.word, [r.clue_1, r.clue_2, r.clue_3]);
             const allLeaks = [...new Set([...aiLeaks, ...manualLeaks])];
-            stopReason = `hasil AI bocor (${allLeaks.join(", ")}) — tidak disimpan`;
-            break;
+            if (allLeaks.length > 0) {
+              stillLeaked.push({ id: it.id, w: it.w, previousLeaks: allLeaks });
+            } else {
+              toSave.push({ it, r });
+            }
           }
-          if (!revised) {
-            stopReason = "AI tidak mengembalikan hasil";
+
+          // 3) Simpan semua hasil valid via RPC.
+          for (const { it, r } of toSave) {
+            if (autoStopRef.current) {
+              stopReason = "dihentikan manual";
+              break;
+            }
+            const { data: saveData, error: saveError } = await supabase.rpc("update_vocabulary_admin", {
+              p_word_id: it.w.word_id,
+              p_word: it.w.word,
+              p_clue_1: r.clue_1.trim(),
+              p_clue_2: r.clue_2?.trim() ?? "",
+              p_clue_3: r.clue_3?.trim() ?? "",
+              p_tier_level: it.w.tier_level,
+            });
+            if (saveError) throw saveError;
+            const result = saveData as { ok: boolean; error?: string };
+            if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
+            processed += 1;
+          }
+          if (stopReason) break;
+
+          // 4) Tidak ada bocor → halaman selesai, lanjut page berikutnya.
+          if (stillLeaked.length === 0) {
+            pending = [];
             break;
           }
 
-          // 3) Simpan langsung via RPC
-          const { data: saveData, error: saveError } = await supabase.rpc("update_vocabulary_admin", {
-            p_word_id: w.word_id,
-            p_word: w.word,
-            p_clue_1: revised.clue_1.trim(),
-            p_clue_2: revised.clue_2?.trim() ?? "",
-            p_clue_3: revised.clue_3?.trim() ?? "",
-            p_tier_level: w.tier_level,
-          });
-          if (saveError) throw saveError;
-          const result = saveData as { ok: boolean; error?: string };
-          if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
-
-          processed += 1;
-          // Jeda antar iterasi — provider reasoning lambat (PLAN-089).
+          // 5) PLAN-093: masih ada bocor → JANGAN pindah halaman.
+          if (leakRetry >= BULK_MAX_RETRY_LEAK) {
+            for (const it of stillLeaked) {
+              finalLeaks.push(`${it.w.word} (${(it.previousLeaks ?? []).join(", ")})`);
+            }
+            break;
+          }
+          leakRetry += 1;
+          pending = stillLeaked;
+          setBulkStatus(`Page ${p}/${lastPage} · jeda sebelum retry ${leakRetry}…`);
           await new Promise((r) => setTimeout(r, 2_000));
         }
         if (stopReason) break;
       }
       if (!stopReason) stopReason = "semua halaman selesai";
+      let msg = `🤖 Automasi bulk berhenti (${stopReason}). ${processed} soal direvisi & tersimpan.`;
+      if (finalLeaks.length > 0) {
+        msg += `\n⚠️ ${finalLeaks.length} soal masih bocor (tidak disimpan): ${finalLeaks.slice(0, 5).join("; ")}${finalLeaks.length > 5 ? "; …" : ""}`;
+      }
       setNotification({
         type: processed > 0 ? "success" : "warning",
-        message: `🤖 Automasi bulk berhenti (${stopReason}). ${processed} soal direvisi & tersimpan.`,
+        message: msg,
       });
     } catch (err: any) {
       loggerWarn("Automasi bulk: gagal", err);
@@ -657,14 +715,18 @@ export default function QuestionEditorScreen() {
                 play("tap");
                 void toggleBulkAutomation();
               }}
-              disabled={autoRunning}
               style={[
                 styles.bulkBtn,
-                { backgroundColor: C.secondary, opacity: autoRunning ? 0.4 : 1 },
+                {
+                  // PLAN-092: saat bulk berjalan tombolnya jadi ⏹ Stop merah
+                  // yang jelas bisa diklik — bukan disabled/tersembunyi.
+                  backgroundColor: bulkRunning ? "#EF4444" : C.secondary,
+                  opacity: autoRunning ? 0.4 : 1,
+                },
               ]}
               activeOpacity={0.8}
             >
-              <Text style={{ fontSize: 15 }}>🤖</Text>
+              <Text style={{ fontSize: 15 }}>{bulkRunning ? "⏹" : "🤖"}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -683,7 +745,10 @@ export default function QuestionEditorScreen() {
         {/* ─── PLAN-090: indikator progres automasi bulk ─── */}
         {bulkRunning && (
           <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
-            <Text style={{ color: C.textSecondary, fontSize: 12 }}>🤖 Automasi bulk berjalan — {bulkStatus}</Text>
+            <Text style={{ color: C.textSecondary, fontSize: 12 }}>
+              🤖 Automasi bulk berjalan — {bulkStatus}
+              {"\u00A0"}· ketuk ⏹ di header untuk berhenti
+            </Text>
           </View>
         )}
 

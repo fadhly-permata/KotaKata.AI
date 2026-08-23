@@ -1,6 +1,6 @@
 # PLAN-092 — Tombol Automasi Bulk Jadi Stop Saat Berjalan
 
-**Status:** PENDING
+**Status:** DONE ✅ (23 Aug 2026)
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)
@@ -23,3 +23,8 @@
 
 ## Catatan
 - Bisa digabung dengan PLAN-091 (batch per page) karena menyentuh file & loop yang sama.
+
+## Hasil pengerjaan
+- Tombol header saat `bulkRunning` → **⏹ merah (#EF4444), tetap aktif diklik**, bukan disabled.
+- Banner progres kini menyertakan petunjuk "· ketuk ⏹ di header untuk berhenti".
+- Jalur ⚡ automasi per-soal di modal sudah punya tombol stop sendiri (tidak diubah).

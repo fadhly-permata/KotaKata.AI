@@ -19,6 +19,7 @@ mock.module("@react-native-async-storage/async-storage", () => ({
 
 const {
   requestAiWords,
+  requestAiRevisionBatch,
   providerPreset,
   providerLabel,
   isLocalProvider,
@@ -230,5 +231,93 @@ describe("requestAiWords — exclude kata (PLAN-050)", () => {
     expect(prompt).not.toContain("kata399");
     const chunk = prompt.split("kata berikut (sudah pernah ditemukan pemain): ")[1] ?? "";
     expect(chunk.split(", ").length).toBeLessThanOrEqual(300);
+  });
+});
+
+describe("requestAiRevisionBatch — revisi banyak soal dalam 1 request (PLAN-091/093)", () => {
+  afterEach(() => {
+    (globalThis as any).fetch = originalFetch;
+  });
+
+  const items = [
+    {
+      id: "1",
+      input: { word: "meja", clue_1: "perabot kayu", tier_level: 1 },
+    },
+    {
+      id: "2",
+      input: { word: "buku", clue_1: "bacaan bercetak", tier_level: 1 },
+      previousLeaks: ["Clue 1"],
+    },
+  ];
+
+  test("mem-parsing results per id & mendeteksi bocoran per item", async () => {
+    (globalThis as any).fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                results: [
+                  { id: "1", clue_1: "perabot tempat makan", clue_2: "kaki empat" },
+                  // bocor: memuat kata "buku"
+                  { id: "2", clue_1: "buku bacaan bagus" },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const out = await requestAiRevisionBatch(cfg, items, undefined, { maxCompletionTokens: 200_000 });
+    expect(out.size).toBe(2);
+    expect(out.get("1")?.clue_1).toBe("perabot tempat makan");
+    expect(out.get("1")?.leaks).toBeUndefined();
+    expect(out.get("2")?.leaks).toContain("Clue 1");
+  });
+
+  test("prompt batch memuat semua id + info kata bocor sebelumnya (PLAN-093)", async () => {
+    let prompt = "";
+    (globalThis as any).fetch = async (_url: any, init: any) => {
+      const body = JSON.parse(init.body ?? "{}");
+      prompt = body.messages?.find((m: any) => m.role === "user")?.content ?? "";
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: JSON.stringify({ results: [] }) } }],
+        }),
+      };
+    };
+    await requestAiRevisionBatch(cfg, items);
+    expect(prompt).toContain('[1] kata "meja"');
+    expect(prompt).toContain('[2] kata "buku"');
+    expect(prompt).toContain("PERHATIAN");
+    expect(prompt).toContain('kata "buku"');
+  });
+
+  test("item tanpa clue_1 valid atau tanpa id diabaikan (tidak masuk map)", async () => {
+    (globalThis as any).fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                results: [
+                  { id: "1", clue_1: "ok ini clue panjang" },
+                  { id: "2", clue_1: "" },
+                  { clue_1: "tanpa id" },
+                  { id: "999", clue_1: "id tak dikenal panjang" },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const out = await requestAiRevisionBatch(cfg, items);
+    expect(out.size).toBe(1);
+    expect(out.has("1")).toBe(true);
   });
 });
