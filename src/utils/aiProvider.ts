@@ -1,5 +1,6 @@
 import { userRepository } from "../data/repositories/userRepository";
 import { loggerWarn } from "./logger";
+import { capitalizeSentences } from "./textFormat";
 
 /**
  * Main Mode AI (BYOK) — integrasi provider AI untuk membuat soal TTS.
@@ -753,7 +754,11 @@ export async function requestAiWords(
     // Kata yang sudah pernah ditemukan pemain tidak boleh keluar lagi (PLAN-050).
     if (excludeSet.has(word)) continue;
     seen.add(word);
-    words.push({ word, clue_1: clue, clue_2: clue2 || undefined });
+    words.push({
+      word,
+      clue_1: capitalizeSentences(clue),
+      clue_2: clue2 ? capitalizeSentences(clue2) : undefined,
+    });
   }
 
   if (words.length < 5) {
@@ -826,12 +831,16 @@ export async function requestAiRevision(
   );
 
   const json = extractJson(content) as Record<string, string>;
-  const clue1 = String(json?.clue_1 ?? "").trim();
+  // Kapitalisasi huruf pertama kalimat dilakukan LOKAL (tanpa AI) — lihat
+  // capitalizeSentences; AI sering mengembalikan clue tanpa huruf besar.
+  const clue1 = capitalizeSentences(String(json?.clue_1 ?? "").trim());
   if (!clue1 || clue1.length < 4) {
     throw new Error("AI tidak menghasilkan clue_1 yang valid.");
   }
-  const clue2 = String(json?.clue_2 ?? "").trim() || undefined;
-  const clue3 = String(json?.clue_3 ?? "").trim() || undefined;
+  const clue2Raw = String(json?.clue_2 ?? "").trim();
+  const clue2 = clue2Raw ? capitalizeSentences(clue2Raw) : undefined;
+  const clue3Raw = String(json?.clue_3 ?? "").trim();
+  const clue3 = clue3Raw ? capitalizeSentences(clue3Raw) : undefined;
   // Deteksi bocoran — kumpulkan, jangan lempar error
   const wordLower = input.word.toLowerCase();
   const leaks: string[] = [];
@@ -922,10 +931,13 @@ export async function requestAiRevisionBatch(
   for (const raw of arr) {
     const item = raw as Record<string, unknown>;
     const id = String(item?.id ?? "").trim();
-    const clue1 = String(item?.clue_1 ?? "").trim();
+    // Kapitalisasi lokal per kalimat (tanpa AI) — konsisten dengan revisi single.
+    const clue1 = capitalizeSentences(String(item?.clue_1 ?? "").trim());
     if (!id || !clue1 || clue1.length < 4) continue;
-    const clue2 = String(item?.clue_2 ?? "").trim() || undefined;
-    const clue3 = String(item?.clue_3 ?? "").trim() || undefined;
+    const clue2Raw = String(item?.clue_2 ?? "").trim();
+    const clue2 = clue2Raw ? capitalizeSentences(clue2Raw) : undefined;
+    const clue3Raw = String(item?.clue_3 ?? "").trim();
+    const clue3 = clue3Raw ? capitalizeSentences(clue3Raw) : undefined;
     const source = items.find((i) => i.id === id);
     if (!source) continue;
     // Deteksi bocoran per item (konsisten dengan requestAiRevision).

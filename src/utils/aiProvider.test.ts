@@ -272,7 +272,8 @@ describe("requestAiRevisionBatch — revisi banyak soal dalam 1 request (PLAN-09
     });
     const out = await requestAiRevisionBatch(cfg, items, undefined, { maxCompletionTokens: 200_000 });
     expect(out.size).toBe(2);
-    expect(out.get("1")?.clue_1).toBe("perabot tempat makan");
+    // Kapitalisasi lokal (tanpa AI): huruf pertama clue otomatis besar.
+    expect(out.get("1")?.clue_1).toBe("Perabot tempat makan");
     expect(out.get("1")?.leaks).toBeUndefined();
     expect(out.get("2")?.leaks).toContain("Clue 1");
   });
