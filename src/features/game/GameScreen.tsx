@@ -139,23 +139,14 @@ export default function GameScreen() {
   }, [bossMode, boardResult, sessionStartTime]);
   const BOSS_BONUS_XP = 1500;
   // Waktu habis → boss gagal: tanpa penalti, kembali ke menu.
+  // PLAN-108/A1: dialog pakai ConfirmDialog in-app — Alert.alert NO-OP di web
+  // sehingga tombol OK (goBack) tidak pernah jalan dan pemain terjebak.
+  const [showBossTimeout, setShowBossTimeout] = useState(false);
   useEffect(() => {
     if (!bossMode || boardResult || bossSecLeft !== 0) return;
     useGameStore.getState().setBossMode(false);
-    Alert.alert(
-      "⏰ Waktu Habis",
-      "Level Boss gagal — batas 10 menit terlampaui. Tidak ada penalti; coba lagi! ⚔️",
-      [
-        {
-          text: "OK",
-          onPress: () => {
-            useGameStore.getState().reset();
-            navigation.goBack();
-          },
-        },
-      ],
-    );
-  }, [bossSecLeft, bossMode, boardResult, navigation]);
+    setShowBossTimeout(true);
+  }, [bossSecLeft, bossMode, boardResult]);
   const dismissResult = useGameStore((s) => s.dismissResult);
   const markWordSolved = useGameStore((s) => s.markWordSolved);
   const reset = useGameStore((s) => s.reset);
@@ -168,6 +159,8 @@ export default function GameScreen() {
   const useClue3 = useGameStore((s) => s.useClue3);
   const resumeProgress = useGameStore((s) => s.resumeProgress);
   const aiMode = useGameStore((s) => s.aiMode);
+  // PLAN-107: papan komunitas / buat soal sendiri — tanpa XP seperti Mode AI.
+  const noXpMode = useGameStore((s) => s.noXpMode);
   const revealedPulse = useGameStore((s) => s.revealedPulse);
 
   // Show keyboard on first tap to a cell
@@ -787,7 +780,7 @@ export default function GameScreen() {
         // 3) XP kumulatif user + tier terbaru. DILEWATI total di Main Mode AI:
         //    mode ini tidak boleh menyentuh XP sama sekali (tambah, kurangi,
         //    maupun updated_at yang dipakai urutan leaderboard).
-        if (!useGameStore.getState().aiMode) {
+        if (!useGameStore.getState().aiMode && !useGameStore.getState().noXpMode) {
           // PLAN-096 anti-cheat: kirim DELTA + durasi ke RPC server-side yang
           // memvalidasi (clamp rentang, durasi min 10 dtk, rate limit) — nilai
           // total XP resmi dihitung ulang SERVER-SIDE, bukan dikirim klien.
@@ -1175,6 +1168,25 @@ export default function GameScreen() {
         </View>
       )}
 
+      {/* PLAN-108/A1: boss timeout — dialog in-app (web-safe) */}
+      <ConfirmDialog
+        visible={showBossTimeout}
+        title="⏰ Waktu Habis"
+        message="Level Boss gagal — batas 10 menit terlampaui. Tidak ada penalti; coba lagi! ⚔️"
+        confirmText="Kembali ke Menu"
+        cancelText="Lihat Papan"
+        onConfirm={() => {
+          setShowBossTimeout(false);
+          useGameStore.getState().reset();
+          navigation.goBack();
+        }}
+        onCancel={() => setShowBossTimeout(false)}
+        variant="normal"
+        emoji="⚔️"
+        confirmIcon="🏠"
+        cancelIcon="👁️"
+      />
+
       {/* Quit confirmation */}
       <ConfirmDialog
         visible={showQuitConfirm}
@@ -1293,7 +1305,7 @@ export default function GameScreen() {
         {boardResult && (
           <CompletionOverlay
             result={boardResult}
-            aiMode={aiMode}
+            aiMode={aiMode || noXpMode}
             onPlayAgain={reset}
             onViewBoard={dismissResult}
             onHome={() => {

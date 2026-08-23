@@ -1,6 +1,6 @@
 # PLAN-106 — Hasil Audit Bug Logic/Tampilan (HANYA CATATAN, BELUM FIXING)
 
-**Status:** PENDING
+**Status:** ✅ SELESAI — ditangani lewat PLAN-108 (A1/A2/C1); B1 ditunda (tidak menghasilkan crash saat ini)
 **Tanggal:** 23 Aug 2026
 **Sumber:** Audit statis menyeluruh atas permintaan pemilik (pola: logic, tampilan, UX)
 **Tool permanen:** `npm run audit:bugs` (`scripts/audit-bugs.mjs`) — jalankan ulang kapan saja untuk audit ulang otomatis.

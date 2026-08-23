@@ -111,7 +111,7 @@ export default function CompletionOverlay({ result, aiMode, onPlayAgain, onViewB
         {aiMode && (
           <View style={[styles.aiNote, { backgroundColor: theme.colors.secondaryContainer }]}>
             <Text style={[styles.aiNoteText, { color: theme.colors.textSecondary }]}>
-              🤖 Mode AI — tidak ada XP yang dihitung untuk permainan ini.
+              🤖 Mode AI / Papan Komunitas — tidak ada XP yang dihitung untuk permainan ini.
             </Text>
           </View>
         )}

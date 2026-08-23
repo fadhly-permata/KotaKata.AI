@@ -461,6 +461,8 @@ export default function MainMenuScreen() {
 
   // ─── PLAN-103: Buat Soal Sendiri — ketik kata → AI buatkan clue → main ───
   const [customVisible, setCustomVisible] = useState(false);
+  /** PLAN-108/A2: kode bagikan yang menunggu ditampilkan di modal in-app. */
+  const [pendingShareCode, setPendingShareCode] = useState<string | null>(null);
   const [customWordsInput, setCustomWordsInput] = useState("");
   const [customTier, setCustomTier] = useState("1");
   const [customLoading, setCustomLoading] = useState(false);
@@ -553,14 +555,17 @@ export default function MainMenuScreen() {
         }
       }
       reset();
+      // PLAN-107: soal buatan sendiri via AI = bukan mode normal/boss → tanpa XP.
+      useGameStore.getState().setNoXpMode(true);
       useGameStore.getState().setAiWords(okWords);
-      navigation.navigate("Game");
       setCustomWordsInput("");
+      // PLAN-108/A2: kode bagikan ditampilkan via modal IN-APP (Alert.alert
+      // no-op di web — pemain tidak pernah melihat kodenya). Pemain memilih:
+      // langsung main, atau nanti (tetap di menu).
       if (shareCode) {
-        Alert.alert(
-          "📤 Soal Siap & Kode Bagikan",
-          `Kode: ${shareCode}\n\nSoal ini juga tampil di halaman "Papan Bagikan" — pemain lain bisa langsung memainkannya.`,
-        );
+        setPendingShareCode(shareCode);
+      } else {
+        navigation.navigate("Game");
       }
     } catch (err: any) {
       loggerWarn("Buat soal sendiri gagal", err);
@@ -1352,6 +1357,66 @@ export default function MainMenuScreen() {
             {customLoading ? "Menyusun via AI…" : "🤖 Buatkan Clue & Main!"}
           </Text>
         </TouchableOpacity>
+      </AppModal>
+
+      {/* ─── PLAN-108/A2: modal kode bagikan (in-app — Alert no-op di web) ─── */}
+      <AppModal
+        visible={!!pendingShareCode}
+        title="📤 Soal Siap & Kode Bagikan"
+        onClose={() => {
+          setPendingShareCode(null);
+          navigation.navigate("Game");
+        }}
+      >
+        <View style={{ alignItems: "center", gap: 12 }}>
+          <Text style={{ color: C.textSecondary, fontSize: 13, textAlign: "center", lineHeight: 19 }}>
+            Soalmu juga tampil di halaman "Papan Bagikan" — pemain lain bisa
+            memainkannya dengan susunan papan acak masing-masing.
+          </Text>
+          <Text
+            style={{
+              color: C.primary,
+              fontSize: 26,
+              fontWeight: "800",
+              letterSpacing: 4,
+              backgroundColor: C.secondaryContainer,
+              paddingHorizontal: 24,
+              paddingVertical: 10,
+              borderRadius: 12,
+            }}
+          >
+            {pendingShareCode}
+          </Text>
+          <TouchableOpacity
+            style={{
+              backgroundColor: C.primary,
+              borderRadius: 999,
+              paddingVertical: 11,
+              paddingHorizontal: 32,
+              alignSelf: "stretch",
+              alignItems: "center",
+            }}
+            onPress={() => {
+              play("tap");
+              setPendingShareCode(null);
+              navigation.navigate("Game");
+            }}
+          >
+            <Text style={{ color: textOnPrimary(theme), fontWeight: "700" }}>🎮 Main Sekarang</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              play("tap");
+              // Nanti saja: buang papan yang sudah disiapkan, tetap di menu.
+              useGameStore.getState().reset();
+              setPendingShareCode(null);
+            }}
+          >
+            <Text style={{ color: C.textSecondary, fontWeight: "600", fontSize: 13 }}>
+              Nanti Saja
+            </Text>
+          </TouchableOpacity>
+        </View>
       </AppModal>
 
       {/* ─── Popup Leaderboard — lazy-load 25/halaman, posisi user di atas Tutup ─── */}

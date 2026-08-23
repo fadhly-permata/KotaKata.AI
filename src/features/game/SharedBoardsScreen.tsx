@@ -127,6 +127,8 @@ export default function SharedBoardsScreen() {
           .filter((d) => !!d.clue_1 && !d.clue_1.toLowerCase().includes(d.word.toLowerCase()))
           .map((d) => ({ word: d.word, clue_1: d.clue_1, clue_2: d.clue_2 }));
         useGameStore.getState().reset();
+        // PLAN-107: papan buatan pemain lain TIDAK mengakumulasi XP.
+        useGameStore.getState().setNoXpMode(true);
         useGameStore.getState().setAiWords(resolved);
         loggerInfo(`Memainkan papan bagikan ${code} (${resolved.length} kata)`);
         navigation.navigate("Game" as never);

@@ -27,7 +27,39 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
 import { loggerWarn } from "../../utils/logger";
-import { aiPhaseLabel, useAiThinking } from "../../utils/aiStatus";
+import { aiPhaseLabel, useAiThinking, type AiPhase } from "../../utils/aiStatus";
+
+/** PLAN-108 revisi UI: strip streaming thinking DI DALAM modal form (bukan
+ *  halaman daftar) supaya terbaca jelas saat AI sedang merevisi soal. */
+function AiThinkingStrip({ phase, elapsed, tail, textColor, bg }: {
+  phase: AiPhase;
+  elapsed: number;
+  tail: string;
+  textColor: string;
+  bg: string;
+}) {
+  if (!phase) return null;
+  return (
+    <View
+      style={{
+        marginTop: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: bg,
+      }}
+    >
+      <Text style={{ color: textColor, fontSize: 12 }}>
+        {aiPhaseLabel(phase, elapsed)} ({elapsed} dtk)
+      </Text>
+      {tail.length > 0 && (
+        <Text numberOfLines={4} style={{ color: textColor, fontSize: 11, fontStyle: "italic", marginTop: 2 }}>
+          {tail}
+        </Text>
+      )}
+    </View>
+  );
+}
 import { solidSurfaceColor, contrastText, textOnPrimary, buttonShadow } from "../../utils/skin";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import AppModal from "../../presentation/components/common/AppModal";
@@ -919,19 +951,9 @@ export default function QuestionEditorScreen() {
             )}
           </View>
         )}
-        {/* Revisi urgent: strip streaming untuk jalur non-bulk (modal ⚡ / revisi manual) */}
-        {!bulkRunning && aiThink.phase !== "" && (
-          <View style={[styles.bulkBanner, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
-            <Text style={{ color: C.textSecondary, fontSize: 12 }}>
-              {aiPhaseLabel(aiThink.phase, aiThink.elapsed)} ({aiThink.elapsed} dtk)
-            </Text>
-            {aiThink.tail(220).length > 0 && (
-              <Text numberOfLines={3} style={{ color: C.textSecondary, fontSize: 11, fontStyle: "italic", marginTop: 2 }}>
-                {aiThink.tail(220)}
-              </Text>
-            )}
-          </View>
-        )}
+        {/* PLAN-108 revisi UI: strip thinking non-bulk TIDAK lagi dirender di
+            halaman daftar (tidak terbaca di belakang/terpisah dari form) —
+            dipindah ke DALAM modal form via `thinkingStrip`. */}
 
         {/* ─── PLAN-079: Filter collapsible (kata + tier) ─── */}
         <View style={[styles.filterWrap, { borderColor: C.border, backgroundColor: solidSurfaceColor(theme) }]}>
@@ -1210,6 +1232,13 @@ export default function QuestionEditorScreen() {
               />
             </View>
 
+            <AiThinkingStrip
+              phase={aiThink.phase}
+              elapsed={aiThink.elapsed}
+              tail={aiThink.tail(220)}
+              textColor={C.textSecondary}
+              bg={C.secondaryContainer}
+            />
             {/* Buttons */}
             <View style={styles.btnRow}>
               <TouchableOpacity
@@ -1372,6 +1401,13 @@ export default function QuestionEditorScreen() {
               />
             </View>
 
+            <AiThinkingStrip
+              phase={aiThink.phase}
+              elapsed={aiThink.elapsed}
+              tail={aiThink.tail(220)}
+              textColor={C.textSecondary}
+              bg={C.secondaryContainer}
+            />
             {/* Save + AI Revision buttons */}
             <View style={styles.btnRow}>
               <TouchableOpacity
@@ -1588,7 +1624,7 @@ const styles = StyleSheet.create({
   },
   btnRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 16,
     marginTop: 20,
   },
   btn: {

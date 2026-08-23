@@ -110,14 +110,16 @@ for (const file of files) {
         "Alert.alert tidak menampilkan apa pun di web — pakai AppModal/ConfirmDialog", raw.trim());
     }
 
-    // 5) catch kosong tanpa komentar alasan.
+    // 5) catch kosong TANPA komentar alasan di dalamnya (aturan #7).
+    //    Komentar penjelasan apa pun diterima — tidak harus kata "abaikan".
     if (/^\s*\}\s*catch\s*(\(\s*\w*\s*\))?\s*\{\s*$/.test(raw)) {
       const next = lines[i + 1] ?? "";
-      if (/^\s*\}\s*$/.test(next) || /^\s*\/\/.*$/.test(next)) {
-        if (!/\/\/\s*abaikan/i.test(next)) {
-          add("MINOR", file, lineNo, "CATCH-KOSONG",
-            "catch kosong tanpa komentar '// abaikan — <alasan>' (aturan #7)", raw.trim());
-        }
+      const afterNext = lines[i + 2] ?? "";
+      const isEmptyEnd = /^\s*\}\s*$/.test(next);
+      const isCommentThenEnd = /^\s*\/\/[^/]/.test(next) && /^\s*\}\s*$/.test(afterNext);
+      if (isEmptyEnd) {
+        add("MINOR", file, lineNo, "CATCH-KOSONG",
+          "catch kosong tanpa komentar alasan (aturan #7)", raw.trim());
       }
     }
 

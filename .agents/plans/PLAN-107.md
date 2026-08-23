@@ -1,6 +1,17 @@
 # PLAN-107 — Papan Buatan User Lain Tidak Mengakumulasi XP
 
-**Status:** PENDING
+**Status:** ✅ SELESAI (23 Aug 2026)
+
+## Hasil pengerjaan
+1. Flag baru `noXpMode` di gameStore (reset otomatis oleh `reset()`).
+2. Semua kalkulasi XP di store (solve, penalti clue 2/3, reveal letter/word,
+   perubahan tier) kini dicek `aiMode || noXpMode`.
+3. Gate submit XP anti-cheat di GameScreen: papan komunitas/buat soal tidak
+   pernah memanggil RPC `apply_board_xp`.
+4. `SharedBoardsScreen` & "Buat Soalmu Sendiri" set `setNoXpMode(true)`.
+5. CompletionOverlay menampilkan catatan "Mode AI / Papan Komunitas — tanpa XP".
+6. Mode Normal & Boss TIDAK berubah (XP tetap jalan + bonus boss).
+Verifikasi: tsc ✅ · 79 test ✅
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)

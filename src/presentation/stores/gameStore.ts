@@ -63,6 +63,10 @@ export interface GameState {
   /** True saat papan berasal dari Main Mode AI — XP sama sekali tidak dihitung. */
   aiMode: boolean;
   setAiMode: (aiMode: boolean) => void;
+  /** PLAN-107: papan NON-normal/non-boss (komunitas, buat soal sendiri) —
+   *  TIDAK mengakumulasi XP sama sekali, seperti aiMode. */
+  noXpMode: boolean;
+  setNoXpMode: (noXpMode: boolean) => void;
   /** True saat papan berasal dari Tantangan Harian (PLAN-097) — selesai board
    *  mencatat streak harian. Di-clear oleh reset() seperti aiMode. */
   dailyMode: boolean;
@@ -96,6 +100,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   board: null,
   aiWords: null,
   aiMode: false,
+  noXpMode: false,
   dailyMode: false,
   bossMode: false,
   loading: false,
@@ -126,6 +131,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   setAiWords: (aiWords) => set({ aiWords }),
 
   setAiMode: (aiMode) => set({ aiMode }),
+
+  setNoXpMode: (noXpMode) => set({ noXpMode }),
 
   setDailyMode: (dailyMode) => set({ dailyMode }),
 
@@ -501,10 +508,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     const fullyRevealed =
       !!hint?.revealedCells?.length &&
       word.cells.every((c) => hint.revealedCells.includes(`${c.row},${c.col}`));
-    // Mode AI: tidak ada kalkulasi XP sama sekali (tambah maupun kurangi).
-    const xpGain = get().aiMode ? 0 : fullyRevealed ? 0 : calcXpGain(word.word.length, board.tierLevel);
+    // Mode AI & mode non-XP (PLAN-107: papan komunitas/buat soal sendiri):
+    // tidak ada kalkulasi XP sama sekali (tambah maupun kurangi).
+    const noXp = get().aiMode || get().noXpMode;
+    const xpGain = noXp ? 0 : fullyRevealed ? 0 : calcXpGain(word.word.length, board.tierLevel);
     const newWordsSolved = get().wordsSolved + 1;
-    const newCurrentXp = get().aiMode ? 0 : get().currentXp + xpGain;
+    const newCurrentXp = noXp ? 0 : get().currentXp + xpGain;
 
     // Catatan: totalXp TIDAK ikut ditambah di sini. totalXp adalah XP kumulatif
     // lintas papan — di-update sekali saja saat board selesai (GameScreen) atau
@@ -538,7 +547,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           previousTier,
           newTier,
           // Mode AI: tier tidak pernah berubah (tidak ada XP yang dihitung).
-          tierChanged: !get().aiMode && previousTier !== newTier,
+          tierChanged: !(get().aiMode || get().noXpMode) && previousTier !== newTier,
           timeElapsed,
         },
       });
@@ -546,7 +555,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   useClue2: (wordIndex: number) => {
-    const { hints, currentXp, aiMode } = get();
+    const { hints, currentXp, aiMode, noXpMode } = get();
+    const xpBlocked = aiMode || noXpMode;
     const alreadyUsed = hints[wordIndex]?.clue2Used ?? false;
     set({
       // Catatan: revealedCells TIDAK di-reset — kalau di-reset, aturan
@@ -560,24 +570,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       // (bisa minus) dipakai menghitung XP akun saat papan selesai, sehingga
       // pemakaian clue/reveal benar-benar mengurangi XP (dan bisa menurunkan
       // tier). Kalau di-clamp di sini, penalti jadi tidak terlihat sama sekali.
-      currentXp: aiMode ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_2,
+      currentXp: xpBlocked ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_2,
     });
   },
 
   useClue3: (wordIndex: number) => {
-    const { hints, currentXp, aiMode } = get();
+    const { hints, currentXp, aiMode, noXpMode } = get();
+    const xpBlocked = aiMode || noXpMode;
     const alreadyUsed = hints[wordIndex]?.clue3Used ?? false;
     set({
       // revealedCells tidak di-reset (lihat komentar di useClue2).
       hints: { ...hints, [wordIndex]: { ...hints[wordIndex], clue3Used: true } },
       // XP hanya dipotong saat clue pertama kali dibuka — buka berikutnya gratis.
       // Mode AI: tidak ada pengurangan XP.
-      currentXp: aiMode ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_3,
+      currentXp: xpBlocked ? currentXp : alreadyUsed ? currentXp : currentXp - XP_PENALTY_CLUE_3,
     });
   },
 
   revealLetter: (wordIndex: number) => {
-    const { board, filledLetters, hints, aiMode } = get();
+    const { board, filledLetters, hints, aiMode, noXpMode } = get();
+    const xpBlocked = aiMode || noXpMode;
     if (!board || !board.words[wordIndex]) return;
 
     const word = board.words[wordIndex];
@@ -608,7 +620,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       filledLetters: { ...filledLetters, [key]: letter },
       // Mode AI: reveal gratis (tidak ada pengurangan XP).
-      currentXp: aiMode ? get().currentXp : get().currentXp - XP_PENALTY_REVEAL,
+      currentXp: xpBlocked ? get().currentXp : get().currentXp - XP_PENALTY_REVEAL,
       hints: {
         ...hints,
         [wordIndex]: {
@@ -625,7 +637,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   revealWord: (wordIndex: number) => {
-    const { board, filledLetters, hints, aiMode } = get();
+    const { board, filledLetters, hints, aiMode, noXpMode } = get();
+    const xpBlocked = aiMode || noXpMode;
     if (!board || !board.words[wordIndex]) return;
 
     const word = board.words[wordIndex];
@@ -657,7 +670,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       filledLetters: newLetters,
       // Mode AI: reveal gratis (tidak ada pengurangan XP).
-      currentXp: aiMode ? get().currentXp : get().currentXp - XP_PENALTY_REVEAL,
+      currentXp: xpBlocked ? get().currentXp : get().currentXp - XP_PENALTY_REVEAL,
       hints: {
         ...hints,
         [wordIndex]: {
@@ -676,6 +689,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       board: null,
       aiWords: null,
       aiMode: false,
+      noXpMode: false,
       dailyMode: false,
       bossMode: false,
       loading: false,

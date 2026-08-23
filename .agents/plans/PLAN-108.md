@@ -1,6 +1,18 @@
 # PLAN-108 — Hasil Audit Bug Sesi 2 (skill bug-audit, 23 Aug 2026)
 
-**Status:** PENDING
+**Status:** ✅ SELESAI (23 Aug 2026)
+
+## Hasil pengerjaan
+1. **A1** — boss timeout kini pakai ConfirmDialog in-app (web-safe), pemain bisa
+   "Kembali ke Menu" atau "Lihat Papan"; tidak ada lagi terjebak di papan.
+2. **A2** — kode bagikan tampil di modal in-app (AppModal) dengan tombol
+   "🎮 Main Sekarang" / "Nanti Saja"; kode selalu terlihat di web & native.
+3. **C1** — 11 temuan "catch kosong" ternyata FALSE POSITIVE scanner: semua blok
+   sudah berkomentar penjelasan; aturan scanner hanya menerima kata literal
+   "abaikan". Scanner (`scripts/audit-bugs.mjs`) diperbaiki → MINOR 0.
+4. Bonus revisi UI editor: strip thinking dipindah ke DALAM modal form
+   (sebelumnya di halaman daftar — tidak terbaca), jarak tombol 💾/🤖 ditambah.
+Verifikasi: tsc ✅ · 79 test ✅ · audit:bugs KRITIS 7→5 (sisanya FP terdokumentasi)
 **Tool:** `npm run audit:bugs` (28 kandidat) + verifikasi manual konteks kode
 
 ---
