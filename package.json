@@ -52,7 +52,8 @@
     "deploy:web": "node scripts/expo-deploy-web.mjs",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "audit:bugs": "node scripts/audit-bugs.mjs"
   },
   "private": true
 }

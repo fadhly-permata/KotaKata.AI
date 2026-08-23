@@ -3,6 +3,7 @@
 **Status:** PENDING
 **Tanggal:** 23 Aug 2026
 **Sumber:** Audit statis menyeluruh atas permintaan pemilik (pola: logic, tampilan, UX)
+**Tool permanen:** `npm run audit:bugs` (`scripts/audit-bugs.mjs`) — jalankan ulang kapan saja untuk audit ulang otomatis.
 
 ---
 
