@@ -58,6 +58,9 @@ export default function ProfileScreen() {
   // ─── Jumlah papan selesai (label "Sejarah Permainan") dari saved_boards ───
   const [finishedBoards, setFinishedBoards] = useState(0);
   const [finishedBoardsLoading, setFinishedBoardsLoading] = useState(true);
+  // ─── PLAN-101: statistik personal — streak harian & kata minggu ini ───
+  const [dailyStreak, setDailyStreak] = useState(0);
+  const [weekWords, setWeekWords] = useState(0);
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -94,6 +97,21 @@ export default function ProfileScreen() {
         .finally(() => {
           if (active) setFinishedBoardsLoading(false);
         });
+      // PLAN-101: streak (profil) + kata minggu ini (Senin pukul 00:00 lokal).
+      userRepository
+        .getById(user.id)
+        .then((p) => {
+          if (active && p) setDailyStreak(p.daily_streak ?? 0);
+        })
+        .catch(() => {}); // statistik — gagal diam saja
+      const now = new Date();
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+      wordDiscoveryRepository
+        .countByUserSince(user.id, monday.toISOString())
+        .then((n) => {
+          if (active) setWeekWords(n);
+        })
+        .catch((err) => loggerWarn("Gagal menghitung kata minggu ini", err));
       return () => {
         active = false;
       };
@@ -221,6 +239,19 @@ export default function ProfileScreen() {
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{totalXp}</Text>
             <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Total XP</Text>
+          </View>
+        </View>
+
+        {/* ─── PLAN-101: Statistik personal — streak & aktivitas minggu ini ─── */}
+        <View style={[styles.statsGrid, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>🔥 {dailyStreak}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Streak Harian</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: theme.colors.secondary }]}>{weekWords}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Kata Minggu Ini</Text>
           </View>
         </View>
 

@@ -2,7 +2,8 @@ import { supabase } from "../sources/supabase";
 import type { UserDoc } from "../models/schemas";
 import type { AiProviderConfig } from "../../utils/aiProvider";
 
-const USER_COLUMNS = "user_id, display_name, email, device_id, total_xp, current_tier, coins, updated_at";
+const USER_COLUMNS =
+  "user_id, display_name, email, device_id, total_xp, current_tier, coins, updated_at, daily_streak, daily_last_done";
 
 export const userRepository = {
   async getById(userId: string): Promise<UserDoc | null> {

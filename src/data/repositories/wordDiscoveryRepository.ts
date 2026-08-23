@@ -248,6 +248,22 @@ export const wordDiscoveryRepository = {
     return docs.map((d) => d.word).filter((w): w is string => !!w);
   },
 
+  /**
+   * PLAN-101: hitung kata yang ditemukan user SEJAK tanggal tertentu
+   * (dipakai kartu statistik "kata minggu ini" di Profil).
+   */
+  async countByUserSince(userId: string, sinceIso: string): Promise<number> {
+    const { count, error } = await supabase
+      .from("word_discoveries")
+      .select("discovery_id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("discovered_at", sinceIso);
+    if (error) {
+      throw new Error(`Gagal menghitung riwayat mingguan dari Supabase: ${error.message}`);
+    }
+    return count ?? 0;
+  },
+
   async countByUser(userId: string, search?: string): Promise<number> {
     const searchIds = await resolveSearchWordIds(search);
     if (searchIds !== null && searchIds.length === 0) return 0;
