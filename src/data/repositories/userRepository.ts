@@ -3,7 +3,7 @@ import type { UserDoc } from "../models/schemas";
 import type { AiProviderConfig } from "../../utils/aiProvider";
 
 const USER_COLUMNS =
-  "user_id, display_name, email, device_id, total_xp, current_tier, coins, updated_at, daily_streak, daily_last_done";
+  "user_id, display_name, email, device_id, total_xp, current_tier, coins, updated_at, daily_streak, daily_last_done, boss_wins";
 
 export const userRepository = {
   async getById(userId: string): Promise<UserDoc | null> {
@@ -305,6 +305,13 @@ export const userRepository = {
    * publik (tanpa email/device_id) + total_count utk tahu kapan harus berhenti
    * lazy-load.
    */
+  /** PLAN-099: catat satu kemenangan Level Boss (kosmetik — badge & statistik). */
+  async recordBossWin(userId: string): Promise<void> {
+    const user = await this.getById(userId);
+    if (!user) return;
+    await this.upsert({ ...user, boss_wins: (user.boss_wins ?? 0) + 1 });
+  },
+
   /**
    * PLAN-098: leaderboard XP MINGGU INI (Senin-sekarang). Data terkumpul
    * otomatis dari jalur anti-cheat apply_board_xp di server.

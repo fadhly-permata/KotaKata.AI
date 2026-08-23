@@ -18,6 +18,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { buildDailyBoard, dailyKey, dailyTier } from "../../utils/dailyChallenge";
+import { generateBoard } from "../../domain/usecases/crosswordGenerator";
+import type { Board } from "../../domain/entities/board";
+import { selectWordPool, getDiscoveredWordIds } from "../../domain/usecases/wordPoolFilter";
 import UserAvatar from "../../presentation/components/common/UserAvatar";
 import { useAuth } from "../auth/useAuth";
 import {
@@ -403,6 +406,7 @@ export default function MainMenuScreen() {
         if (cancelled || !profile) return;
         setDailyStreak(profile.daily_streak ?? 0);
         setDailyDoneToday(profile.daily_last_done === dailyKey());
+        setBossWins(profile.boss_wins ?? 0);
       } catch (err) {
         loggerInfo("Gagal membaca status tantangan harian", err);
       }
@@ -411,6 +415,46 @@ export default function MainMenuScreen() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  // ─── PLAN-099: Level Boss — tersedia saat mendekati ambang tier berikutnya ───
+  const BOSS_MIN_WORDS = 12;
+  const [bossLoading, setBossLoading] = useState(false);
+  const [bossWins, setBossWins] = useState(0);
+  const bossAvailable = useMemo(() => {
+    if (currentTier >= 10) return true; // tier puncak: boss selalu terbuka
+    return (TIER_THRESHOLDS[currentTier] ?? Infinity) - totalXp <= 5000;
+  }, [currentTier, totalXp]);
+
+  const startBossChallenge = useCallback(async () => {
+    if (!user?.id || bossLoading) return;
+    play("tap");
+    setBossLoading(true);
+    try {
+      const discovered = await getDiscoveredWordIds(user.id);
+      const candidates = await selectWordPool({
+        playerTier: currentTier,
+        excludedWordIds: discovered,
+        gridSize: 14,
+        allTiers: false,
+      });
+      let generated: Board | null = null;
+      for (let size = 11; size <= 14 && !generated; size++) {
+        const attempt = generateBoard(candidates, size, currentTier);
+        if (attempt.words.length >= BOSS_MIN_WORDS) generated = attempt;
+      }
+      if (!generated) throw new Error("Papan boss tidak bisa disusun — coba lagi.");
+      reset();
+      useGameStore.getState().setBossMode(true);
+      useGameStore.getState().setBoard(generated);
+      navigation.navigate("Game");
+    } catch (err: any) {
+      loggerWarn("Gagal menyiapkan Level Boss", err);
+      setAiError(err?.message ?? "Gagal menyiapkan Level Boss.");
+      setAiSetupVisible(true);
+    } finally {
+      setBossLoading(false);
+    }
+  }, [user?.id, bossLoading, currentTier, reset, navigation]);
 
   /** Papan harian: deterministik per tanggal — sama untuk semua pemain. */
   const startDailyChallenge = useCallback(async () => {
@@ -608,6 +652,30 @@ export default function MainMenuScreen() {
           </View>
           <View style={styles.shineOverlay} />
         </TouchableOpacity>
+
+        {/* ═══ PLAN-099: Level Boss — muncul saat mendekati naik tier ═══ */}
+        {bossAvailable && (
+          <View style={styles.actionGrid}>
+            <TouchableOpacity
+              style={[
+                styles.actionCard,
+                { backgroundColor: C.tertiaryContainer, borderWidth: 2, borderColor: C.primary },
+                ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+              ]}
+              activeOpacity={0.8}
+              onPress={() => void startBossChallenge()}
+              disabled={bossLoading}
+            >
+              <Text style={styles.actionCardIcon}>⚔️</Text>
+              <Text style={[styles.actionCardLabel, { color: C.text }]}>
+                {bossLoading ? "Menyiapkan…" : "Level Boss!"}
+              </Text>
+              <Text style={{ color: C.textSecondary, fontSize: 12 }} numberOfLines={1}>
+                ⏱ 10 menit · bonus +1.500 XP · ⚔️ {bossWins} menang
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ═══ PLAN-097: Tantangan Harian — papan deterministik per tanggal ═══ */}
         <View style={styles.actionGrid}>

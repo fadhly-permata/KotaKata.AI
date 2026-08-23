@@ -16,6 +16,8 @@ export interface UserDoc {
   daily_streak?: number;
   /** PLAN-097: tanggal (YYYY-MM-DD) terakhir kali daily challenge selesai. */
   daily_last_done?: string | null;
+  /** PLAN-099: jumlah kemenangan Level Boss. */
+  boss_wins?: number;
 }
 
 export interface VocabularyDoc {

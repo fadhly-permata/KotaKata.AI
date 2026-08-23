@@ -67,6 +67,10 @@ export interface GameState {
    *  mencatat streak harian. Di-clear oleh reset() seperti aiMode. */
   dailyMode: boolean;
   setDailyMode: (dailyMode: boolean) => void;
+  /** True saat papan adalah LEVEL BOSS (PLAN-099) — ada batas waktu & bonus XP.
+   *  Di-clear oleh reset() seperti mode lainnya. */
+  bossMode: boolean;
+  setBossMode: (bossMode: boolean) => void;
   setProfileReady: (ready: boolean) => void;
   selectCell: (row: number, col: number) => void;
   toggleOrientation: () => void;
@@ -93,6 +97,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   aiWords: null,
   aiMode: false,
   dailyMode: false,
+  bossMode: false,
   loading: false,
   selectedCell: null,
   selectedWordIndex: null,
@@ -123,6 +128,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   setAiMode: (aiMode) => set({ aiMode }),
 
   setDailyMode: (dailyMode) => set({ dailyMode }),
+
+  setBossMode: (bossMode) => set({ bossMode }),
 
   resumeProgress: (progress: BoardProgressState) => {
     set({
@@ -670,6 +677,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       aiWords: null,
       aiMode: false,
       dailyMode: false,
+      bossMode: false,
       loading: false,
       selectedCell: null,
       selectedWordIndex: null,

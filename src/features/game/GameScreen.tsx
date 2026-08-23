@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Modal, PanResponder, AppState, useWindowDimensions } from "react-native";
+import { View, StyleSheet, Platform, Text, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Modal, PanResponder, AppState, useWindowDimensions, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
@@ -120,6 +120,42 @@ export default function GameScreen() {
   const currentXp = useGameStore((s) => s.currentXp);
   const totalXp = useGameStore((s) => s.totalXp);
   const boardResult = useGameStore((s) => s.boardResult);
+  // ─── PLAN-099: Level Boss — batas waktu 10 menit, bonus XP saat lolos ───
+  const BOSS_TIME_LIMIT_SEC = 600;
+  const bossMode = useGameStore((s) => s.bossMode);
+  const sessionStartTime = useGameStore((s) => s.sessionStartTime);
+  const [bossSecLeft, setBossSecLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (!bossMode || boardResult) {
+      setBossSecLeft(null);
+      return;
+    }
+    const tick = () => {
+      setBossSecLeft(Math.max(0, BOSS_TIME_LIMIT_SEC - Math.round((Date.now() - sessionStartTime) / 1000)));
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [bossMode, boardResult, sessionStartTime]);
+  const BOSS_BONUS_XP = 1500;
+  // Waktu habis → boss gagal: tanpa penalti, kembali ke menu.
+  useEffect(() => {
+    if (!bossMode || boardResult || bossSecLeft !== 0) return;
+    useGameStore.getState().setBossMode(false);
+    Alert.alert(
+      "⏰ Waktu Habis",
+      "Level Boss gagal — batas 10 menit terlampaui. Tidak ada penalti; coba lagi! ⚔️",
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            useGameStore.getState().reset();
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  }, [bossSecLeft, bossMode, boardResult, navigation]);
   const dismissResult = useGameStore((s) => s.dismissResult);
   const markWordSolved = useGameStore((s) => s.markWordSolved);
   const reset = useGameStore((s) => s.reset);
@@ -746,10 +782,21 @@ export default function GameScreen() {
           // PLAN-096 anti-cheat: kirim DELTA + durasi ke RPC server-side yang
           // memvalidasi (clamp rentang, durasi min 10 dtk, rate limit) — nilai
           // total XP resmi dihitung ulang SERVER-SIDE, bukan dikirim klien.
+          // PLAN-099: menang Level Boss → bonus +1500 XP ikut dalam delta yang
+          // sama (satu submit tervalidasi, tidak dobel request).
+          const isBoss = useGameStore.getState().bossMode;
+          const delta = boardResult.xpGained + (isBoss ? BOSS_BONUS_XP : 0);
           const playSeconds = Math.max(0, Math.round((Date.now() - boardStartedAtRef.current) / 1000));
-          const xpRes = await userRepository.applyBoardXp(boardResult.xpGained, playSeconds);
+          const xpRes = await userRepository.applyBoardXp(delta, playSeconds);
           if (xpRes.ok && typeof xpRes.newTotalXp === "number") {
             useGameStore.getState().setTotalXp(xpRes.newTotalXp);
+            if (isBoss) {
+              try {
+                await userRepository.recordBossWin(user.id);
+              } catch (bossErr) {
+                loggerWarn("Gagal mencatat kemenangan boss", bossErr);
+              }
+            }
           } else if (!xpRes.ok) {
             loggerWarn("Anti-cheat: XP papan ditolak server", new Error(xpRes.message ?? "unknown"));
           }
@@ -927,6 +974,26 @@ export default function GameScreen() {
   }
   return (
     <ScreenFade background={boardBackground} style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* ─── PLAN-099: chip countdown Level Boss ─── */}
+      {bossMode && !boardResult && bossSecLeft !== null && (
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top + 54,
+            alignSelf: "center",
+            zIndex: 60,
+            backgroundColor: bossSecLeft <= 30 ? "#DC2626" : "#EF4444",
+            paddingVertical: 6,
+            paddingHorizontal: 14,
+            borderRadius: 999,
+            elevation: 4,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+            ⚔️ BOSS · {Math.floor(bossSecLeft / 60)}:{String(bossSecLeft % 60).padStart(2, "0")}
+          </Text>
+        </View>
+      )}
       {/* Scrollable area */}
       <ScrollView
         ref={outerScrollRef}
