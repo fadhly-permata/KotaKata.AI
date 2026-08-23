@@ -280,6 +280,35 @@ export default function MainMenuScreen() {
   // Posisi pemain yang login (rank + baris) — ditampilkan di atas tombol Tutup
   // supaya user posisi jauh (#100) langsung tahu di mana dia berada.
   const [leaderboardMyRank, setLeaderboardMyRank] = useState<(UserDoc & { rank: number }) | null>(null);
+  // ─── PLAN-098: tab leaderboard mingguan ───
+  const [lbMode, setLbMode] = useState<"total" | "mingguan">("total");
+  const [weeklyUsers, setWeeklyUsers] = useState<
+    Array<{ rank: number; user_id: string; display_name: string; current_tier: number; week_xp: number }>
+  >([]);
+
+  const loadWeeklyLeaderboard = useCallback(async () => {
+    setLeaderboardLoading(true);
+    setLeaderboardError(false);
+    try {
+      const rows = await userRepository.getWeeklyLeaderboard(50);
+      setWeeklyUsers(rows);
+    } catch {
+      setLeaderboardError(true);
+      setWeeklyUsers([]);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, []);
+
+  const switchLbMode = useCallback(
+    (mode: "total" | "mingguan") => {
+      if (mode === lbMode) return;
+      play("tap");
+      setLbMode(mode);
+      if (mode === "mingguan") void loadWeeklyLeaderboard();
+    },
+    [lbMode, loadWeeklyLeaderboard],
+  );
 
   const openLeaderboard = useCallback(async () => {
     play("tap");
@@ -289,6 +318,8 @@ export default function MainMenuScreen() {
     setLeaderboardUsers([]);
     setLeaderboardTotal(0);
     setLeaderboardMyRank(null);
+    setLbMode("total");
+    setWeeklyUsers([]);
     try {
       // RPC get_leaderboard_paged (security definer) — RLS users hanya
       // membolehkan user membaca barisnya sendiri, jadi baca lintas-user lewat
@@ -1055,8 +1086,35 @@ export default function MainMenuScreen() {
         title="🏅 Leaderboard"
         onClose={() => setLeaderboardVisible(false)}
       >
+        {/* ─── PLAN-098: tab Total / Mingguan ─── */}
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+          {(["total", "mingguan"] as const).map((m) => {
+            const active = lbMode === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                onPress={() => switchLbMode(m)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  alignItems: "center",
+                  backgroundColor: active ? C.primary : C.secondaryContainer,
+                  borderWidth: 1,
+                  borderColor: active ? C.primary : C.border,
+                }}
+              >
+                <Text style={{ color: active ? textOnPrimary(theme) : C.text, fontSize: 13, fontWeight: "600" }}>
+                  {m === "total" ? "🏆 Total" : "📅 Minggu Ini"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <Text style={[styles.lbSubtitle, { color: C.textSecondary }]}>
-          Urutan berdasarkan level (XP) & waktu kenaikan.
+          {lbMode === "total"
+            ? "Urutan berdasarkan level (XP) & waktu kenaikan."
+            : "Peringkat XP yang kamu kumpulkan minggu ini (Senin–sekarang)."}
         </Text>
             {leaderboardLoading ? (
               <ActivityIndicator color={C.primary} style={styles.lbLoading} />
@@ -1064,9 +1122,11 @@ export default function MainMenuScreen() {
               <Text style={[styles.lbError, { color: C.error }]}>
                 Gagal memuat leaderboard. Periksa koneksi lalu coba lagi.
               </Text>
-            ) : leaderboardUsers.length === 0 ? (
+            ) : (lbMode === "total" ? leaderboardUsers.length : weeklyUsers.length) === 0 ? (
               <Text style={[styles.lbError, { color: C.textSecondary }]}>
-                Belum ada pemain lain. Ajak temanmu bermain!
+                {lbMode === "total"
+                  ? "Belum ada pemain lain. Ajak temanmu bermain!"
+                  : "Belum ada XP terkumpul minggu ini. Main sekarang untuk jadi yang pertama!"}
               </Text>
             ) : (
               <ScrollView
@@ -1076,6 +1136,7 @@ export default function MainMenuScreen() {
                 nestedScrollEnabled
                 scrollEventThrottle={200}
                 onScroll={({ nativeEvent }) => {
+                  if (lbMode !== "total") return; // mingguan: data tetap, tanpa lazy-load
                   const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
                   // Mendekati dasar daftar → muat halaman berikutnya.
                   if (
@@ -1086,7 +1147,15 @@ export default function MainMenuScreen() {
                   }
                 }}
               >
-                {leaderboardUsers.map((u, idx) => {
+                {(lbMode === "total"
+                  ? leaderboardUsers
+                  : weeklyUsers.map((w) => ({
+                      user_id: w.user_id,
+                      display_name: w.display_name,
+                      current_tier: w.current_tier,
+                      total_xp: w.week_xp,
+                    }))
+                ).map((u, idx) => {
                   const rank = idx + 1;
                   const isMe = u.user_id === user?.id;
                   const tierColor =
@@ -1134,8 +1203,35 @@ export default function MainMenuScreen() {
               </ScrollView>
             )}
 
+            {/* PLAN-098: posisi mingguan — tampil bila masuk top 50 */}
+            {lbMode === "mingguan" &&
+              (() => {
+                const mine = weeklyUsers.find((w) => w.user_id === user?.id);
+                if (!mine) return null;
+                return (
+                  <View style={[styles.lbMyRankRow, { backgroundColor: C.primary + "14", borderColor: C.primary }]}>
+                    <Text style={[styles.lbMyRankLabel, { color: C.textSecondary }]} numberOfLines={1}>
+                      Posisimu minggu ini
+                    </Text>
+                    <View style={styles.lbMyRankContent}>
+                      <View style={styles.lbRankWrap}>
+                        <Text style={[styles.lbRank, { color: C.gold }]}>#{mine.rank}</Text>
+                      </View>
+                      <View style={styles.lbRowCol}>
+                        <Text style={[styles.lbName, { color: C.text }]} numberOfLines={1}>
+                          {mine.display_name || "Pemain"} (kamu)
+                        </Text>
+                      </View>
+                      <Text style={[styles.lbXp, { color: C.secondary }]}>
+                        +{mine.week_xp.toLocaleString("id-ID")} XP
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })()}
+
             {/* Posisi pemain yang login — selalu terlihat tanpa perlu scroll jauh */}
-            {leaderboardMyRank && (
+            {lbMode === "total" && leaderboardMyRank && (
               <View style={[styles.lbMyRankRow, { backgroundColor: C.primary + "14", borderColor: C.primary }]}>
                 <Text style={[styles.lbMyRankLabel, { color: C.textSecondary }]} numberOfLines={1}>
                   Posisimu sekarang

@@ -20,7 +20,8 @@ CREATE OR REPLACE FUNCTION apply_board_xp(
 RETURNS TABLE (ok boolean, message text, new_total_xp integer, new_tier integer)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_uid uuid := auth.uid();
+  -- users.user_id bertipe TEXT (bukan uuid) — auth.uid() harus di-cast.
+  v_uid text := auth.uid()::text;
   v_prev integer;
   v_new integer;
   v_tier integer;

@@ -304,6 +304,24 @@ export const userRepository = {
    * publik (tanpa email/device_id) + total_count utk tahu kapan harus berhenti
    * lazy-load.
    */
+  /**
+   * PLAN-098: leaderboard XP MINGGU INI (Senin-sekarang). Data terkumpul
+   * otomatis dari jalur anti-cheat apply_board_xp di server.
+   */
+  async getWeeklyLeaderboard(
+    limit = 25,
+  ): Promise<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; week_xp: number }>> {
+    const { data, error } = await supabase.rpc("get_weekly_leaderboard", { p_limit: limit });
+    if (error) throw new Error(`Gagal memuat leaderboard mingguan: ${error.message}`);
+    return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+      rank: Number(r.rank),
+      user_id: String(r.user_id),
+      display_name: String(r.display_name ?? "Pemain"),
+      current_tier: Number(r.current_tier ?? 1),
+      week_xp: Number(r.week_xp ?? 0),
+    }));
+  },
+
   async getLeaderboardPage(
     limit: number,
     offset: number,
