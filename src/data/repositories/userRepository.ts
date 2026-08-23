@@ -75,6 +75,31 @@ export const userRepository = {
   },
 
   /**
+   * PLAN-096 anti-cheat: kirim DELTA XP hasil papan ke RPC server-side yang
+   * memvalidasi (clamp rentang, durasi minimum, rate limit) sebelum diterapkan.
+   * Server mengembalikan total XP & tier RESMI (dihitung ulang di server).
+   */
+  async applyBoardXp(
+    delta: number,
+    playSeconds: number,
+  ): Promise<{ ok: boolean; message?: string; newTotalXp?: number; newTier?: number }> {
+    const { data, error } = await supabase.rpc("apply_board_xp", {
+      p_delta: Math.round(delta),
+      p_play_seconds: Math.round(playSeconds),
+    });
+    if (error) return { ok: false, message: error.message };
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { ok?: boolean; message?: string; new_total_xp?: number | null; new_tier?: number | null }
+      | undefined;
+    if (!row?.ok) return { ok: false, message: row?.message ?? "Ditolak server" };
+    return {
+      ok: true,
+      newTotalXp: typeof row.new_total_xp === "number" ? row.new_total_xp : undefined,
+      newTier: typeof row.new_tier === "number" ? row.new_tier : undefined,
+    };
+  },
+
+  /**
    * Baca config provider AI yang tersimpan di cloud (kolom users.ai_provider_config).
    * Dipakai sinkronisasi lintas device: login akun sama di device lain tetap bisa
    * Main Mode AI. RLS users membatasi akses ke baris pemiliknya sendiri.

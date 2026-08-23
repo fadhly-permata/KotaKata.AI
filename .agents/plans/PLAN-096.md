@@ -1,6 +1,6 @@
 # PLAN-096 — Fitur Anti-Cheat
 
-**Status:** PENDING
+**Status:** DONE ✅ (23 Aug 2026 — validasi XP server-side)
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi revisi (apa adanya dari pemilik)
@@ -29,3 +29,15 @@ yang relevan untuk didiagnosis & ditangani saat pengerjaan:
 ## Catatan
 - Perlu konfirmasi arah prioritas dari pemilik saat mulai dikerjakan:
   fokus ke validasi skor server-side dulu, atau deteksi perilaku curang dulu?
+
+## Hasil pengerjaan
+1. **Validasi XP server-side** — RPC `apply_board_xp(p_delta, p_play_seconds)`
+   (security definer) di Supabase:
+   - Delta di-clamp ke [-5000, +8000] (teoretis maks papan ±4500).
+   - Delta positif wajib durasi ≥ 10 detik.
+   - Rate limit: submit positif beruntun < 8 detik ditolak.
+   - Total XP & tier dihitung ulang SERVER-SIDE dari ambang resmi.
+2. Kolom baru `users.last_board_at` untuk rate limit.
+3. GameScreen tidak lagi menulis `total_xp` absolut via upsert — kini kirim
+   delta + durasi ke RPC; nilai balikan server dipakai untuk store.
+4. Penolakan dicatat via loggerWarn → Supabase (tanpa mengganggu pemain normal).

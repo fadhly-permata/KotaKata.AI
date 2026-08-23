@@ -18,7 +18,6 @@ import { useGameStore } from "../../presentation/stores/gameStore";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
 import { selectWordPool } from "../../domain/usecases/wordPoolFilter";
 import { supabase } from "../../data/sources/supabase";
-import { displayNameFromMetadata } from "../../utils/userMetadata";
 import { boardRepository } from "../../data/repositories/boardRepository";
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
@@ -78,6 +77,10 @@ export default function GameScreen() {
   const [clueLevel, setClueLevel] = useState<1 | 2 | 3>(1);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const keyboardAutoShown = useRef(false);
+  // PLAN-096: waktu papan aktif dimulai — dipakai validasi anti-cheat server
+  // (durasi minimum sebelum delta XP positif diterima). Ref di-update lewat
+  // effect di bawah (setelah deklarasi `board`).
+  const boardStartedAtRef = useRef<number>(Date.now());
   const pendingNavAction = useRef<any>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const prevZoomLevel = useRef(1);
@@ -97,6 +100,11 @@ export default function GameScreen() {
   const [outerViewportH, setOuterViewportH] = useState(0);
 
   const board = useGameStore((s) => s.board);
+  // PLAN-096: reset waktu mulai setiap papan baru/resume — durasi minimum
+  // sebelum delta XP positif diterima server (anti-cheat).
+  useEffect(() => {
+    if (board) boardStartedAtRef.current = Date.now();
+  }, [board]);
   const setBoard = useGameStore((s) => s.setBoard);
   const selectedCell = useGameStore((s) => s.selectedCell);
   const selectedWordIndex = useGameStore((s) => s.selectedWordIndex);
@@ -733,23 +741,16 @@ export default function GameScreen() {
         //    mode ini tidak boleh menyentuh XP sama sekali (tambah, kurangi,
         //    maupun updated_at yang dipakai urutan leaderboard).
         if (!useGameStore.getState().aiMode) {
-          const prevUser = await userRepository.getById(user.id);
-          // xpGained adalah XP neto sesi — BISA negatif kalau penalti
-          // clue/reveal lebih besar dari XP kata. Penalti ini NYATA: total XP
-          // akun ikut berkurang (hanya di-clamp agar tidak negatif, dan kata
-          // full-reveal tidak memberi XP).
-          const newTotalXp = Math.max(0, (prevUser?.total_xp ?? 0) + boardResult.xpGained);
-          const sessionName = displayNameFromMetadata(user.user_metadata);
-          await userRepository.upsert({
-            user_id: user.id,
-            display_name: prevUser?.display_name ?? sessionName ?? "Pemain",
-            email: prevUser?.email,
-            total_xp: newTotalXp,
-            current_tier: calcTier(newTotalXp),
-            coins: prevUser?.coins ?? 0,
-            updated_at: now,
-          });
-          useGameStore.getState().setTotalXp(newTotalXp);
+          // PLAN-096 anti-cheat: kirim DELTA + durasi ke RPC server-side yang
+          // memvalidasi (clamp rentang, durasi min 10 dtk, rate limit) — nilai
+          // total XP resmi dihitung ulang SERVER-SIDE, bukan dikirim klien.
+          const playSeconds = Math.max(0, Math.round((Date.now() - boardStartedAtRef.current) / 1000));
+          const xpRes = await userRepository.applyBoardXp(boardResult.xpGained, playSeconds);
+          if (xpRes.ok && typeof xpRes.newTotalXp === "number") {
+            useGameStore.getState().setTotalXp(xpRes.newTotalXp);
+          } else if (!xpRes.ok) {
+            loggerWarn("Anti-cheat: XP papan ditolak server", new Error(xpRes.message ?? "unknown"));
+          }
         }
       } catch (err) {
         loggerInfo("Gagal menyimpan hasil board", err);
