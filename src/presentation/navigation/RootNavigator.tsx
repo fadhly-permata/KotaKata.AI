@@ -31,6 +31,7 @@ import MarkdownScreen from "../../features/legal/MarkdownScreen";
 import StoreScreen from "../../features/store/StoreScreen";
 import QuestionEditorScreen from "../../features/admin/QuestionEditorScreen";
 import SharedBoardsScreen from "../../features/game/SharedBoardsScreen";
+import ResolutionSimulator from "../components/common/ResolutionSimulator";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -329,6 +330,9 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
+      {/* PLAN-068 (revisi): simulasi resolusi layar untuk admin — web only,
+          komponen sendiri yang merender null di native / non-admin. */}
+      <ResolutionSimulator />
     </NavigationContainer>
   );
 }

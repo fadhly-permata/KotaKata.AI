@@ -1,6 +1,6 @@
 # PLAN-103 — Mode "Buat Soalmu Sendiri" via AI + Share
 
-**Status:** ✅ INTI DONE (23 Aug 2026) — fitur share kode: menyusul (butuh desain tabel shared_boards)
+**Status:** ❌ DIBATALKAN oleh pemilik (23 Aug 2026) — fitur share kode (bagian 2: tabel `shared_boards` + alur masuk via kode) TIDAK jadi dikerjakan. Bagian inti Mode "Buat Soalmu Sendiri" tetap done & dipertahankan.
 **Tanggal:** 23 Aug 2026
 
 ## Deskripsi
