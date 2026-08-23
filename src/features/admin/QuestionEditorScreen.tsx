@@ -118,6 +118,12 @@ export default function QuestionEditorScreen() {
   // ─── PLAN-090: Automasi bulk seluruh soal per page (tombol header) ───
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState("");
+  /** Fokus daftar: id soal yang SEDANG direvisi — kartu di-highlight & daftar
+   *  otomatis scroll ke kartu itu supaya user tahu persis progresnya. */
+  const [bulkFocusId, setBulkFocusId] = useState<string | null>(null);
+  const listScrollRef = useRef<ScrollView | null>(null);
+  /** Posisi-Y tiap kartu soal (dari onLayout) untuk scrollToIndex manual. */
+  const cardYRef = useRef<Map<string, number>>(new Map());
   // ─── Revisi urgent: progress bar REAL per page (reset tiap page baru) ───
   // Fase terukur: ambil soal (2–10%) → kirim ke AI (10–50%) → menyimpan
   // (50–95% sesuai jumlah item tersimpan) → selesai page (100%).
@@ -669,6 +675,12 @@ export default function QuestionEditorScreen() {
           setBulkStatus(
             `Page ${p}/${lastPage} · revisi "${w.word}" — soal ${i + 1}/${list.length} (${processed} tersimpan)`,
           );
+          // Fokuskan daftar: highlight kartu soal ini & scroll ke situ.
+          setBulkFocusId(w.word_id);
+          const cardY = cardYRef.current.get(w.word_id);
+          if (cardY !== undefined) {
+            listScrollRef.current?.scrollTo({ y: Math.max(0, cardY - 80), animated: true });
+          }
 
           let revised: Awaited<ReturnType<typeof requestAiRevision>> | undefined;
           for (let attempt = 1; attempt <= BULK_WORD_RETRIES; attempt++) {
@@ -788,6 +800,7 @@ export default function QuestionEditorScreen() {
     } finally {
       setBulkRunning(false);
       setBulkStatus("");
+      setBulkFocusId(null);
       setBulkPct(0);
       setBulkPageSec(0);
       setBulkTotalSec(0);
@@ -1045,10 +1058,15 @@ export default function QuestionEditorScreen() {
         ) : (
           <>
             {/* ─── Word list ─── */}
-            <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
+            <ScrollView
+              ref={listScrollRef}
+              style={styles.list}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+            >
               {paged.map((w) => (
                 <TouchableOpacity
                   key={w.word_id}
+                  onLayout={(e) => cardYRef.current.set(w.word_id, e.nativeEvent.layout.y)}
                   style={[
                     styles.wordCard,
                     {
@@ -1056,6 +1074,12 @@ export default function QuestionEditorScreen() {
                       borderColor: C.border,
                     },
                     selectedWord?.word_id === w.word_id && { borderColor: C.primary, borderWidth: 2 },
+                    // Kartu soal yang SEDANG direvisi automasi bulk — highlight oranye
+                    // supaya user langsung melihat progres di daftar.
+                    bulkRunning && bulkFocusId === w.word_id && {
+                      borderColor: "#F59E0B",
+                      borderWidth: 2,
+                    },
                     ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
                   ]}
                   activeOpacity={0.7}
