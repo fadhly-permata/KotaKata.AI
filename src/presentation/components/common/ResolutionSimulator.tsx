@@ -76,21 +76,23 @@ export default function ResolutionSimulator() {
     setReloadKey((k) => k + 1);
   }, [customW, customH]);
 
-  const iframeElement = useMemo(
-    () =>
-      createElement("iframe", {
-        key: `${reloadKey}-${simW}x${simH}`,
-        src: window.location.href.split("#")[0] + window.location.hash,
-        title: "Preview resolusi",
-        style: {
-          width: `${simW}px`,
-          height: `${simH}px`,
-          border: "none",
-          backgroundColor: "#fff",
-        },
-      }),
-    [reloadKey, simW, simH],
-  );
+  const iframeElement = useMemo(() => {
+    // Guard platform (aturan #5b, PLAN-110 K1): factory useMemo dieksekusi di
+    // SEMUA render termasuk native Hermes yang tidak punya `window.location`
+    // — tanpa guard ini APK crash saat App mount.
+    if (!isWeb) return null;
+    return createElement("iframe", {
+      key: `${reloadKey}-${simW}x${simH}`,
+      src: window.location.href.split("#")[0] + window.location.hash,
+      title: "Preview resolusi",
+      style: {
+        width: `${simW}px`,
+        height: `${simH}px`,
+        border: "none",
+        backgroundColor: "#fff",
+      },
+    });
+  }, [isWeb, reloadKey, simW, simH]);
 
   // Hanya admin & hanya web — selain itu render apa pun tidak diperlukan.
   // CATATAN: early-return HARUS setelah SEMUA hook dipanggil (aturan React);

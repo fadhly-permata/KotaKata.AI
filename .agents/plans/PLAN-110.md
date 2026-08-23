@@ -1,6 +1,6 @@
 # PLAN-110 — Hasil Audit Bug (23 Aug 2026)
 
-**Status:** PENDING
+**Status:** ✅ DONE (23 Aug 2026 — K1 & S1 diperbaiki, disetujui pemilik)
 
 Scanner `npm run audit:bugs`: 101 file · 16 temuan (5 kritis, 11 sedang).
 Setelah verifikasi manual konteks kode: **10 false positive**, **2 temuan nyata**,
@@ -21,6 +21,8 @@ sisanya duplikat antar-daftar kritis/sedang.
 - **Saran fix:** guard di dalam factory (`if (!isWeb) return null;`) atau
   pindahkan pembuatan iframe ke variabel biasa SETELAH early-return
   (bukan hook).
+- **✅ FIXED:** guard `if (!isWeb) return null;` di dalam factory useMemo
+  (+ dep `isWeb`).
 
 ## 🟡 Sedang
 
@@ -34,6 +36,7 @@ sisanya duplikat antar-daftar kritis/sedang.
   jadi dampaknya kecil).
 - **Saran fix:** skip `Alert.alert` saat `Platform.OS === "web"`, atau ganti
   mekanisme tampil per-platform.
+- **✅ FIXED:** kondisi jadi `isFatal && Platform.OS !== "web"`.
 
 ## ✅ False positive (terverifikasi aman — guard ada di konteks)
 

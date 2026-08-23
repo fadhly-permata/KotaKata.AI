@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import initSqlJs from "sql.js/dist/sql-wasm-browser.js";
 import wasmUrl from "sql.js/dist/sql-wasm-browser.wasm";
 import type { Database, SqlJsStatic } from "sql.js";
@@ -402,7 +402,9 @@ export function setupGlobalLogging(): void {
         }
         // Fatal error → jangan biarkan layar putih tanpa petunjuk (PLAN-076):
         // tampilkan pesan errornya langsung ke user supaya bisa dilaporkan.
-        if (isFatal) {
+        if (isFatal && Platform.OS !== "web") {
+          // PLAN-110 S1: Alert.alert no-op di web — dialog fatal hanya untuk
+          // native; di web error tetap tercatat via handler window + ErrorBoundary.
           try {
             Alert.alert("Terjadi error", formatError(error).slice(0, 800));
           } catch {
