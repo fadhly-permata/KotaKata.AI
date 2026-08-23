@@ -55,7 +55,7 @@ export default function QuestionEditorScreen() {
   // ─── State ───
   const [words, setWords] = useState<VocabularyDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [totalWords, setTotalWords] = useState(0);
   const [selectedWord, setSelectedWord] = useState<VocabularyDoc | null>(null);
   const [editWord, setEditWord] = useState("");
   const [editClue1, setEditClue1] = useState("");
@@ -82,77 +82,48 @@ export default function QuestionEditorScreen() {
   const [filterWord, setFilterWord] = useState("");
   const [filterTier, setFilterTier] = useState("0"); // "0" = semua tier
   const activeFilters = (filterWord.trim() ? 1 : 0) + (filterTier !== "0" ? 1 : 0);
-  // ─── Fetch vocabulary ───
-  // PENTING: PostgREST membatasi ±1000 baris per request. Tanpa paging, yang
-  // terambil hanya 1000 baris pertama (urut tier) = semua kata TIER 1 saja,
-  // tier 2–10 tidak muncul. Jadi ambil bertahap dengan .range() sampai habis.
-  const FETCH_PAGE_SIZE = 1000;
+  // ─── Fetch vocabulary (PLAN-081: paging di SERVER) ───
+  // Tiap halaman UI hanya menarik PAGE_SIZE baris via .range() + count exact.
+  // Filter kata/tikor dikirim sebagai klausa query (ilike/eq), bukan difilter
+  // di client. Ini menggantikan pendekatan "tarik semua ±10.000 baris" yang
+  // membuat load awal sangat lambat.
   const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      const all: VocabularyDoc[] = [];
-      let from = 0;
-      for (;;) {
-        const { data, error } = await supabase
-          .from("vocabulary")
-          .select(VOCAB_COLUMNS)
-          .order("tier_level", { ascending: true })
-          .order("word", { ascending: true })
-          .range(from, from + FETCH_PAGE_SIZE - 1);
-        if (error) throw error;
-        const rows = (data ?? []) as VocabularyDoc[];
-        all.push(...rows);
-        if (rows.length < FETCH_PAGE_SIZE) break;
-        from += FETCH_PAGE_SIZE;
-      }
-      setWords(all);
+      let query = supabase
+        .from("vocabulary")
+        .select(VOCAB_COLUMNS, { count: "exact" })
+        .order("tier_level", { ascending: true })
+        .order("word", { ascending: true });
+      const fw = filterWord.trim();
+      if (fw) query = query.ilike("word", `%${fw}%`);
+      if (filterTier !== "0") query = query.eq("tier_level", parseInt(filterTier, 10));
+      const from = (page - 1) * PAGE_SIZE;
+      const { data, error, count } = await query.range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      setWords((data ?? []) as VocabularyDoc[]);
+      setTotalWords(count ?? 0);
     } catch (err) {
       loggerWarn("Gagal mengambil daftar vocabulary", err);
       setWords([]);
+      setTotalWords(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, filterWord, filterTier]);
 
   useEffect(() => {
     void fetchWords();
   }, [fetchWords]);
 
-  // ─── Filter & paginate ───
-  const filtered = useMemo(() => {
-    let result = words;
-    // Filter khusus dari panel collapsible (PLAN-079)
-    const fw = filterWord.trim().toLowerCase();
-    if (fw) result = result.filter((w) => w.word.toLowerCase().includes(fw));
-    if (filterTier !== "0") {
-      const tier = parseInt(filterTier, 10);
-      result = result.filter((w) => w.tier_level === tier);
-    }
-    // Search umum (kata, clue, tier)
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (w) =>
-          w.word.toLowerCase().includes(q) ||
-          w.clue_1.toLowerCase().includes(q) ||
-          (w.clue_2 ?? "").toLowerCase().includes(q) ||
-          (w.clue_3 ?? "").toLowerCase().includes(q) ||
-          String(w.tier_level).includes(q),
-      );
-    }
-    return result;
-  }, [words, search, filterWord, filterTier]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
-
-  // Reset page on search / filter change
+  // Reset ke halaman 1 saat filter berubah.
   useEffect(() => {
     setPage(1);
-  }, [search, filterWord, filterTier]);
+  }, [filterWord, filterTier]);
+
+  const totalPages = Math.max(1, Math.ceil(totalWords / PAGE_SIZE));
+  // Server sudah mengirim tepat halaman aktif — tidak perlu slicing lagi.
+  const paged = words;
 
   // ─── PLAN-078: Tambah soal baru via RPC insert_vocabulary_admin ───
   const handleAdd = useCallback(async () => {
@@ -246,11 +217,11 @@ export default function QuestionEditorScreen() {
     }
   }, [newWord, newClue1, newClue2, newClue3, newTier]);
 
-  // ─── Current index in filtered list (for prev/next) ───
+  // ─── Current index in current page (for prev/next) ───
   const currentIdx = useMemo(() => {
     if (!selectedWord) return -1;
-    return filtered.findIndex((w) => w.word_id === selectedWord.word_id);
-  }, [filtered, selectedWord]);
+    return words.findIndex((w) => w.word_id === selectedWord.word_id);
+  }, [words, selectedWord]);
 
   // ─── Select word for editing ───
   const handleSelect = useCallback((word: VocabularyDoc) => {
@@ -266,8 +237,8 @@ export default function QuestionEditorScreen() {
   // ─── Navigate to word at given index ───
   const navigateToWord = useCallback(
     (idx: number) => {
-      if (idx < 0 || idx >= filtered.length) return;
-      const w = filtered[idx];
+      if (idx < 0 || idx >= words.length) return;
+      const w = words[idx];
       setSelectedWord(w);
       setEditWord(w.word);
       setEditClue1(w.clue_1);
@@ -276,7 +247,7 @@ export default function QuestionEditorScreen() {
       setEditTier(String(w.tier_level));
       setNotification(null);
     },
-    [filtered],
+    [words],
   );
 
   // ─── Save changes via RPC ───
@@ -416,26 +387,6 @@ export default function QuestionEditorScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ─── Search bar ─── */}
-        <View style={[styles.searchWrap, { backgroundColor: solidSurfaceColor(theme), borderColor: C.border }]}>
-          <Text style={{ fontSize: 16, marginRight: 6 }}>🔍</Text>
-          <View onStartShouldSetResponder={() => true} style={{ flex: 1 }}>
-            <TextInput
-              style={[styles.searchInput, { color: C.text }]}
-              placeholder="Cari kata, clue, atau tier..."
-              placeholderTextColor={C.textSecondary}
-              value={search}
-              onChangeText={setSearch}
-              autoCapitalize="none"
-            />
-          </View>
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Text style={{ fontSize: 16, color: C.textSecondary }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
         {/* ─── PLAN-079: Filter collapsible (kata + tier) ─── */}
         <View style={[styles.filterWrap, { borderColor: C.border, backgroundColor: solidSurfaceColor(theme) }]}>
           <TouchableOpacity
@@ -517,7 +468,7 @@ export default function QuestionEditorScreen() {
 
         {/* ─── Stats ─── */}
         <Text style={[styles.stats, { color: C.textSecondary }]}>
-          {filtered.length} soal ditemukan · Halaman {page}/{totalPages}
+          {totalWords} soal ditemukan · Halaman {page}/{totalPages}
         </Text>
 
         {/* ─── Top Pagination ─── */}
@@ -761,15 +712,15 @@ export default function QuestionEditorScreen() {
                   <Text style={{ color: C.text, fontWeight: "600" }}>◀ Prev</Text>
                 </TouchableOpacity>
                 <Text style={{ color: C.textSecondary, fontSize: 12 }}>
-                  {currentIdx + 1} / {filtered.length}
+                  {currentIdx + 1} / {words.length}
                 </Text>
                 <TouchableOpacity
-                  disabled={currentIdx >= filtered.length - 1}
+                  disabled={currentIdx >= words.length - 1}
                   onPress={() => navigateToWord(currentIdx + 1)}
                   style={[
                     styles.navBtn,
                     {
-                      opacity: currentIdx >= filtered.length - 1 ? 0.3 : 1,
+                      opacity: currentIdx >= words.length - 1 ? 0.3 : 1,
                       backgroundColor: C.surface,
                       borderColor: C.border,
                     },
@@ -965,17 +916,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   headerTitle: { fontSize: 17, fontWeight: "700" },
-  searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    margin: 12,
-    marginBottom: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  searchInput: { flex: 1, fontSize: 15, paddingVertical: 4 },
   stats: { fontSize: 12, paddingHorizontal: 16, paddingBottom: 8 },
   list: { flex: 1 },
   wordCard: {

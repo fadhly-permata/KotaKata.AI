@@ -1,7 +1,13 @@
 # PLAN-082 — Editor Soal: Hapus Textbox Global Search (duplikat filter collapsible)
 
 ## Status
-PENDING
+DONE — search bar global dihapus
+
+## Hasil pengerjaan
+Textbox "Cari soal..." global, state `search`, cabang filternya di useMemo,
+serta styles `searchWrap`/`searchInput` dihapus. Satu-satunya jalur
+pencarian sekarang adalah form filter collapsible (PLAN-079) yang filternya
+dikerjakan di server (PLAN-081).
 
 ## Deskripsi (laporan pemilik)
 "Kenapa textbox global search gak dihapus aja, kan kita udah punya form
@@ -16,9 +22,9 @@ Halaman editor punya dua jalur pencarian yang tumpang-tindih:
 Yang diminta pemilik: pertahankan #2, hapus #1.
 
 ## Langkah pengerjaan
-- [ ] Hapus UI search bar global (searchWrap/searchInput + tombol clear ×).
-- [ ] Hapus state `search` dan cabang filternya dari `useMemo` filteredWords
+- [x] Hapus UI search bar global (searchWrap/searchInput + tombol clear ×).
+- [x] Hapus state `search` dan cabang filternya dari `useMemo` filteredWords
       (menyesuaikan juga hasil refactor PLAN-081).
-- [ ] Rapikan styles yang tidak terpakai (searchWrap, searchInput).
-- [ ] Pastikan satu-satunya jalur pencarian = form filter collapsible.
-- [ ] Verifikasi: tsc + test + lint, deploy web.
+- [x] Rapikan styles yang tidak terpakai (searchWrap, searchInput).
+- [x] Pastikan satu-satunya jalur pencarian = form filter collapsible.
+- [x] Verifikasi: tsc + test + lint, deploy web.

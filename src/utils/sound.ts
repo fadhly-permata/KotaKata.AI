@@ -52,6 +52,14 @@ let enabled = true;
 /** Toggle backsound tema — terpisah dari efek suara (default: nyala). */
 let ambientEnabled = true;
 let nativePlayers: Partial<Record<SoundName, AudioPlayer>> | null = null;
+/**
+ * Sumber audio native yang sudah di-resolve lewat expo-asset ({ uri }). Di SDK
+ * baru, `createAudioPlayer(hasil require mentah)` bisa gagal resolve sumber
+ * (SFX diam total) sementara backsound — yang memakai `{ uri }` eksplisit —
+ * tetap jalan. Karena itu semua sumber SFX disiapkan via Asset saat init.
+ * (PLAN-083)
+ */
+const nativeResolvedSources = new Map<SoundName, { uri: string }>();
 let initStarted = false;
 
 // Preferensi (efek suara & backsound) dibaca ASYNC dari AsyncStorage saat
@@ -636,6 +644,9 @@ export function initSound(): void {
   } catch {
     // Platform tanpa expo-audio — diabaikan.
   }
+  // Native: siapkan sumber SFX lebih awal supaya player pertama sudah pakai
+  // { uri } yang valid (PLAN-083).
+  void prepareNativeSources();
   void loadSoundPrefs();
   void loadAmbientPrefs();
 }
@@ -644,16 +655,38 @@ function getNativePlayer(name: SoundName): AudioPlayer | null {
   if (nativePlayers === null) nativePlayers = {};
   const existing = nativePlayers[name];
   if (existing) return existing;
+  // Utamakan sumber yang sudah di-resolve ke { uri } lokal; fallback ke hasil
+  // require mentah bila resolve asset belum selesai.
+  const source: unknown = nativeResolvedSources.get(name) ?? SOUND_SOURCES[name];
   try {
-    const player = createAudioPlayer(SOUND_SOURCES[name] as any);
+    const player = createAudioPlayer(source as any);
     player.volume = currentVolume;
     player.playbackRate = currentRate;
     nativePlayers[name] = player;
     return player;
   } catch (err) {
-    loggerWarn("Gagal membuat player native", name, err);
+    loggerWarn("Gagal membuat player native", err);
     return null;
   }
+}
+
+/** Siapkan semua sumber SFX native sekali (resolve asset → { uri } lokal). */
+async function prepareNativeSources(): Promise<void> {
+  const entries = Object.keys(SOUND_SOURCES) as SoundName[];
+  await Promise.allSettled(
+    entries.map(async (name) => {
+      if (nativeResolvedSources.has(name)) return;
+      try {
+        const asset = Asset.fromModule(SOUND_SOURCES[name] as number);
+        await asset.downloadAsync();
+        const uri = asset.localUri ?? asset.uri;
+        if (uri) nativeResolvedSources.set(name, { uri });
+      } catch (err) {
+        // Non-fatal: getNativePlayer masih mencoba sumber require mentah.
+        loggerWarn(`Gagal resolve asset SFX native: ${name}`, err);
+      }
+    }),
+  );
 }
 
 /** Mainkan efek suara (no-op kalau dimatikan / platform tidak mendukung). */
@@ -665,9 +698,20 @@ export function play(name: SoundName): void {
   }
   const player = getNativePlayer(name);
   if (!player) return;
+  // seekTo(0) + play = replay dari awal untuk bunyi beruntun cepat.
+  // PENTING (PLAN-083): seekTo TIDAK BOLEH menggagalkan play(). Kalau seek
+  // gagal/rejected (mis. source belum siap), play tetap dicoba — kalau tidak,
+  // SFX bisu total sementara backsound (yang seek-nya di-guard terpisah)
+  // tetap berbunyi. Persis gejala bug ini.
   try {
-    // seekTo(0) + play = replay dari awal untuk bunyi beruntun cepat.
-    player.seekTo(0);
+    const sought = player.seekTo(0) as unknown;
+    if (sought && typeof (sought as Promise<void>).catch === "function") {
+      (sought as Promise<void>).catch(() => {}); // abaikan — non-fatal
+    }
+  } catch {
+    // abaikan — seek gagal bukan alasan untuk tidak memutar suara
+  }
+  try {
     // Terapkan kepribadian suara tema aktif setiap play (murah & aman).
     if (player.playbackRate !== currentRate) player.playbackRate = currentRate;
     if (player.volume !== currentVolume) player.volume = currentVolume;
