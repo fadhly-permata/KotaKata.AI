@@ -444,7 +444,9 @@ export default function QuestionEditorScreen() {
         setWords((prev) => prev.map((x) => (x.word_id === w.word_id ? updated : x)));
         processed += 1;
         setAutoProcessed(processed);
-        // 4) Next → iterasi berikutnya (loop)
+        // Jeda antar iterasi — provider lambat (deepseek-v4-flash dll.) butuh
+        // waktu agar request berikutnya tidak ditolak/race. (PLAN-089)
+        await new Promise((r) => setTimeout(r, 2_000));
       }
       if (!stopReason) stopReason = "halaman selesai";
       setNotification({
