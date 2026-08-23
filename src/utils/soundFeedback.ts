@@ -1,6 +1,7 @@
 import { useGameStore } from "../presentation/stores/gameStore";
 import { isWordComplete, validateWord } from "../domain/usecases/wordValidator";
 import { play } from "./sound";
+import { hapticError, hapticSuccess } from "./haptic";
 
 /**
  * Feedback suara saat huruf diketik di papan.
@@ -48,6 +49,10 @@ export function playLetterPressFeedback(wordIndexAtPress: number | null, letter:
   if (isWordComplete(word, predicted)) {
     const correct = validateWord(word, wordIndex, predicted).isCorrect;
     play(correct ? "word" : "error");
+    // PLAN-102: getar pendamping — sukses saat kata benar, error saat salah
+    // (native saja; web otomatis no-op di dalam wrapper haptic).
+    if (correct) hapticSuccess();
+    else hapticError();
   } else {
     play("letter");
   }

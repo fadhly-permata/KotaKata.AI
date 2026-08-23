@@ -92,6 +92,31 @@ export default function CrosswordGrid({
     return set;
   }, [board.words, solvedCellKey]);
 
+  // ─── PLAN-100: animasi FLIP per sel saat katanya baru terjawab ───
+  // Sel yang baru masuk daftar solved dianimasikan rotateX 0→90→0 (efek kartu
+  // dibalik) dengan delay kecil bergelombang berdasar posisi (row+col) supaya
+  // terasa seperti gelombang kemenangan menyapu papan.
+  const flipAnims = useRef(new Map<string, Animated.Value>()).current;
+  const prevSolvedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const key of solvedCells) {
+      if (prevSolvedRef.current.has(key)) continue;
+      let v = flipAnims.get(key);
+      if (!v) {
+        v = new Animated.Value(0);
+        flipAnims.set(key, v);
+      }
+      const [r, c] = key.split(",").map(Number);
+      const stagger = ((r + c) % 10) * 45;
+      Animated.sequence([
+        Animated.delay(stagger),
+        Animated.timing(v, { toValue: 1, duration: 160, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 240, useNativeDriver: true }),
+      ]).start();
+    }
+    prevSolvedRef.current = new Set(solvedCells);
+  }, [solvedCellKey, solvedCells, flipAnims]);
+
   const renderCell = useCallback(
     (cell: BoardCell) => {
       const key = `${cell.row},${cell.col}`;
@@ -139,6 +164,13 @@ export default function CrosswordGrid({
         onCellPress(cell.row, cell.col);
       };
 
+      // PLAN-100: flip kemenangan — sel yang BARU solved beranimasi rotateX;
+      // setelah animasi selesai nilai kembali 0 (tampilan normal).
+      const flipAnim = isSolved ? flipAnims.get(key) : undefined;
+      const flipRotate = flipAnim
+        ? flipAnim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "90deg"] })
+        : "0deg";
+
       return (
         <TouchableOpacity
           key={key}
@@ -155,7 +187,10 @@ export default function CrosswordGrid({
               backgroundColor: bgColor,
               borderColor: borderColor,
               borderWidth: borderW,
-              transform: isSelected ? [{ scale: 1.08 }] : [{ scale: 1 }],
+              transform: [
+                ...(isSelected ? [{ scale: 1.08 }] : [{ scale: 1 }]),
+                { rotateX: flipRotate },
+              ],
               zIndex: isSelected ? 10 : 1,
               ...(isSelected ? { shadowColor: B.cellSelected } : {}),
             },

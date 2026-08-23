@@ -40,6 +40,7 @@ import ScreenFade from "../../presentation/components/common/ScreenFade";
 import { play, ensureAmbientPlaying } from "../../utils/sound";
 import { buttonShadow, textOnPrimary } from "../../utils/skin";
 import { playLetterPressFeedback, playDeleteFeedback } from "../../utils/soundFeedback";
+import { hapticSuccess } from "../../utils/haptic";
 
 const CELL_GAP = 3;
 const GRID_PADDING = 3;
@@ -616,6 +617,7 @@ export default function GameScreen() {
     if (boardResult && !winPlayedRef.current) {
       winPlayedRef.current = true;
       play("win");
+      hapticSuccess(); // PLAN-102: getar kemenangan papan (native saja)
     }
     if (!boardResult) winPlayedRef.current = false;
   }, [boardResult]);
