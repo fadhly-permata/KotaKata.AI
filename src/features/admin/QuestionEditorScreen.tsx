@@ -292,6 +292,7 @@ export default function QuestionEditorScreen() {
       setNotification({ type: "warning", message: "⚠️ Isi dulu kata jawaban, lalu tekan Bantuan AI." });
       return;
     }
+    aiThink.reset(); // timer mulai dari 0 untuk run ini
     setAiLoading(true);
     setNotification(null);
     try {
@@ -332,9 +333,10 @@ export default function QuestionEditorScreen() {
     } catch (err: any) {
       setNotification({ type: "error", message: err.message || "Gagal meminta bantuan AI" });
     } finally {
+      aiThink.reset(); // reset timer thinking — jangan bawa hitungan run sebelumnya
       setAiLoading(false);
     }
-  }, [newWord, newClue1, newClue2, newClue3, newTier]);
+  }, [newWord, newClue1, newClue2, newClue3, newTier, aiThink]);
 
   // ─── Current index in current page (for prev/next) ───
   const currentIdx = useMemo(() => {
@@ -408,6 +410,7 @@ export default function QuestionEditorScreen() {
   // ─── AI Revision ───
   const handleAiRevision = useCallback(async () => {
     if (!selectedWord) return;
+    aiThink.reset(); // timer mulai dari 0 untuk run ini
     setAiLoading(true);
     setNotification(null);
     try {
@@ -447,9 +450,10 @@ export default function QuestionEditorScreen() {
     } catch (err: any) {
       setNotification({ type: "error", message: err.message || "Gagal merevisi via AI" });
     } finally {
+      aiThink.reset(); // reset timer thinking — jangan bawa hitungan run sebelumnya
       setAiLoading(false);
     }
-  }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier]);
+  }, [selectedWord, editWord, editClue1, editClue2, editClue3, editTier, aiThink]);
 
   // ─── PLAN-084: Automasi revisi via AI (revisi → cek bocor → simpan → next) ───
   /** Cek anti-bocor manual: kata jawaban tidak boleh muncul di clue. */
@@ -498,6 +502,8 @@ export default function QuestionEditorScreen() {
         const w = list[i];
         // Tampilkan soal aktif di form supaya user melihat progres.
         navigateToWord(i);
+        // Timer thinking di-reset per soal — tiap kata dapat hitungan sendiri.
+        aiThink.reset();
 
         // 1) Revisi via AI
         let revised: Awaited<ReturnType<typeof requestAiRevision>>;
@@ -584,9 +590,10 @@ export default function QuestionEditorScreen() {
         message: `❌ Automasi berhenti: ${err.message} (${processed} soal tersimpan).`,
       });
     } finally {
+      aiThink.reset(); // reset timer thinking automasi per-soal (PLAN-108 revisi)
       setAutoRunning(false);
     }
-  }, [autoRunning, selectedWord, words, navigateToWord, bulkRunning]);
+  }, [autoRunning, selectedWord, words, navigateToWord, bulkRunning, aiThink]);
 
   // ─── PLAN-090/091/092/093: Automasi bulk — SATU request AI per page,
   // valid item langsung disimpan, item bocor diretry khusus DI HALAMAN YANG
