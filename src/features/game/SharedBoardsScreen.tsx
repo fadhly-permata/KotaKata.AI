@@ -133,7 +133,9 @@ export default function SharedBoardsScreen() {
         loggerInfo(`Memainkan papan bagikan ${code} (${resolved.length} kata)`);
         navigation.navigate("Game" as never);
       } catch (err) {
-        loggerError("Gagal memainkan papan bagikan", err);
+        // Kondisi validasi yang ditangani (kode tidak ada / <6 kata) — UI sudah
+        // menampilkan pesannya; catat sebagai warn agar log error bersih.
+        loggerWarn("Gagal memainkan papan bagikan", err instanceof Error ? err : new Error(String(err)));
         setStartError(err instanceof Error ? err.message : "Gagal memulai permainan.");
       } finally {
         setStartingCode(null);

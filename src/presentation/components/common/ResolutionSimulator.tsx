@@ -54,9 +54,6 @@ export default function ResolutionSimulator() {
     typeof document.createElement === "function" &&
     typeof window?.location?.href === "string";
 
-  // Hanya admin & hanya web — selain itu render apa pun tidak diperlukan.
-  if (!isWeb || !user?.isAdmin) return null;
-
   const simW = landscape ? h : w;
   const simH = landscape ? w : h;
 
@@ -94,6 +91,11 @@ export default function ResolutionSimulator() {
       }),
     [reloadKey, simW, simH],
   );
+
+  // Hanya admin & hanya web — selain itu render apa pun tidak diperlukan.
+  // CATATAN: early-return HARUS setelah SEMUA hook dipanggil (aturan React);
+  // pelanggaran urutan ini penyebab React error #310 di produksi.
+  if (!isWeb || !user?.isAdmin) return null;
 
   return (
     <>
