@@ -130,7 +130,9 @@ export default function QuestionEditorScreen() {
    *  Flag ref dipakai loop antar iterasi; state utk tampilan tombol/banner. */
   const bulkPauseRef = useRef(false);
   const [bulkPaused, setBulkPaused] = useState(false);
-  const [bulkStopRequested, setBulkStopRequested] = useState(false);
+  /** Controller request AI yang sedang berjalan — di-abort langsung saat Stop
+   *  ditekan supaya stop terasa INSTAN (hasil soal aktif dibuang). */
+  const bulkAbortRef = useRef<AbortController | null>(null);
   // ─── Revisi urgent: progress bar REAL per page (reset tiap page baru) ───
   // Fase terukur: ambil soal (2–10%) → kirim ke AI (10–50%) → menyimpan
   // (50–95% sesuai jumlah item tersimpan) → selesai page (100%).
@@ -619,12 +621,9 @@ export default function QuestionEditorScreen() {
   const toggleBulkAutomation = useCallback(async () => {
     if (bulkRunning) {
       autoStopRef.current = true;
-      setBulkStopRequested(true);
-      setNotification({
-        type: "info",
-        message:
-          "⏳ Menghentikan… proses sedang menyelesaikan soal yang berjalan dulu. Stop baru benar-benar terjadi setelah soal ini selesai.",
-      });
+      // Langsung buang request yang sedang berjalan — stop terasa instan,
+      // tanpa teks penjelasan tambahan.
+      bulkAbortRef.current?.abort();
       return;
     }
     if (autoRunning) return;
@@ -641,7 +640,6 @@ export default function QuestionEditorScreen() {
     autoStopRef.current = false;
     bulkPauseRef.current = false;
     setBulkPaused(false);
-    setBulkStopRequested(false);
     setBulkPageSec(0);
     setBulkTotalSec(0);
 
@@ -714,6 +712,7 @@ export default function QuestionEditorScreen() {
             if (autoStopRef.current) break;
             aiThink.reset(); // tiap percobaan punya hitungan thinking sendiri
             const ac = new AbortController();
+            bulkAbortRef.current = ac;
             const timeoutId = setTimeout(() => ac.abort(), WORD_TIMEOUT_MS);
             try {
               revised = await requestAiRevision(
@@ -730,6 +729,12 @@ export default function QuestionEditorScreen() {
               );
               break;
             } catch (err: any) {
+              // Dibatalkan karena tombol Stop → jangan retry, langsung berhenti
+              // tanpa log error (memang disengaja oleh user).
+              if (autoStopRef.current) {
+                revised = undefined;
+                break;
+              }
               const timedOut = err?.name === "AbortError" || ac.signal.aborted;
               loggerWarn(
                 `Automasi bulk: gagal revisi "${w.word}" — percobaan ${attempt}/${BULK_WORD_RETRIES}${timedOut ? " (macet/timeout)" : ""}`,
@@ -829,8 +834,8 @@ export default function QuestionEditorScreen() {
       setBulkStatus("");
       setBulkFocusId(null);
       bulkPauseRef.current = false;
+      bulkAbortRef.current = null;
       setBulkPaused(false);
-      setBulkStopRequested(false);
       setBulkPct(0);
       setBulkPageSec(0);
       setBulkTotalSec(0);
@@ -849,15 +854,6 @@ export default function QuestionEditorScreen() {
     const next = !bulkPauseRef.current;
     bulkPauseRef.current = next;
     setBulkPaused(next);
-    if (next) {
-      setNotification({
-        type: "info",
-        message:
-          "⏸ Jeda diminta… soal yang sedang direvisi diselesaikan dulu, lalu proses berhenti sementara. Tekan ▶️ untuk melanjutkan.",
-      });
-    } else {
-      setNotification({ type: "info", message: "▶️ Automasi bulk dilanjutkan…" });
-    }
   }, [bulkRunning]);
 
   // ─── Tier badge color ───
@@ -928,7 +924,7 @@ export default function QuestionEditorScreen() {
                     play("tap");
                     void toggleBulkAutomation();
                   }}
-                  style={[styles.bulkBtn, { backgroundColor: bulkStopRequested ? "#7F1D1D" : "#EF4444" }]}
+                  style={[styles.bulkBtn, { backgroundColor: "#EF4444" }]}
                   activeOpacity={0.8}
                 >
                   <Text style={{ fontSize: 15 }}>⏹</Text>
@@ -986,13 +982,7 @@ export default function QuestionEditorScreen() {
             </View>
             <Text style={{ color: C.textSecondary, fontSize: 12 }}>
               🤖 Page ini: {bulkPct}% — {bulkStatus || "memulai…"}
-              {"\u00A0"}· ⏹ Stop & ⏸ Jeda ada di header
             </Text>
-            {bulkStopRequested && (
-              <Text style={{ color: "#EF4444", fontSize: 11, fontWeight: "700", marginTop: 4 }}>
-                ⏳ Menghentikan… menunggu soal yang sedang berjalan selesai dulu.
-              </Text>
-            )}
             <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>
               ⏱ Page ini: {fmtDur(bulkPageSec)} · Total: {fmtDur(bulkTotalSec)}
             </Text>
