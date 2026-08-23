@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  TextInput,
   Easing,
   useWindowDimensions,
 } from "react-native";
@@ -46,7 +47,7 @@ import FloatingOrbs, {
 import ConfirmDialog from "../../presentation/components/common/ConfirmDialog";
 import { play } from "../../utils/sound";
 import { useAmbientLoops } from "../../utils/ambientLoop";
-import { getAiProviderConfig, getAiProviderConfigFor, getAllSavedProviders, setActiveProvider, requestAiWords, providerLabel, type AiProviderConfig, type AiProviderPreset, type AiStreamCallback } from "../../utils/aiProvider";
+import { getAiProviderConfig, getAiProviderConfigFor, getAllSavedProviders, setActiveProvider, requestAiWords, requestAiRevisionBatch, providerLabel, type AiProviderConfig, type AiProviderPreset, type AiStreamCallback } from "../../utils/aiProvider";
 import { neumorphicShadow } from "../../utils/neumorphic";
 import { buttonShadow, chipStyle, chipTextColor, contrastText, solidSurfaceColor, textOnPrimary } from "../../utils/skin";
 
@@ -456,6 +457,93 @@ export default function MainMenuScreen() {
     }
   }, [user?.id, bossLoading, currentTier, reset, navigation]);
 
+  // ─── PLAN-103: Buat Soal Sendiri — ketik kata → AI buatkan clue → main ───
+  const [customVisible, setCustomVisible] = useState(false);
+  const [customWordsInput, setCustomWordsInput] = useState("");
+  const [customTier, setCustomTier] = useState("1");
+  const [customLoading, setCustomLoading] = useState(false);
+
+  /**
+   * Validasi kata buatan pemain (3–10 huruf a-z, unik, min 6), minta AI
+   * membuatkan clue via batch request, buang clue yang bocor, lalu generate
+   * papan. Kata disimpan ke bank kosakata (dedup) seperti Mode AI.
+   */
+  const startCustomGame = useCallback(async () => {
+    if (customLoading) return;
+    play("tap");
+    const cfg = await getAiProviderConfig();
+    if (!cfg) {
+      setAiSetupVisible(true);
+      return;
+    }
+    const tier = Math.max(1, Math.min(10, parseInt(customTier, 10) || 1));
+    const raw = customWordsInput
+      .split(/[\s,;]+/)
+      .map((w) => w.trim().toLowerCase())
+      .filter(Boolean);
+    const seen = new Set<string>();
+    const words: string[] = [];
+    for (const w of raw) {
+      if (!/^[a-z]{3,10}$/.test(w) || seen.has(w)) continue;
+      seen.add(w);
+      words.push(w);
+    }
+    if (words.length < 6) {
+      setAiError("Minimal 6 kata valid — tiap kata 3–10 huruf tanpa spasi.");
+      setAiSetupVisible(true);
+      return;
+    }
+    setCustomLoading(true);
+    setAiLoading(true);
+    try {
+      const revised = await requestAiRevisionBatch(
+        cfg,
+        words.map((w, i) => ({
+          id: String(i + 1),
+          input: { word: w, clue_1: "(belum ada — buatkan clue terbaik)", tier_level: tier },
+        })),
+        undefined,
+        { onThinking: makeOnThinking() },
+      );
+      const okWords: Array<{ word: string; clue_1: string; clue_2?: string }> = [];
+      words.forEach((w, i) => {
+        const r = revised.get(String(i + 1));
+        if (!r) return;
+        const leaks = [
+          r.clue_1,
+          r.clue_2 ?? "",
+          r.clue_3 ?? "",
+        ].filter((c) => c.toLowerCase().includes(w.toLowerCase()));
+        if (leaks.length > 0) return; // bocor → dibuang
+        okWords.push({ word: w, clue_1: r.clue_1.trim(), clue_2: r.clue_2?.trim() });
+      });
+      if (okWords.length < 6) {
+        throw new Error(
+          `Hanya ${okWords.length} clue valid (yang bocor dibuang). Coba kata lain atau provider berbeda.`,
+        );
+      }
+      reset();
+      useGameStore.getState().setAiWords(okWords);
+      navigation.navigate("Game");
+      vocabularyRepository
+        .saveAiWords(okWords.map((w) => ({ ...w, tier_level: tier })))
+        .then((n) => {
+          if (n > 0) loggerInfo(`${n} kata custom tersimpan ke database`);
+        })
+        .catch(() => {}); // non-kritis
+      setCustomVisible(false);
+      setCustomWordsInput("");
+    } catch (err: any) {
+      loggerWarn("Buat soal sendiri gagal", err);
+      setAiError(err?.message ?? "Gagal membuat soal dari AI.");
+      setAiSetupVisible(true);
+    } finally {
+      setCustomLoading(false);
+      setAiLoading(false);
+      aiThink.reset();
+    }
+  }, [customLoading, customTier, customWordsInput, makeOnThinking, navigation, reset, aiThink]);
+
   /** Papan harian: deterministik per tanggal — sama untuk semua pemain. */
   const startDailyChallenge = useCallback(async () => {
     if (dailyLoading) return;
@@ -676,6 +764,26 @@ export default function MainMenuScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* ═══ PLAN-103: Buat Soal Sendiri — ketik kata, AI buatkan clue ═══ */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity
+            style={[
+              styles.actionCard,
+              { backgroundColor: C.secondaryContainer },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
+            activeOpacity={0.8}
+            onPress={() => {
+              play("tap");
+              setCustomVisible(true);
+            }}
+          >
+            <Text style={styles.actionCardIcon}>✍️</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>Buat Soal Sendiri</Text>
+            <Text style={{ color: C.textSecondary, fontSize: 12 }}>Ketik kata → AI buatkan clue</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ═══ PLAN-097: Tantangan Harian — papan deterministik per tanggal ═══ */}
         <View style={styles.actionGrid}>
@@ -1141,6 +1249,58 @@ export default function MainMenuScreen() {
             );
           })}
         </ScrollView>
+      </AppModal>
+
+      {/* ─── PLAN-103: modal Buat Soal Sendiri ─── */}
+      <AppModal visible={customVisible} title="✍️ Buat Soal Sendiri" onClose={() => setCustomVisible(false)}>
+        <Text style={{ color: C.textSecondary, fontSize: 13, marginBottom: 10 }}>
+          Ketik 6–10 kata (pisahkan dengan koma/spasi). Tiap kata 3–10 huruf tanpa spasi.
+          AI akan membuatkan clue untuk tiap kata.
+        </Text>
+        <TextInput
+          value={customWordsInput}
+          onChangeText={setCustomWordsInput}
+          placeholder="contoh: kucing, pantai, sepeda, roti, bintang, kopi"
+          placeholderTextColor={C.textSecondary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          multiline
+          style={{
+            minHeight: 80,
+            borderWidth: 1,
+            borderColor: C.border,
+            borderRadius: 12,
+            backgroundColor: C.surface,
+            color: C.text,
+            padding: 12,
+            textAlignVertical: "top",
+            marginBottom: 10,
+          }}
+        />
+        <Text style={{ color: C.textSecondary, fontSize: 12, marginBottom: 6 }}>Tier soal (1–10)</Text>
+        <TextInput
+          value={customTier}
+          onChangeText={(t: string) => setCustomTier(t.replace(/[^0-9]/g, "").slice(0, 2))}
+          keyboardType="number-pad"
+          style={{
+            borderWidth: 1,
+            borderColor: C.border,
+            borderRadius: 12,
+            backgroundColor: C.surface,
+            color: C.text,
+            padding: 10,
+            marginBottom: 14,
+          }}
+        />
+        <TouchableOpacity
+          disabled={customLoading}
+          onPress={() => void startCustomGame()}
+          style={{ backgroundColor: C.primary, borderRadius: 14, paddingVertical: 12, alignItems: "center", opacity: customLoading ? 0.5 : 1 }}
+        >
+          <Text style={{ color: textOnPrimary(theme), fontWeight: "700" }}>
+            {customLoading ? "Menyusun via AI…" : "🤖 Buatkan Clue & Main!"}
+          </Text>
+        </TouchableOpacity>
       </AppModal>
 
       {/* ─── Popup Leaderboard — lazy-load 25/halaman, posisi user di atas Tutup ─── */}
