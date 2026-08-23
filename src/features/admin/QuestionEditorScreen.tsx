@@ -20,13 +20,11 @@ import { supabase } from "../../data/sources/supabase";
 import {
   getAiProviderConfig,
   requestAiRevision,
-  requestAiRevisionBatch,
   type AiStreamCallback,
-  type RevisionOutput,
 } from "../../utils/aiProvider";
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
-import { loggerWarn } from "../../utils/logger";
+import { loggerError, loggerWarn } from "../../utils/logger";
 import { aiPhaseLabel, useAiThinking, type AiPhase } from "../../utils/aiStatus";
 
 /** PLAN-108 revisi UI: strip streaming thinking DI DALAM modal form (bukan
@@ -595,12 +593,16 @@ export default function QuestionEditorScreen() {
     }
   }, [autoRunning, selectedWord, words, navigateToWord, bulkRunning, aiThink]);
 
-  // ─── PLAN-090/091/092/093: Automasi bulk — SATU request AI per page,
-  // valid item langsung disimpan, item bocor diretry khusus DI HALAMAN YANG
-  // SAMA dengan info kata bocor, lalu next page. Tombol header jadi ⏹ Stop
-  // saat berjalan.
+  // ─── Automasi bulk — SATU soal = SATU request AI + simpan langsung.
+  // Sebelumnya batch per-page sering macet di provider reasoning dan seluruh
+  // halaman harus diulang. Sekarang: macet/error hanya mengulang SOAL ITU
+  // (retry di soal yang sama), gagal berulang → stop total. Tombol header
+  // jadi ⏹ Stop saat berjalan.
   const BULK_MAX_TOKENS = 200_000;
-  const BULK_MAX_RETRY_LEAK = 2;
+  /** Retry maksimum per soal (di soal yang SAMA) sebelum stop total. */
+  const BULK_WORD_RETRIES = 3;
+  /** Batas waktu satu request AI — lebih lama dianggap macet → abort. */
+  const WORD_TIMEOUT_MS = 150_000;
   const toggleBulkAutomation = useCallback(async () => {
     if (bulkRunning) {
       autoStopRef.current = true;
@@ -623,13 +625,11 @@ export default function QuestionEditorScreen() {
     setBulkTotalSec(0);
 
     let processed = 0;
-    let consecutiveErrors = 0;
     let stopReason = "";
-    /** Revisi urgent: halaman terakhir yang benar-benar diproses — dipakai
-     *  refresh daftar di finally supaya UI tidak menampilkan halaman lama
-     *  yang belum direvisi (akar bug "kelihatan tidak ada yang direvisi"). */
+    /** Halaman terakhir yang benar-benar diproses — dipakai refresh daftar di
+     *  finally supaya UI tidak menampilkan halaman lama yang belum direvisi. */
     let lastProcessedPage = page;
-    /** PLAN-093: soal yang tetap bocor setelah retry habis — dilaporkan, tidak disimpan. */
+    /** Soal bocor / gagal — dilaporkan di notifikasi akhir, tidak disimpan. */
     const finalLeaks: string[] = [];
     const lastPage = Math.max(totalPages, page);
 
@@ -640,15 +640,13 @@ export default function QuestionEditorScreen() {
           break;
         }
         // Ambil isi halaman ini langsung dari server (filter aktif ikut).
-        // ── Fase 1: ambil soal page ini (progress bar & timer page direset).
+        // Timer page & strip thinking direset tiap page baru.
         lastProcessedPage = p;
         setPage(p);
         setBulkPageSec(0);
-        // Reset strip thinking — teks & timer run page sebelumnya tidak boleh
-        // dibawa ke page baru.
         aiThink.reset();
         setBulkPct(2);
-        setBulkStatus(`Page ${p}/${lastPage} · mengambil ${PAGE_SIZE} soal dari page ini…`);
+        setBulkStatus(`Page ${p}/${lastPage} · mengambil ${PAGE_SIZE} soal…`);
         const from = (p - 1) * PAGE_SIZE;
         const { data, error } = await buildVocabQuery().range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
@@ -657,155 +655,102 @@ export default function QuestionEditorScreen() {
           stopReason = "halaman kosong";
           break;
         }
-        setBulkPct(10);
-        setBulkStatus(`Page ${p}/${lastPage} · ${list.length} soal terambil · kirim ke AI…`);
 
-        // PLAN-091: seluruh soal halaman dikirim dalam SATU request batch.
-        type PendingItem = { id: string; w: VocabularyDoc; previousLeaks?: string[] };
-        let pending: PendingItem[] = list.map((w, i) => ({ id: String(i + 1), w }));
-        let leakRetry = 0;
-
-        while (pending.length > 0 && !stopReason) {
+        // ── SATU SOAL = SATU request AI + simpan langsung. Kalau provider
+        // macet/error, yang diulang cuma soal itu (retry di soal yang sama),
+        // bukan seluruh halaman. Gagal berulang → stop total.
+        for (let i = 0; i < list.length; i++) {
           if (autoStopRef.current) {
             stopReason = "dihentikan manual";
             break;
           }
+          const w = list[i];
           setBulkStatus(
-            leakRetry === 0
-              ? `Page ${p}/${lastPage} · revisi batch ${pending.length} soal · ${processed} tersimpan`
-              : `Page ${p}/${lastPage} · retry bocor ${leakRetry}/${BULK_MAX_RETRY_LEAK} (${pending.length} soal) · ${processed} tersimpan`,
+            `Page ${p}/${lastPage} · revisi "${w.word}" (${i + 1}/${list.length}) · ${processed} tersimpan`,
           );
+          setBulkPct(5 + Math.round(((i + 0.5) / list.length) * 90));
 
-          // 1) Revisi BATCH via AI — budget token besar agar reasoning model
-          //    tidak kehabisan ruang memproses puluhan soal sekaligus.
-          // ── Fase 2: request ke AI provider sedang berjalan.
-          setBulkPct(15);
-          let revisedMap: Map<string, RevisionOutput>;
-          try {
-            revisedMap = await requestAiRevisionBatch(
-              config,
-              pending.map((it) => ({
-                id: it.id,
-                input: {
-                  word: it.w.word,
-                  clue_1: it.w.clue_1,
-                  clue_2: it.w.clue_2,
-                  clue_3: it.w.clue_3,
-                  tier_level: it.w.tier_level,
+          let revised: Awaited<ReturnType<typeof requestAiRevision>> | undefined;
+          for (let attempt = 1; attempt <= BULK_WORD_RETRIES; attempt++) {
+            if (autoStopRef.current) break;
+            aiThink.reset(); // tiap percobaan punya hitungan thinking sendiri
+            const ac = new AbortController();
+            const timeoutId = setTimeout(() => ac.abort(), WORD_TIMEOUT_MS);
+            try {
+              revised = await requestAiRevision(
+                config,
+                {
+                  word: w.word,
+                  clue_1: w.clue_1,
+                  clue_2: w.clue_2,
+                  clue_3: w.clue_3,
+                  tier_level: w.tier_level,
                 },
-                previousLeaks: it.previousLeaks,
-              })),
-              undefined,
-              {
-                maxCompletionTokens: BULK_MAX_TOKENS,
-                onThinking: makeOnThinking(),
-              },
-            );
-          } catch (err) {
-            loggerWarn("Automasi bulk: gagal batch revisi", err);
-            consecutiveErrors += 1;
-            if (consecutiveErrors >= 3) {
-              stopReason = "3 error AI beruntun";
+                ac.signal,
+                { maxCompletionTokens: BULK_MAX_TOKENS, onThinking: makeOnThinking() },
+              );
               break;
+            } catch (err: any) {
+              const timedOut = err?.name === "AbortError" || ac.signal.aborted;
+              loggerWarn(
+                `Automasi bulk: gagal revisi "${w.word}" — percobaan ${attempt}/${BULK_WORD_RETRIES}${timedOut ? " (macet/timeout)" : ""}`,
+                err instanceof Error ? err : new Error(String(err)),
+              );
+              revised = undefined;
+              if (attempt >= BULK_WORD_RETRIES) {
+                stopReason = `soal "${w.word}" gagal ${BULK_WORD_RETRIES}×${timedOut ? " (AI macet/timeout)" : ""} — dihentikan total`;
+                break;
+              }
+              // Jeda sebelum retry SOAL YANG SAMA.
+              await new Promise((r) => setTimeout(r, 3_000));
+            } finally {
+              clearTimeout(timeoutId);
             }
-            // Error tunggal → ulangi batch yang sama tanpa menghitung retry bocor.
-            await new Promise((r) => setTimeout(r, 3_000));
+          }
+          if (!stopReason && autoStopRef.current) stopReason = "dihentikan manual";
+          aiThink.reset(); // revisi soal ini selesai/gagal → strip thinking dibersihkan
+          if (stopReason || !revised) break;
+
+          // STOP kalau bocor — hasil bocor TIDAK disimpan; catat & lanjut soal berikutnya.
+          const aiLeaks = revised.leaks ?? [];
+          const manualLeaks = clueLeaks(w.word, [revised.clue_1, revised.clue_2, revised.clue_3]);
+          const allLeaks = [...new Set([...aiLeaks, ...manualLeaks])];
+          if (allLeaks.length > 0) {
+            finalLeaks.push(`${w.word} (${allLeaks.join(", ")})`);
             continue;
           }
-          if (autoStopRef.current) {
-            stopReason = "dihentikan manual";
-            break;
-          }
-          consecutiveErrors = 0;
-          // ── Fase 3: respon AI diterima → mulai menyimpan.
-          // Waktu revisi page ini selesai → bersihkan strip thinking sekarang
-          // (jangan biarkan "AI masih berpikir" tampil saat menyimpan).
-          aiThink.reset();
-          setBulkPct(50);
-          setBulkStatus(
-            leakRetry === 0
-              ? `Page ${p}/${lastPage} · respon AI diterima · menyimpan…`
-              : `Page ${p}/${lastPage} · retry bocor ${leakRetry}/${BULK_MAX_RETRY_LEAK} · menyimpan…`,
+
+          // Simpan LANGSUNG via RPC — satu soal aman tersimpan sebelum lanjut.
+          const rev = revised;
+          const { data: saveData, error: saveError } = await supabase.rpc("update_vocabulary_admin", {
+            p_word_id: w.word_id,
+            p_word: w.word,
+            p_clue_1: rev.clue_1.trim(),
+            p_clue_2: rev.clue_2?.trim() ?? "",
+            p_clue_3: rev.clue_3?.trim() ?? "",
+            p_tier_level: w.tier_level,
+          });
+          if (saveError) throw saveError;
+          const result = saveData as { ok: boolean; error?: string };
+          if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
+          processed += 1;
+
+          // Update daftar yang TAMPIL secara live — clue baru langsung kelihatan.
+          setWords((prev) =>
+            prev.map((x) =>
+              x.word_id === w.word_id
+                ? {
+                    ...x,
+                    clue_1: rev.clue_1.trim(),
+                    clue_2: rev.clue_2?.trim() ?? "",
+                    clue_3: rev.clue_3?.trim() ?? "",
+                  }
+                : x,
+            ),
           );
 
-          // 2) Pisahkan: valid (langsung simpan) vs bocor (dikumpulkan utk retry).
-          const toSave: Array<{ it: PendingItem; r: RevisionOutput }> = [];
-          const stillLeaked: PendingItem[] = [];
-          for (const it of pending) {
-            const r = revisedMap.get(it.id);
-            if (!r) {
-              stillLeaked.push({ ...it, previousLeaks: ["AI tidak memberi hasil"] });
-              continue;
-            }
-            const aiLeaks = r.leaks ?? [];
-            const manualLeaks = clueLeaks(it.w.word, [r.clue_1, r.clue_2, r.clue_3]);
-            const allLeaks = [...new Set([...aiLeaks, ...manualLeaks])];
-            if (allLeaks.length > 0) {
-              stillLeaked.push({ id: it.id, w: it.w, previousLeaks: allLeaks });
-            } else {
-              toSave.push({ it, r });
-            }
-          }
-
-          // 3) Simpan semua hasil valid via RPC — progress naik REAL per item.
-          const totalToSave = toSave.length;
-          let savedInBatch = 0;
-          for (const { it, r } of toSave) {
-            if (autoStopRef.current) {
-              stopReason = "dihentikan manual";
-              break;
-            }
-            const { data: saveData, error: saveError } = await supabase.rpc("update_vocabulary_admin", {
-              p_word_id: it.w.word_id,
-              p_word: it.w.word,
-              p_clue_1: r.clue_1.trim(),
-              p_clue_2: r.clue_2?.trim() ?? "",
-              p_clue_3: r.clue_3?.trim() ?? "",
-              p_tier_level: it.w.tier_level,
-            });
-            if (saveError) throw saveError;
-            const result = saveData as { ok: boolean; error?: string };
-            if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
-            processed += 1;
-            savedInBatch += 1;
-            setBulkPct(50 + Math.round((savedInBatch / totalToSave) * 45));
-            setBulkStatus(
-              `Page ${p}/${lastPage} · menyimpan ${savedInBatch}/${totalToSave} · total ${processed} tersimpan`,
-            );
-            // Update daftar yang TAMPIL secara live — user langsung melihat
-            // clue barunya tanpa harus refresh (bug revisi urgent).
-            setWords((prev) =>
-              prev.map((x) =>
-                x.word_id === it.w.word_id
-                  ? {
-                      ...x,
-                      clue_1: r.clue_1.trim(),
-                      clue_2: r.clue_2?.trim() ?? "",
-                      clue_3: r.clue_3?.trim() ?? "",
-                    }
-                  : x,
-              ),
-            );
-          }
-          if (stopReason) break;
-
-          // 4) Tidak ada bocor → halaman selesai, lanjut page berikutnya.
-          if (stillLeaked.length === 0) {
-            pending = [];
-            break;
-          }
-
-          // 5) PLAN-093: masih ada bocor → JANGAN pindah halaman.
-          if (leakRetry >= BULK_MAX_RETRY_LEAK) {
-            for (const it of stillLeaked) {
-              finalLeaks.push(`${it.w.word} (${(it.previousLeaks ?? []).join(", ")})`);
-            }
-            break;
-          }
-          leakRetry += 1;
-          pending = stillLeaked;
-          setBulkStatus(`Page ${p}/${lastPage} · jeda sebelum retry ${leakRetry}…`);
-          await new Promise((r) => setTimeout(r, 2_000));
+          // Jeda antar soal — hindari rate-limit provider.
+          await new Promise((r) => setTimeout(r, 1_000));
         }
         if (stopReason) break;
 
@@ -831,7 +776,7 @@ export default function QuestionEditorScreen() {
         message: msg,
       });
     } catch (err: any) {
-      loggerWarn("Automasi bulk: gagal", err);
+      loggerError("Automasi bulk: berhenti karena error", err instanceof Error ? err : new Error(String(err)));
       setNotification({
         type: "error",
         message: `❌ Automasi bulk berhenti: ${err.message} (${processed} soal tersimpan).`,
@@ -848,7 +793,7 @@ export default function QuestionEditorScreen() {
       // "kelihatan tidak ada yang direvisi / page tidak pindah").
       void fetchWords(lastProcessedPage);
     }
-  }, [bulkRunning, autoRunning, page, totalPages, buildVocabQuery, fetchWords, requestPauseConfirmation]);
+  }, [bulkRunning, autoRunning, page, totalPages, buildVocabQuery, fetchWords, requestPauseConfirmation, aiThink]);
 
   // ─── Tier badge color ───
   const tierColor = (tier: number) => {
