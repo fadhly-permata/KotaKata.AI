@@ -88,14 +88,22 @@ export const sharedWordSetRepository = {
     };
   },
 
-  /** Ambil set berdasarkan kode — null bila tidak ditemukan. */
+  /**
+   * Ambil set berdasarkan kode — null bila tidak ditemukan.
+   * Kode tersimpan berformat XXXX-XXXX; terima input user dengan atau tanpa
+   * dash/spasi (bug: dulu dicari pakai versi tanpa dash sehingga tak ketemu).
+   */
   async getByCode(codeInput: string): Promise<SharedWordSet | null> {
-    const code = normalizeShareCode(codeInput);
-    if (code.length < 6) return null;
+    const stripped = normalizeShareCode(codeInput);
+    if (stripped.length < 6) return null;
+    const candidates = new Set<string>([stripped]);
+    if (!codeInput.includes("-") && stripped.length === 8) {
+      candidates.add(`${stripped.slice(0, 4)}-${stripped.slice(4)}`);
+    }
     const { data, error } = await supabase
       .from("shared_word_sets")
       .select("code, creator_id, words, created_at")
-      .eq("code", code)
+      .in("code", [...candidates])
       .maybeSingle();
     if (error) {
       throw new Error(`Gagal mengambil soal dari kode: ${error.message}`);
