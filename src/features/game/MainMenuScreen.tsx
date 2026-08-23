@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../presentation/components/providers/ThemeProvider";
 import { useGameStore } from "../../presentation/stores/gameStore";
+import { buildDailyBoard, dailyKey, dailyTier } from "../../utils/dailyChallenge";
 import UserAvatar from "../../presentation/components/common/UserAvatar";
 import { useAuth } from "../auth/useAuth";
 import {
@@ -31,7 +32,7 @@ import { vocabularyRepository } from "../../data/repositories/vocabularyReposito
 import { wordDiscoveryRepository } from "../../data/repositories/wordDiscoveryRepository";
 import { userRepository } from "../../data/repositories/userRepository";
 import type { VocabularyDoc, UserDoc } from "../../data/models/schemas";
-import { loggerInfo } from "../../utils/logger";
+import { loggerInfo, loggerWarn } from "../../utils/logger";
 import AppModal from "../../presentation/components/common/AppModal";
 import type { RootStackParamList } from "../../presentation/navigation/RootNavigator";
 import ScreenFade from "../../presentation/components/common/ScreenFade";
@@ -351,6 +352,50 @@ export default function MainMenuScreen() {
     navigation.navigate("Game");
   };
 
+  // ─── PLAN-097: Tantangan Harian ───
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyDoneToday, setDailyDoneToday] = useState(false);
+  const [dailyStreak, setDailyStreak] = useState(0);
+
+  // Baca streak & status selesai hari ini dari profil.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await userRepository.getById(user.id);
+        if (cancelled || !profile) return;
+        setDailyStreak(profile.daily_streak ?? 0);
+        setDailyDoneToday(profile.daily_last_done === dailyKey());
+      } catch (err) {
+        loggerInfo("Gagal membaca status tantangan harian", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  /** Papan harian: deterministik per tanggal — sama untuk semua pemain. */
+  const startDailyChallenge = useCallback(async () => {
+    if (dailyLoading) return;
+    play("tap");
+    setDailyLoading(true);
+    try {
+      const { board } = await buildDailyBoard();
+      reset();
+      useGameStore.getState().setDailyMode(true);
+      useGameStore.getState().setBoard(board);
+      navigation.navigate("Game");
+    } catch (err: any) {
+      loggerWarn("Gagal menyusun papan tantangan harian", err);
+      setAiError(err?.message ?? "Gagal menyiapkan papan harian.");
+      setAiSetupVisible(true); // pakai dialog error yang sudah ada
+    } finally {
+      setDailyLoading(false);
+    }
+  }, [dailyLoading, reset, navigation]);
+
   // "Main Mode AI": cek provider tersimpan → minta soal dari AI → main.
   // Belum diatur → dialog ajakan atur; request gagal → dialog error dengan
   // opsi coba lagi / main mode normal (mode normal tidak pernah rusak).
@@ -524,6 +569,28 @@ export default function MainMenuScreen() {
           </View>
           <View style={styles.shineOverlay} />
         </TouchableOpacity>
+
+        {/* ═══ PLAN-097: Tantangan Harian — papan deterministik per tanggal ═══ */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity
+            style={[
+              styles.actionCard,
+              { backgroundColor: C.secondaryContainer },
+              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
+            ]}
+            activeOpacity={0.8}
+            onPress={() => void startDailyChallenge()}
+            disabled={dailyLoading}
+          >
+            <Text style={styles.actionCardIcon}>🗓️</Text>
+            <Text style={[styles.actionCardLabel, { color: C.text }]}>
+              {dailyLoading ? "Menyiapkan…" : dailyDoneToday ? "Tantangan Harian ✓" : "Tantangan Harian"}
+            </Text>
+            <Text style={{ color: C.textSecondary, fontSize: 12 }}>
+              {dailyDoneToday ? "Selesai hari ini" : `Tier ${dailyTier()} hari ini`} · 🔥 {dailyStreak}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ═══ Action Grid: Misi Harian + Kata Ajaib — lebar 48% (sama dgn bento) ═══ */}
         <View style={styles.actionGrid}>

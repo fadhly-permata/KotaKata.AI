@@ -752,6 +752,18 @@ export default function GameScreen() {
             loggerWarn("Anti-cheat: XP papan ditolak server", new Error(xpRes.message ?? "unknown"));
           }
         }
+
+        // 4) PLAN-097: papan Tantangan Harian selesai → catat streak di profil.
+        //    Main ulang papan yang sama hari ini tidak menaikkan streak dobel.
+        if (useGameStore.getState().dailyMode && user?.id) {
+          try {
+            await userRepository.completeDailyChallenge(user.id);
+          } catch (dailyErr) {
+            loggerWarn("Gagal mencatat tantangan harian", dailyErr);
+          } finally {
+            useGameStore.getState().setDailyMode(false);
+          }
+        }
       } catch (err) {
         loggerInfo("Gagal menyimpan hasil board", err);
       }

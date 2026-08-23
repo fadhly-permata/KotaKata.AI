@@ -63,6 +63,10 @@ export interface GameState {
   /** True saat papan berasal dari Main Mode AI — XP sama sekali tidak dihitung. */
   aiMode: boolean;
   setAiMode: (aiMode: boolean) => void;
+  /** True saat papan berasal dari Tantangan Harian (PLAN-097) — selesai board
+   *  mencatat streak harian. Di-clear oleh reset() seperti aiMode. */
+  dailyMode: boolean;
+  setDailyMode: (dailyMode: boolean) => void;
   setProfileReady: (ready: boolean) => void;
   selectCell: (row: number, col: number) => void;
   toggleOrientation: () => void;
@@ -88,6 +92,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   board: null,
   aiWords: null,
   aiMode: false,
+  dailyMode: false,
   loading: false,
   selectedCell: null,
   selectedWordIndex: null,
@@ -116,6 +121,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   setAiWords: (aiWords) => set({ aiWords }),
 
   setAiMode: (aiMode) => set({ aiMode }),
+
+  setDailyMode: (dailyMode) => set({ dailyMode }),
 
   resumeProgress: (progress: BoardProgressState) => {
     set({
@@ -662,6 +669,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       board: null,
       aiWords: null,
       aiMode: false,
+      dailyMode: false,
       loading: false,
       selectedCell: null,
       selectedWordIndex: null,

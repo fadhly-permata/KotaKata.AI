@@ -12,6 +12,10 @@ export interface UserDoc {
   current_tier: number;
   coins: number;
   updated_at: string;
+  /** PLAN-097: streak tantangan harian (berapa hari berturut-turut selesai). */
+  daily_streak?: number;
+  /** PLAN-097: tanggal (YYYY-MM-DD) terakhir kali daily challenge selesai. */
+  daily_last_done?: string | null;
 }
 
 export interface VocabularyDoc {
