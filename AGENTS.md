@@ -206,4 +206,36 @@ if (error) throw new Error(`Gagal [aksi]: ${error.message}`);
 Panggilan ke repository di screen/hook tetap harus dibungkus try-catch
 + logging di LEVEL PEMANGGIL (screen/component), bukan di repository.
 Repository melempar error → pemanggil menangkap + logging.
+
+### 9. WAJIB JAGA KONSISTENSI KODE & RENCANA YANG SUDAH ADA (aturan keras dari pemilik repo)
+> Latar belakang: sudah 2× regresi karena perubahan tidak mengecek kondisi
+> existing (fix hooks ResolutionSimulator justru crash native — PLAN-110;
+> simpan provider AI menimpa seluruh config cloud yang sudah ada).
+> Pola "perbaiki A, diam-diam merusak B" TIDAK BOLEH berulang.
+
+SEBELUM mengubah kode apa pun, wajib melakukan pemeriksaan konsistensi:
+
+1. **Baca implementasi existing dulu, jangan mengarang ulang alurnya.**
+   Pahami fungsi/pemanggil/alur yang sudah ada (grep callers/callees,
+   baca file terkait) sebelum menulis kode. Perubahan harus MENYAMBUNG
+   dengan desain yang sudah jalan — bukan menggantinya diam-diam.
+2. **Data & storage format: petakan SEMUA pembaca/penulis sebelum menyentuh
+   bentuk datanya.** Kalau sebuah kolom DB / key storage / JSON punya lebih
+   dari satu penulis atau pembaca (termasuk migrasi format lama), perubahan
+   HARUS memakai API tulis yang utuh (mis. `saveAll*`, bukan overwrite
+   single-object) dan semua jalur baca harus tetap mendukung format lama +
+   baru. Grep dulu semua pemakaian kolom/key tersebut.
+3. **Fix tidak boleh melahirkan bug baru.** Setiap kali memindahkan/mengubah
+   kode untuk memperbaiki sesuatu (mis. pindahkan hook, ubah guard, refactor
+   kecil), jejak ulang SEMUA jalur eksekusi hasil perubahan itu — termasuk
+   jalur di platform lain (lihat aturan #5b) dan jalur yang tadinya aman.
+4. **Cek dokumen rencana yang relevan** (`.agents/plans/PLAN-*.md` yang
+   menyentuh fitur tersebut + `RELEASE_NOTES.md`) supaya konteks keputusan
+   desain sebelumnya tidak dilanggar tanpa sadar. Kalau memang perlu
+   mengubah keputusan desain lama, sebut eksplisit di laporan.
+5. **Setelah selesai, jalankan verifikasi standar** (`tsc` + `test`) DAN
+   kalau perubahannya luas, jalankan `npm run audit:bugs -- --quiet` pada
+   file yang disentuh sebagai jaring pengaman kedua.
+6. **Kalau ragu antara "cara cepat" vs "cara yang konsisten dengan existing":
+   pilih yang konsisten, lalu laporkan trade-off-nya ke pemilik.**
 <!-- ATURAN_PROYEK_END -->
