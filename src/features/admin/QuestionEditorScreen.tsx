@@ -24,7 +24,7 @@ import {
 } from "../../utils/aiProvider";
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
-import { loggerError, loggerWarn } from "../../utils/logger";
+import { loggerError, loggerInfo, loggerWarn } from "../../utils/logger";
 import { aiPhaseLabel, useAiThinking, type AiPhase } from "../../utils/aiStatus";
 
 /** PLAN-108 revisi UI: strip streaming thinking DI DALAM modal form (bukan
@@ -133,6 +133,9 @@ export default function QuestionEditorScreen() {
   /** Controller request AI yang sedang berjalan — di-abort langsung saat Stop
    *  ditekan supaya stop terasa INSTAN (hasil soal aktif dibuang). */
   const bulkAbortRef = useRef<AbortController | null>(null);
+  /** Flag retry manual (🔁): buang request AI yang sedang berjalan & mulai
+   *  ulang SOAL YANG SAMA dari awal — hitungan gagal per soal ikut direset. */
+  const bulkRetryRef = useRef(false);
   // ─── Revisi urgent: progress bar REAL per page (reset tiap page baru) ───
   // Fase terukur: ambil soal (2–10%) → kirim ke AI (10–50%) → menyimpan
   // (50–95% sesuai jumlah item tersimpan) → selesai page (100%).
@@ -708,8 +711,22 @@ export default function QuestionEditorScreen() {
           }
 
           let revised: Awaited<ReturnType<typeof requestAiRevision>> | undefined;
-          for (let attempt = 1; attempt <= BULK_WORD_RETRIES; attempt++) {
+          // Retry manual berlaku per-soal — flag dibersihkan di awal soal baru.
+          bulkRetryRef.current = false;
+          let attempt = 0;
+          while (true) {
             if (autoStopRef.current) break;
+            // ── Retry manual (🔁): mulai ulang SOAL YANG SAMA — hitungan gagal
+            // direset supaya user bisa terus mencoba tanpa menghabiskan jatah.
+            if (bulkRetryRef.current) {
+              bulkRetryRef.current = false;
+              attempt = 0;
+              loggerInfo(`Automasi bulk: retry manual "${w.word}" — request sebelumnya dibuang`);
+              setBulkStatus(
+                `Page ${p}/${lastPage} · 🔁 retry manual "${w.word}" — soal ${i + 1}/${list.length}`,
+              );
+            }
+            attempt++;
             aiThink.reset(); // tiap percobaan punya hitungan thinking sendiri
             const ac = new AbortController();
             bulkAbortRef.current = ac;
@@ -729,6 +746,12 @@ export default function QuestionEditorScreen() {
               );
               break;
             } catch (err: any) {
+              // Tombol 🔁 ditekan saat request ini berjalan → request dibuang,
+              // loop ulang SOAL YANG SAMA TANPA dihitung sebagai kegagalan.
+              if (bulkRetryRef.current && ac.signal.aborted) {
+                revised = undefined;
+                continue;
+              }
               // Dibatalkan karena tombol Stop → jangan retry, langsung berhenti
               // tanpa log error (memang disengaja oleh user).
               if (autoStopRef.current) {
@@ -834,6 +857,7 @@ export default function QuestionEditorScreen() {
       setBulkStatus("");
       setBulkFocusId(null);
       bulkPauseRef.current = false;
+      bulkRetryRef.current = false;
       bulkAbortRef.current = null;
       setBulkPaused(false);
       setBulkPct(0);
@@ -854,6 +878,14 @@ export default function QuestionEditorScreen() {
     const next = !bulkPauseRef.current;
     bulkPauseRef.current = next;
     setBulkPaused(next);
+  }, [bulkRunning]);
+
+  // ── Retry automasi bulk (🔁): buang request AI yang sedang berjalan dan
+  // mulai ulang SOAL YANG SAMA dari awal — progres soal sebelumnya tetap aman.
+  const retryBulkWord = useCallback(() => {
+    if (!bulkRunning) return;
+    bulkRetryRef.current = true;
+    bulkAbortRef.current?.abort();
   }, [bulkRunning]);
 
   // ─── Tier badge color ───
@@ -918,6 +950,16 @@ export default function QuestionEditorScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={{ fontSize: 15 }}>{bulkPaused ? "▶️" : "⏸"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    play("tap");
+                    retryBulkWord();
+                  }}
+                  style={[styles.bulkBtn, { backgroundColor: "#6366F1" }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 15 }}>🔁</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
