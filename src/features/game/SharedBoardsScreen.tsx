@@ -17,6 +17,7 @@ import { sharedWordSetRepository } from "../../data/repositories/sharedWordSetRe
 import { vocabularyRepository } from "../../data/repositories/vocabularyRepository";
 import { useGameStore } from "../../presentation/stores/gameStore";
 import { loggerError, loggerInfo, loggerWarn } from "../../utils/logger";
+import { toError } from "../../utils/serializeError";
 
 const PAGE_SIZE = 25;
 
@@ -135,7 +136,7 @@ export default function SharedBoardsScreen() {
       } catch (err) {
         // Kondisi validasi yang ditangani (kode tidak ada / <6 kata) — UI sudah
         // menampilkan pesannya; catat sebagai warn agar log error bersih.
-        loggerWarn("Gagal memainkan papan bagikan", err instanceof Error ? err : new Error(String(err)));
+        loggerWarn("Gagal memainkan papan bagikan", toError(err));
         setStartError(err instanceof Error ? err.message : "Gagal memulai permainan.");
       } finally {
         setStartingCode(null);

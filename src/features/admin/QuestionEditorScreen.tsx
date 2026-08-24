@@ -25,6 +25,7 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { play } from "../../utils/sound";
 import { loggerError, loggerInfo, loggerWarn } from "../../utils/logger";
+import { toError } from "../../utils/serializeError";
 import { aiPhaseLabel, useAiThinking, type AiPhase } from "../../utils/aiStatus";
 
 /** PLAN-108 revisi UI: strip streaming thinking DI DALAM modal form (bukan
@@ -761,7 +762,7 @@ export default function QuestionEditorScreen() {
               const timedOut = err?.name === "AbortError" || ac.signal.aborted;
               loggerWarn(
                 `Automasi bulk: gagal revisi "${w.word}" — percobaan ${attempt}/${BULK_WORD_RETRIES}${timedOut ? " (macet/timeout)" : ""}`,
-                err instanceof Error ? err : new Error(String(err)),
+                toError(err),
               );
               revised = undefined;
               if (attempt >= BULK_WORD_RETRIES) {
@@ -799,7 +800,7 @@ export default function QuestionEditorScreen() {
             p_clue_3: rev.clue_3?.trim() ?? "",
             p_tier_level: w.tier_level,
           });
-          if (saveError) throw saveError;
+          if (saveError) throw toError(saveError);
           const result = saveData as { ok: boolean; error?: string };
           if (!result?.ok) throw new Error(result?.error ?? "Gagal menyimpan");
           processed += 1;
@@ -847,7 +848,7 @@ export default function QuestionEditorScreen() {
         message: msg,
       });
     } catch (err: any) {
-      loggerError("Automasi bulk: berhenti karena error", err instanceof Error ? err : new Error(String(err)));
+      loggerError("Automasi bulk: berhenti karena error", toError(err));
       setNotification({
         type: "error",
         message: `❌ Automasi bulk berhenti: ${err.message} (${processed} soal tersimpan).`,
