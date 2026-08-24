@@ -660,8 +660,21 @@ function getNativePlayer(name: SoundName): AudioPlayer | null {
   const source: unknown = nativeResolvedSources.get(name) ?? SOUND_SOURCES[name];
   try {
     const player = createAudioPlayer(source as any);
-    player.volume = currentVolume;
-    player.playbackRate = currentRate;
+    // Catatan triase log 24 Aug 2026: di sebagian versi expo-audio native,
+    // playbackRate/volume berupa getter-only — assignment melempar TypeError
+    // "Cannot assign to property ... only a getter". Kalau tidak dipisah,
+    // error itu MENGGAGALKAN pembuatan player (SFX bisu total). Jadi masing-
+    // masing dibungkus sendiri: gagal set rate/volume tetap non-fatal.
+    try {
+      player.volume = currentVolume;
+    } catch {
+      // abaikan — volume getter-only di build ini
+    }
+    try {
+      player.playbackRate = currentRate;
+    } catch {
+      // abaikan — playbackRate getter-only di build ini
+    }
     nativePlayers[name] = player;
     return player;
   } catch (err) {
@@ -713,8 +726,18 @@ export function play(name: SoundName): void {
   }
   try {
     // Terapkan kepribadian suara tema aktif setiap play (murah & aman).
-    if (player.playbackRate !== currentRate) player.playbackRate = currentRate;
-    if (player.volume !== currentVolume) player.volume = currentVolume;
+    // Masing-masing dibungkus terpisah — lihat catatan di getNativePlayer:
+    // playbackRate bisa getter-only di sebagian build expo-audio Android.
+    try {
+      if (player.playbackRate !== currentRate) player.playbackRate = currentRate;
+    } catch {
+      // abaikan — playbackRate getter-only
+    }
+    try {
+      if (player.volume !== currentVolume) player.volume = currentVolume;
+    } catch {
+      // abaikan — volume getter-only
+    }
     player.play();
   } catch {
     // Abaikan error playback — suara hanya pemanis.
