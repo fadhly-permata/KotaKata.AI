@@ -24,6 +24,8 @@ import {
   clearAiProviderConfigFor,
   markAiProviderOwner,
   clearAiProviderOwner,
+  syncAllProvidersToCloud,
+  getAllSavedProviders,
   testAiConnection,
   providerPreset,
   providerLabel,
@@ -185,12 +187,14 @@ export default function AiProviderScreen() {
     try {
       const cfg = buildConfig();
       await saveAiProviderConfig(cfg);
-      // Sinkronkan ke cloud (kolom users.ai_provider_config) supaya akun yang
-      // sama di device lain ikut punya config ini — Main Mode AI bisa dipakai
-      // lintas perangkat. Gagal sync tidak membatalkan simpan lokal.
+      // Sinkronkan KESELURUHAN daftar provider ke cloud (kolom
+      // users.ai_provider_config, format { providers, activeProvider }) supaya
+      // akun yang sama di device lain ikut punya config ini DAN provider lain
+      // yang sudah tersimpan tidak tertimpa. Gagal sync tidak membatalkan
+      // simpan lokal.
       if (user?.id) {
         try {
-          await userRepository.saveAiProviderConfig(user.id, cfg);
+          await syncAllProvidersToCloud(user.id);
           await markAiProviderOwner(user.id);
         } catch (err) {
           loggerWarn("Gagal sinkron config AI ke cloud", err);
@@ -211,13 +215,22 @@ export default function AiProviderScreen() {
     play("tap");
     try {
       await clearAiProviderConfigFor(provider);
-      await clearAiProviderOwner();
       if (user?.id) {
         try {
-          await userRepository.saveAiProviderConfig(user.id, null);
+          // Hapus HANYA provider ini dari cloud — provider lain tetap aman.
+          // Cloud kosong total hanya jika memang tidak ada provider tersisa.
+          const remaining = await getAllSavedProviders();
+          if (remaining.length === 0) {
+            await clearAiProviderOwner();
+            await userRepository.clearAllAiProviderConfigs(user.id);
+          } else {
+            await syncAllProvidersToCloud(user.id);
+          }
         } catch (err) {
           loggerWarn("Gagal hapus config AI dari cloud", err);
         }
+      } else {
+        await clearAiProviderOwner();
       }
       const preset = providerPreset(provider);
       setApiKey("");
