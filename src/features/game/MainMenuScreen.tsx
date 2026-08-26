@@ -836,7 +836,7 @@ export default function MainMenuScreen() {
               {dailyLoading ? "Menyiapkan…" : dailyDoneToday ? "Tantangan Harian ✓" : "Tantangan Harian"}
             </Text>
             <Text style={{ color: C.textSecondary, fontSize: 12 }}>
-              {dailyDoneToday ? "Selesai hari ini" : `Tier ${dailyTier()} hari ini`} · 🔥 {dailyStreak}
+              {dailyDoneToday ? "Selesai hari ini" : `Tier ${currentTier} hari ini`} · 🔥 {dailyStreak}
             </Text>
           </TouchableOpacity>
         </View>
