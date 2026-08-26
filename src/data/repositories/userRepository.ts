@@ -353,22 +353,57 @@ export const userRepository = {
    * tetap langsung tahu di mana dia berada tanpa scroll.
    */
   async getDailyStreakLeaderboard(
-    limit = 25,
-  ): Promise<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; daily_streak: number }>> {
-    const { data, error } = await supabase
+    limit = 50,
+  ): Promise<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; weekly_plays: number }>> {
+    // Hitung jumlah board selesai (is_finished=true) per user dalam
+    // satu minggu terakhir (sejak hari Senin pukul 00:00 waktu lokal).
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...6=Sat
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Senin = 0 hari ke belakang
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - mondayOffset);
+    const mondayISO = monday.toISOString();
+
+    const { data: boards, error: boardsErr } = await supabase
+      .from("saved_boards")
+      .select("user_id")
+      .eq("is_finished", true)
+      .gte("updated_at", mondayISO);
+    if (boardsErr) throw new Error(`Gagal memuat leaderboard streak: ${boardsErr.message}`);
+
+    // Hitung jumlah main per user
+    const playCounts = new Map<string, number>();
+    for (const b of (boards ?? []) as Array<{ user_id: string }>) {
+      playCounts.set(b.user_id, (playCounts.get(b.user_id) ?? 0) + 1);
+    }
+    if (playCounts.size === 0) return [];
+
+    // Ambil profil user (display_name, current_tier) untuk user yang punya streak
+    const userIds = [...playCounts.keys()];
+    const { data: profiles } = await supabase
       .from("users")
-      .select("user_id, display_name, current_tier, daily_streak")
-      .gt("daily_streak", 0)
-      .order("daily_streak", { ascending: false })
-      .limit(limit);
-    if (error) throw new Error(`Gagal memuat leaderboard streak: ${error.message}`);
-    return ((data ?? []) as Array<Record<string, unknown>>).map((r, i) => ({
-      rank: i + 1,
-      user_id: String(r.user_id),
-      display_name: String(r.display_name ?? "Pemain"),
-      current_tier: Number(r.current_tier ?? 1),
-      daily_streak: Number(r.daily_streak ?? 0),
-    }));
+      .select("user_id, display_name, current_tier")
+      .in("user_id", userIds);
+    const profileMap = new Map<string, { display_name: string; current_tier: number }>();
+    for (const p of (profiles ?? []) as Array<Record<string, unknown>>) {
+      profileMap.set(String(p.user_id), {
+        display_name: String(p.display_name ?? "Pemain"),
+        current_tier: Number(p.current_tier ?? 1),
+      });
+    }
+
+    // Urutkan berdasarkan jumlah main terbanyak
+    return [...playCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([uid, count], i) => ({
+        rank: i + 1,
+        user_id: uid,
+        display_name: profileMap.get(uid)?.display_name ?? "Pemain",
+        current_tier: profileMap.get(uid)?.current_tier ?? 1,
+        weekly_plays: count,
+      }));
   },
 
   async getLeaderboardRank(

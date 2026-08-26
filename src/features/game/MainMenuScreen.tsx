@@ -278,7 +278,7 @@ export default function MainMenuScreen() {
   const [leaderboardMyRank, setLeaderboardMyRank] = useState<(UserDoc & { rank: number }) | null>(null);
   // ─── PLAN-098: tab leaderboard mingguan ───
   const [lbMode, setLbMode] = useState<"total" | "mingguan" | "streak">("total");
-  const [streakUsers, setStreakUsers] = useState<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; daily_streak: number }>>([]);
+  const [streakUsers, setStreakUsers] = useState<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; weekly_plays: number }>>([]);
   const [weeklyUsers, setWeeklyUsers] = useState<
     Array<{ rank: number; user_id: string; display_name: string; current_tier: number; week_xp: number }>
   >([]);
@@ -1473,7 +1473,7 @@ export default function MainMenuScreen() {
             ? "Urutan berdasarkan level (XP) & waktu kenaikan."
             : lbMode === "mingguan"
             ? "Peringkat XP yang kamu kumpulkan minggu ini (Senin–sekarang)."
-            : "Pemain dengan streak harian terpanjang. Terus main setiap hari!"}
+            : "Pemain yang paling sering main minggu ini (sejak Senin)."}
         </Text>
             {leaderboardLoading ? (
               <ActivityIndicator color={C.primary} style={styles.lbLoading} />
@@ -1487,7 +1487,7 @@ export default function MainMenuScreen() {
                   ? "Belum ada pemain lain. Ajak temanmu bermain!"
                   : lbMode === "mingguan"
                   ? "Belum ada XP terkumpul minggu ini. Main sekarang untuk jadi yang pertama!"
-                  : "Belum ada pemain dengan streak. Selesaikan tantangan harian setiap hari!"}
+                  : "Belum ada pemain yang bermain minggu ini. Main sekarang!"}
               </Text>
             ) : (
               <ScrollView
@@ -1521,7 +1521,7 @@ export default function MainMenuScreen() {
                       user_id: s.user_id,
                       display_name: s.display_name,
                       current_tier: s.current_tier,
-                      total_xp: s.daily_streak,
+                      total_xp: s.weekly_plays,
                     }))
                 ).map((u, idx) => {
                   const rank = idx + 1;
