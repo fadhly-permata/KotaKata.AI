@@ -2,7 +2,7 @@ import { supabase } from "../sources/supabase";
 import type { SavedBoardDoc } from "../models/schemas";
 
 const BOARD_COLUMNS =
-  "board_id, user_id, tier_at_generation, grid_size, layout_data, is_finished, updated_at";
+  "board_id, user_id, tier_at_generation, grid_size, layout_data, is_finished, updated_at, finished_at";
 
 /** Kolom layout_data di cloud bertipe jsonb — konversi balik ke string. */
 function normalizeLayout(layoutData: unknown): string {
@@ -19,6 +19,7 @@ function toDoc(row: Record<string, unknown>): SavedBoardDoc {
     layout_data: normalizeLayout(row.layout_data),
     is_finished: row.is_finished as boolean,
     updated_at: row.updated_at as string,
+    finished_at: (row.finished_at as string | null) ?? null,
   };
 }
 
@@ -105,6 +106,7 @@ export const boardRepository = {
         layout_data: JSON.parse(board.layout_data),
         is_finished: board.is_finished,
         updated_at: board.updated_at,
+        ...(board.finished_at ? { finished_at: board.finished_at } : {}),
       },
       { onConflict: "board_id" },
     );
@@ -114,9 +116,10 @@ export const boardRepository = {
   },
 
   async markFinished(boardId: string): Promise<void> {
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from("saved_boards")
-      .update({ is_finished: true, updated_at: new Date().toISOString() })
+      .update({ is_finished: true, updated_at: now, finished_at: now })
       .eq("board_id", boardId);
     if (error) {
       throw new Error(`Gagal menandai board selesai di Supabase: ${error.message}`);

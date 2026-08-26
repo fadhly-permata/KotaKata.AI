@@ -46,4 +46,6 @@ export interface SavedBoardDoc {
   layout_data: string; // JSON stringified
   is_finished: boolean;
   updated_at: string;
+  /** Waktu board pertama kali ditandai selesai (sekali set, tidak berubah). */
+  finished_at?: string | null;
 }
