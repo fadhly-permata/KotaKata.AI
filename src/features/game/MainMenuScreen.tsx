@@ -22,7 +22,7 @@ import { useGameStore } from "../../presentation/stores/gameStore";
 import { buildDailyBoard, dailyKey, dailyTier } from "../../utils/dailyChallenge";
 import { sharedWordSetRepository } from "../../data/repositories/sharedWordSetRepository";
 import { generateBoard } from "../../domain/usecases/crosswordGenerator";
-import type { Board } from "../../domain/entities/board";
+import type { Board, WordCandidate } from "../../domain/entities/board";
 import { selectWordPool, getDiscoveredWordIds } from "../../domain/usecases/wordPoolFilter";
 import UserAvatar from "../../presentation/components/common/UserAvatar";
 import { useAuth } from "../auth/useAuth";
@@ -623,9 +623,33 @@ export default function MainMenuScreen() {
       const words = await requestAiWords(cfg, playerTier, excludeWords, controller.signal, {
         onThinking: makeOnThinking(),
       });
+      // Generate papan LANGSUNG di sini (bukan di GameScreen useEffect)
+      // supaya tidak ada race condition antara reset() → setAiWords() → navigate.
+      const candidates: WordCandidate[] = words.map((w) => ({
+        word: w.word,
+        clue_1: w.clue_1,
+        clue_2: w.clue_2 ?? "",
+        clue_3: w.clue_2 ?? "",
+        tier_level: playerTier,
+      }));
+      let generated: Board | null = null;
+      for (let size = 10; size <= 14; size++) {
+        const attempt = generateBoard(candidates, size, playerTier);
+        if (attempt.words.length === candidates.length) {
+          generated = attempt;
+          break;
+        }
+        if (!generated || attempt.words.length > generated.words.length) {
+          generated = attempt;
+        }
+      }
+      if (!generated) generated = generateBoard(candidates, 14, playerTier);
+      if (!generated || generated.words.length < 6) {
+        throw new Error("Soal dari AI tidak cukup untuk menyusun papan.");
+      }
       reset();
       useGameStore.getState().setAiMode(true);
-      useGameStore.getState().setAiWords(words);
+      useGameStore.getState().setBoard(generated);
       navigation.navigate("Game");
       vocabularyRepository
         .saveAiWords(words.map((w) => ({ word: w.word, clue_1: w.clue_1, clue_2: w.clue_2, tier_level: playerTier })))
