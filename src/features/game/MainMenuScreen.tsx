@@ -584,7 +584,7 @@ export default function MainMenuScreen() {
     play("tap");
     setDailyLoading(true);
     try {
-      const { board } = await buildDailyBoard();
+      const { board } = await buildDailyBoard(new Date(), currentTier);
       reset();
       useGameStore.getState().setDailyMode(true);
       useGameStore.getState().setBoard(board);
@@ -596,7 +596,7 @@ export default function MainMenuScreen() {
     } finally {
       setDailyLoading(false);
     }
-  }, [dailyLoading, reset, navigation]);
+  }, [dailyLoading, reset, navigation, currentTier]);
 
   // "Main Mode AI": cek provider tersimpan → minta soal dari AI → main.
   // Belum diatur → dialog ajakan atur; request gagal → dialog error dengan

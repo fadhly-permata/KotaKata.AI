@@ -70,9 +70,10 @@ function seededShuffle<T>(arr: T[], rand: () => number): T[] {
  * dapat kandidat yang sama), di-shuffle dengan seed tanggal sehingga papan
  * hari ini identik untuk semua pemain dan berbeda tiap hari.
  */
-export async function buildDailyBoard(date: Date = new Date()): Promise<{ board: Board; tier: number }> {
+export async function buildDailyBoard(date: Date = new Date(), playerTier?: number): Promise<{ board: Board; tier: number }> {
   const key = dailyKey(date);
-  const tier = dailyTier(date);
+  // Gunakan tier pemain jika tersedia; fallback ke rotasi berdasarkan hari
+  const tier = (playerTier && playerTier >= 1 && playerTier <= 10) ? playerTier : dailyTier(date);
   const pool = await vocabularyRepository.getByTierFromCloud(tier, []);
   if (pool.length === 0) throw new Error("Pool kosakata harian kosong.");
 
