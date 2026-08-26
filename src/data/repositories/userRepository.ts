@@ -352,6 +352,25 @@ export const userRepository = {
    * tombol Tutup popup Leaderboard supaya user yang posisinya jauh (#100)
    * tetap langsung tahu di mana dia berada tanpa scroll.
    */
+  async getDailyStreakLeaderboard(
+    limit = 25,
+  ): Promise<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; daily_streak: number }>> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("user_id, display_name, current_tier, daily_streak")
+      .gt("daily_streak", 0)
+      .order("daily_streak", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(`Gagal memuat leaderboard streak: ${error.message}`);
+    return ((data ?? []) as Array<Record<string, unknown>>).map((r, i) => ({
+      rank: i + 1,
+      user_id: String(r.user_id),
+      display_name: String(r.display_name ?? "Pemain"),
+      current_tier: Number(r.current_tier ?? 1),
+      daily_streak: Number(r.daily_streak ?? 0),
+    }));
+  },
+
   async getLeaderboardRank(
     userId: string,
   ): Promise<(UserDoc & { rank: number }) | null> {

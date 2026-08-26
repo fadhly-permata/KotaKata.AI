@@ -277,10 +277,25 @@ export default function MainMenuScreen() {
   // supaya user posisi jauh (#100) langsung tahu di mana dia berada.
   const [leaderboardMyRank, setLeaderboardMyRank] = useState<(UserDoc & { rank: number }) | null>(null);
   // ─── PLAN-098: tab leaderboard mingguan ───
-  const [lbMode, setLbMode] = useState<"total" | "mingguan">("total");
+  const [lbMode, setLbMode] = useState<"total" | "mingguan" | "streak">("total");
+  const [streakUsers, setStreakUsers] = useState<Array<{ rank: number; user_id: string; display_name: string; current_tier: number; daily_streak: number }>>([]);
   const [weeklyUsers, setWeeklyUsers] = useState<
     Array<{ rank: number; user_id: string; display_name: string; current_tier: number; week_xp: number }>
   >([]);
+
+  const loadStreakLeaderboard = useCallback(async () => {
+    setLeaderboardLoading(true);
+    setLeaderboardError(false);
+    try {
+      const rows = await userRepository.getDailyStreakLeaderboard(50);
+      setStreakUsers(rows);
+    } catch {
+      setLeaderboardError(true);
+      setStreakUsers([]);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, []);
 
   const loadWeeklyLeaderboard = useCallback(async () => {
     setLeaderboardLoading(true);
@@ -297,13 +312,14 @@ export default function MainMenuScreen() {
   }, []);
 
   const switchLbMode = useCallback(
-    (mode: "total" | "mingguan") => {
+    (mode: "total" | "mingguan" | "streak") => {
       if (mode === lbMode) return;
       play("tap");
       setLbMode(mode);
       if (mode === "mingguan") void loadWeeklyLeaderboard();
+      if (mode === "streak") void loadStreakLeaderboard();
     },
-    [lbMode, loadWeeklyLeaderboard],
+    [lbMode, loadWeeklyLeaderboard, loadStreakLeaderboard],
   );
 
   const openLeaderboard = useCallback(async () => {
@@ -843,29 +859,7 @@ export default function MainMenuScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ═══ PLAN-097: Tantangan Harian — papan deterministik per tanggal ═══ */}
-        <View style={styles.actionGrid}>
-          <TouchableOpacity
-            style={[
-              styles.actionCard,
-              { backgroundColor: C.secondaryContainer },
-              ...(theme.shadow ? [neumorphicShadow(theme.shadow)] : []),
-            ]}
-            activeOpacity={0.8}
-            onPress={() => void startDailyChallenge()}
-            disabled={dailyLoading}
-          >
-            <Text style={styles.actionCardIcon}>🗓️</Text>
-            <Text style={[styles.actionCardLabel, { color: C.text }]}>
-              {dailyLoading ? "Menyiapkan…" : dailyDoneToday ? "Tantangan Harian ✓" : "Tantangan Harian"}
-            </Text>
-            <Text style={{ color: C.textSecondary, fontSize: 12 }}>
-              {dailyDoneToday ? "Selesai hari ini" : `Tier ${currentTier} hari ini`} · 🔥 {dailyStreak}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ═══ Action Grid: Misi Harian + Kata Ajaib — lebar 48% (sama dgn bento) ═══ */}
+        {/* ═══ Action Grid: Kata Ajaib — lebar 48% (sama dgn bento) ═══ */}
         <View style={styles.actionGrid}>
           <TouchableOpacity
             style={[
@@ -1451,7 +1445,7 @@ export default function MainMenuScreen() {
       >
         {/* ─── PLAN-098: tab Total / Mingguan ─── */}
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
-          {(["total", "mingguan"] as const).map((m) => {
+          {(["total", "mingguan", "streak"] as const).map((m) => {
             const active = lbMode === m;
             return (
               <TouchableOpacity
@@ -1467,8 +1461,8 @@ export default function MainMenuScreen() {
                   borderColor: active ? C.primary : C.border,
                 }}
               >
-                <Text style={{ color: active ? textOnPrimary(theme) : C.text, fontSize: 13, fontWeight: "600" }}>
-                  {m === "total" ? "🏆 Total" : "📅 Minggu Ini"}
+                <Text style={{ color: active ? textOnPrimary(theme) : C.text, fontSize: 12, fontWeight: "600" }}>
+                  {m === "total" ? "🏆 Total" : m === "mingguan" ? "📅 Minggu Ini" : "🔥 Streak"}
                 </Text>
               </TouchableOpacity>
             );
@@ -1477,7 +1471,9 @@ export default function MainMenuScreen() {
         <Text style={[styles.lbSubtitle, { color: C.textSecondary }]}>
           {lbMode === "total"
             ? "Urutan berdasarkan level (XP) & waktu kenaikan."
-            : "Peringkat XP yang kamu kumpulkan minggu ini (Senin–sekarang)."}
+            : lbMode === "mingguan"
+            ? "Peringkat XP yang kamu kumpulkan minggu ini (Senin–sekarang)."
+            : "Pemain dengan streak harian terpanjang. Terus main setiap hari!"}
         </Text>
             {leaderboardLoading ? (
               <ActivityIndicator color={C.primary} style={styles.lbLoading} />
@@ -1485,11 +1481,13 @@ export default function MainMenuScreen() {
               <Text style={[styles.lbError, { color: C.error }]}>
                 Gagal memuat leaderboard. Periksa koneksi lalu coba lagi.
               </Text>
-            ) : (lbMode === "total" ? leaderboardUsers.length : weeklyUsers.length) === 0 ? (
+            ) : (lbMode === "total" ? leaderboardUsers.length : lbMode === "mingguan" ? weeklyUsers.length : streakUsers.length) === 0 ? (
               <Text style={[styles.lbError, { color: C.textSecondary }]}>
                 {lbMode === "total"
                   ? "Belum ada pemain lain. Ajak temanmu bermain!"
-                  : "Belum ada XP terkumpul minggu ini. Main sekarang untuk jadi yang pertama!"}
+                  : lbMode === "mingguan"
+                  ? "Belum ada XP terkumpul minggu ini. Main sekarang untuk jadi yang pertama!"
+                  : "Belum ada pemain dengan streak. Selesaikan tantangan harian setiap hari!"}
               </Text>
             ) : (
               <ScrollView
@@ -1512,11 +1510,18 @@ export default function MainMenuScreen() {
               >
                 {(lbMode === "total"
                   ? leaderboardUsers
-                  : weeklyUsers.map((w) => ({
+                  : lbMode === "mingguan"
+                  ? weeklyUsers.map((w) => ({
                       user_id: w.user_id,
                       display_name: w.display_name,
                       current_tier: w.current_tier,
                       total_xp: w.week_xp,
+                    }))
+                  : streakUsers.map((s) => ({
+                      user_id: s.user_id,
+                      display_name: s.display_name,
+                      current_tier: s.current_tier,
+                      total_xp: s.daily_streak,
                     }))
                 ).map((u, idx) => {
                   const rank = idx + 1;
@@ -1555,7 +1560,7 @@ export default function MainMenuScreen() {
                         </Text>
                       </View>
                       <Text style={[styles.lbXp, { color: C.secondary }]}>
-                        {u.total_xp.toLocaleString("id-ID")} XP
+                        {lbMode === "streak" ? `${u.total_xp} hari 🔥` : `${u.total_xp.toLocaleString("id-ID")} XP`}
                       </Text>
                     </View>
                   );
