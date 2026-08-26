@@ -1560,7 +1560,7 @@ export default function MainMenuScreen() {
                         </Text>
                       </View>
                       <Text style={[styles.lbXp, { color: C.secondary }]}>
-                        {lbMode === "streak" ? `${u.total_xp} hari 🔥` : `${u.total_xp.toLocaleString("id-ID")} XP`}
+                        {lbMode === "streak" ? `${u.total_xp} kali 🔥` : `${u.total_xp.toLocaleString("id-ID")} XP`}
                       </Text>
                     </View>
                   );
