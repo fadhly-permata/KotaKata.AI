@@ -159,6 +159,11 @@ export default function GameScreen() {
   const useClue3 = useGameStore((s) => s.useClue3);
   const resumeProgress = useGameStore((s) => s.resumeProgress);
   const aiMode = useGameStore((s) => s.aiMode);
+  // Subscribe ke aiWords supaya useEffect board-load re-run saat startAiGame
+  // memanggil reset() (clear aiWords) lalu setAiWords(words) — tanpa ini,
+  // useEffect terjebak membaca aiWords=null dari reset() dan tidak pernah
+  // generate papan AI.
+  const aiWords = useGameStore((s) => s.aiWords);
   // PLAN-107: papan komunitas / buat soal sendiri — tanpa XP seperti Mode AI.
   const noXpMode = useGameStore((s) => s.noXpMode);
   const revealedPulse = useGameStore((s) => s.revealedPulse);
@@ -546,7 +551,8 @@ export default function GameScreen() {
         //    AI selalu fresh — tidak me-resume progres normal. Kata AI tanpa
         //    word_id tidak dicatat ke "Sejarah Saya" (repository me-resolve
         //    word_id dari teks kata, jadi kata yang cocok tetap tercatat). ──
-        const aiWords = useGameStore.getState().aiWords;
+        //    Pakai nilai dari subscription (aiWords) supaya useEffect re-run
+        //    saat startAiGame memanggil reset()+setAiWords(words). ──
         if (aiWords && aiWords.length > 0) {
           const candidates: WordCandidate[] = aiWords.map((w) => ({
             word: w.word,
@@ -646,7 +652,7 @@ export default function GameScreen() {
     return () => {
       cancelled = true;
     };
-  }, [board, setBoard, resumeProgress, retryNonce]);
+  }, [board, aiWords, setBoard, resumeProgress, retryNonce]);
 
   // Auto-solve check — skip words that were fully revealed (no XP for revealed words)
   // ─── Efek suara saat papan selesai: fanfare kemenangan (sekali per hasil). ───
